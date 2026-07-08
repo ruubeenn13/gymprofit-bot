@@ -1,3 +1,4 @@
+# ===== Maven (template GitHub) =====
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -15,3 +16,13 @@ buildNumber.properties
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+
+# ===== Entorno y logs =====
+.env
+logs/
+*.log
