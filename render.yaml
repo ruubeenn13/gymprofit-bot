@@ -1,0 +1,42 @@
+# ============================================================
+# Render Blueprint — despliegue de GymProBot.
+# Render lee este fichero en la raíz (New > Blueprint) y crea el servicio.
+# Los secretos van marcados sync:false: se rellenan una vez en el dashboard, nunca en git.
+#
+# HOSTING (SPEC §14, decisión crítica): el bot NO puede correr free en el MISMO workspace
+# que la API (las 750 h/mes free se comparten y se agotan a mitad de mes, suspendiendo
+# también la API de producción). Opciones válidas:
+#   (a) plan de pago ~7 $/mes (recomendada) -> cambiar `plan: free` por `plan: starter`
+#       y NO usar keep-alive.yml.
+#   (b) workspace de Render SEPARADO en free -> mantener `plan: free` y añadir /health al
+#       pinger externo (o keep-alive.yml).
+# La elección concreta se registra en docs/decisions.md.
+# ============================================================
+services:
+  - type: web
+    name: gymprofit-bot
+    runtime: docker
+    plan: free                 # ver nota de hosting arriba (SPEC §14)
+    region: frankfurt          # misma región que la API
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Zona horaria de los jobs (SPEC §3): no confiar en la del sistema (UTC).
+      - key: TZ
+        value: Europe/Madrid
+      # --- Secretos: se rellenan en el dashboard de Render (no en git) ---
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DB_URL                    # jdbc:mysql://<host-aiven>:<puerto>/gymprofit_bot?...
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: GYMPROFIT_API_URL         # https://gymprofit-api.onrender.com/api
+        sync: false
+      - key: BOT_SERVICE_USER          # cuenta de servicio del bot en la app (SPEC §4.1)
+        sync: false
+      - key: BOT_SERVICE_PASSWORD
+        sync: false

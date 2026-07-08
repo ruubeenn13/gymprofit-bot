@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging de GymProBot: SOLO consola (SPEC §3). El FS de Render es efímero, así que no
+  se escribe a fichero; los eventos relevantes (arranques, errores, fallos de job) se
+  reenviarán además al canal #bot-logs de Discord vía un appender propio (SPEC §14, F1).
+  Nunca loggear tokens ni credenciales (SPEC §9).
+-->
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JDA es muy verboso a nivel DEBUG; se deja en INFO. -->
+    <logger name="net.dv8tion.jda" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

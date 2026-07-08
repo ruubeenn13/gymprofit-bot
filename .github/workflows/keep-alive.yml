@@ -1,0 +1,29 @@
+# ============================================================
+# keep-alive — mantiene despierto al bot SOLO si corre en Render free.
+#
+# IMPORTANTE (SPEC §14): este workflow es INNECESARIO si el bot está en instancia de PAGO.
+# Solo tiene sentido en la opción (b): workspace de Render free SEPARADO del de la API.
+# En ese caso, lo ideal es añadir /health al pinger externo que ya mantiene viva la API;
+# este cron es la alternativa "todo en GitHub Actions".
+#
+# Antes de activarlo: sustituir la URL de abajo por la real del servicio del bot en Render.
+# ============================================================
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # cada 10 minutos
+  workflow_dispatch:          # ejecución manual
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          curl -sS --max-time 180 -o /dev/null -w "HTTP %{http_code} en %{time_total}s\n" \
+            https://gymprofit-bot.onrender.com/health || true

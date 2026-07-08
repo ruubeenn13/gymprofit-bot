@@ -1,0 +1,44 @@
+# ============================================================
+# CI — Build + Tests de GymProBot.
+# Se ejecuta en cada push a main y en cada pull request. Es el gate que valida
+# el auto-merge de Dependabot antes de fusionar (mismo patrón que la API).
+# ============================================================
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    # Los commits solo-documentación (p. ej. añadir el hash al CHANGELOG) NO disparan CI,
+    # así el run del commit de código anterior no queda cancelado. En PR no se ignora nada.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'rules/**'
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bot-build-test:
+    name: bot-build-test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Clona el repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) JDK 21 (Temurin) + cache de dependencias Maven
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # 3) Build + tests. Los tests actuales (health server, i18n) no necesitan BD ni red;
+      #    cuando F1 añada tests con MockWebServer siguen sin necesitar servicios externos.
+      - name: Build & test
+        run: sh ./mvnw -B verify

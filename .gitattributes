@@ -1,0 +1,13 @@
+# Normalización de fin de línea. El wrapper de Maven debe mantener LF para que
+# `sh ./mvnw` funcione en el runner Linux de CI (SPEC §12). Los .cmd van en CRLF.
+* text=auto eol=lf
+mvnw text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binarios: sin conversión
+*.png binary
+*.jpg binary
+*.gif binary
+*.jar binary

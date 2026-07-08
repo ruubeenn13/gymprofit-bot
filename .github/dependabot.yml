@@ -1,0 +1,32 @@
+# Dependabot — actualizaciones automáticas de dependencias (incluye avisos de seguridad).
+# Mismo patrón que el repo principal GymProFit. Los "Dependabot alerts" y las "security
+# updates" se activan además en Settings -> Code security del repositorio.
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # ── Bot (Maven, en la raíz) ────────────────────────────────────────────────
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "bot"]
+    commit-message:
+      prefix: "chore(deps)"
+    # Agrupa minor/patch en un solo PR (menos ruido); los major van sueltos.
+    groups:
+      maven-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ── Workflows de GitHub Actions ────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions-all:
+        patterns: ["*"]
