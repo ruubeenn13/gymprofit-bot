@@ -7,6 +7,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Capa de BD y arranque de Flyway (F1)**: `db/Database` monta el pool **HikariCP** y aplica
+  las migraciones Flyway al arrancar; `Main` sigue el orden health → Flyway → JDA con arranque
+  degradado si falta `DB_URL` o `DISCORD_TOKEN`. Primer repositorio JDBC
+  `UsuarioDiscordRepositorio` (`buscar`, `obtenerOCrear`, `guardar`) sobre `usuarios_discord`,
+  con `UsuarioDiscord` (entidad) y `DatabaseException`. Test end-to-end con Testcontainers
+  (`UsuarioDiscordRepositorioTest`). Verificado en vivo: arranque real contra MySQL 8 aplicando
+  las 2 migraciones (esquema v2) y conectando a Discord.
 - **Esquema inicial de la BD + seeds (F1)**: migraciones Flyway `V1__esquema_inicial_f1.sql`
   (tablas de la Fase 1: `usuarios_discord`, `config_servidor`, `warns`, `tickets`,
   `sugerencias`, `trivia_preguntas`, `trivia_scores`, `frases`) y `V2__seed_frases_trivia.sql`

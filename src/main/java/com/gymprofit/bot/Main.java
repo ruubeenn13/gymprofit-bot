@@ -1,6 +1,7 @@
 package com.gymprofit.bot;
 
 import com.gymprofit.bot.config.BotConfig;
+import com.gymprofit.bot.db.Database;
 import net.dv8tion.jda.api.JDA;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,17 +11,17 @@ import java.io.IOException;
 /**
  * Punto de entrada de GymProBot.
  *
- * <p>Responsabilidades (por fases, ver {@code GYMPROBOT_SPEC.md} §4):</p>
+ * <p>Orden de arranque (ver {@code GYMPROBOT_SPEC.md} §4):</p>
  * <ol>
  *   <li>Levantar el {@link HealthServer} en {@code /health} (usado por Render y por
- *       {@code keep-alive.yml}). Se arranca <b>siempre</b>, aunque falte el token.</li>
- *   <li>(F1) Ejecutar las migraciones Flyway sobre la BD del bot.</li>
- *   <li>(F1) Construir y conectar JDA (slash commands, listeners, jobs).</li>
+ *       {@code keep-alive.yml}). Se arranca <b>siempre</b>.</li>
+ *   <li>Conectar la BD del bot y aplicar las migraciones Flyway ({@link Database}).</li>
+ *   <li>Construir y conectar JDA (los slash commands, listeners y jobs llegan después).</li>
  * </ol>
  *
- * <p>Estado actual: health server + conexión JDA (sin comandos ni listeners todavía).
- * Si falta {@code DISCORD_TOKEN} se arranca solo el health server (útil para el andamiaje
- * y para el keep-alive de Render). La BD/Flyway se conecta en el siguiente paso de F1.</p>
+ * <p>Arranque degradado: si falta {@code DB_URL} se omiten BD/Flyway y si falta
+ * {@code DISCORD_TOKEN} se omite JDA. Con solo {@code PORT} arranca el health server aislado
+ * (útil para andamiaje y para el keep-alive de Render).</p>
  */
 public final class Main {
 
@@ -36,27 +37,55 @@ public final class Main {
         health.start();
         log.info("Health server escuchando en http://0.0.0.0:{}/health", BotConfig.port());
 
-        if (BotConfig.discordToken().isBlank()) {
-            log.warn("DISCORD_TOKEN no presente: JDA no se conectará (solo health server).");
-            // Cierre ordenado del health server al recibir SIGTERM (Render lo envía en cada deploy).
-            Runtime.getRuntime().addShutdownHook(new Thread(health::stop, "shutdown-health"));
-            return;
-        }
+        Database db = iniciarBaseDeDatos();
+        JDA jda = iniciarDiscord();
 
-        JDA jda = DiscordBot.start(BotConfig.discordToken());
-        // Cierre ordenado de JDA + health al recibir SIGTERM (Render lo envía en cada deploy).
+        // Cierre ordenado ante SIGTERM (Render lo envía en cada deploy): JDA → BD → health.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            jda.shutdown();
+            if (jda != null) {
+                jda.shutdown();
+            }
+            if (db != null) {
+                db.close();
+            }
             health.stop();
         }, "shutdown"));
 
-        try {
-            jda.awaitReady();
-            log.info("Conectado a Discord como {} (guilds: {})",
-                    jda.getSelfUser().getName(), jda.getGuilds().size());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Interrumpido esperando la conexión con Discord.", e);
+        if (jda != null) {
+            try {
+                jda.awaitReady();
+                log.info("Conectado a Discord como {} (guilds: {})",
+                        jda.getSelfUser().getName(), jda.getGuilds().size());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrumpido esperando la conexión con Discord.", e);
+            }
         }
+    }
+
+    /**
+     * Conecta la BD del bot y aplica las migraciones Flyway. Devuelve {@code null} si no hay
+     * {@code DB_URL} configurada (arranque degradado sin BD).
+     */
+    private static Database iniciarBaseDeDatos() {
+        if (BotConfig.dbUrl().isBlank()) {
+            log.warn("DB_URL no presente: se omiten la BD y las migraciones Flyway.");
+            return null;
+        }
+        Database db = new Database(BotConfig.dbUrl(), BotConfig.dbUser(), BotConfig.dbPassword());
+        db.migrar();
+        return db;
+    }
+
+    /**
+     * Construye y conecta JDA. Devuelve {@code null} si no hay {@code DISCORD_TOKEN}
+     * (arranque degradado solo con health server).
+     */
+    private static JDA iniciarDiscord() {
+        if (BotConfig.discordToken().isBlank()) {
+            log.warn("DISCORD_TOKEN no presente: JDA no se conectará (solo health server).");
+            return null;
+        }
+        return DiscordBot.start(BotConfig.discordToken());
     }
 }
