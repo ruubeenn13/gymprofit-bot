@@ -14,6 +14,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
+import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.LimpiezaService;
@@ -129,6 +130,7 @@ public final class Main {
                     new ConfigServidorService(new ConfigServidorRepositorio(db.dataSource()));
             comandos.add(new ConfigComando(configService));
             listeners.add(new BienvenidaListener(configService));
+            listeners.add(new PanelRolesListener(configService));
 
             LimpiezaService limpieza = new LimpiezaService();
             comandos.add(new LimpiarComando(limpieza));

@@ -17,7 +17,9 @@ import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
@@ -250,10 +252,41 @@ public final class SetupComando implements Comando {
             if (chPlan.soloLectura()) {
                 tc.upsertPermissionOverride(everyone).deny(Permission.MESSAGE_SEND).complete();
             }
-            fijarIntro(tc, chPlan, locale);
+            if ("panel.roles".equals(chPlan.introKey())) {
+                publicarPanelRoles(tc, locale);
+            } else {
+                fijarIntro(tc, chPlan, locale);
+            }
             creado = tc;
         }
         aplicarConfig(guild, creado, chPlan);
+    }
+
+    /** Publica y fija el panel de auto-roles (menús de objetivo y notificaciones) en el canal. */
+    private void publicarPanelRoles(TextChannel canal, Locale locale) {
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
+                Messages.get(locale, "panel.roles.titulo"),
+                Messages.get(locale, "panel.roles.desc")).build();
+
+        StringSelectMenu objetivo = StringSelectMenu.create("roles:objetivo")
+                .setPlaceholder(Messages.get(locale, "panel.roles.objetivo.placeholder"))
+                .addOption(Messages.get(locale, "config.campo.rol.fuerza"), "FUERZA", Emoji.fromUnicode("💪"))
+                .addOption(Messages.get(locale, "config.campo.rol.cardio"), "CARDIO", Emoji.fromUnicode("🏃"))
+                .addOption(Messages.get(locale, "config.campo.rol.perdidapeso"), "PERDIDA_PESO", Emoji.fromUnicode("⚖️"))
+                .addOption(Messages.get(locale, "config.campo.rol.general"), "GENERAL", Emoji.fromUnicode("🌟"))
+                .build();
+
+        StringSelectMenu notif = StringSelectMenu.create("roles:notificaciones")
+                .setPlaceholder(Messages.get(locale, "panel.roles.notif.placeholder"))
+                .setMinValues(0)
+                .setMaxValues(2)
+                .addOption(Messages.get(locale, "panel.roles.notif.avisos"), "AVISOS", Emoji.fromUnicode("📣"))
+                .addOption(Messages.get(locale, "panel.roles.notif.retos"), "RETOS", Emoji.fromUnicode("🎯"))
+                .build();
+
+        canal.sendMessageEmbeds(embed).addActionRow(objetivo).addActionRow(notif).queue(
+                mensaje -> mensaje.pin().queue(),
+                error -> log.warn("No se pudo publicar el panel de roles en {}", canal.getId(), error));
     }
 
     /** Publica y fija un embed de ayuda en el canal, si el plan define un {@code introKey}. */

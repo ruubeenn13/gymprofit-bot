@@ -17,6 +17,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   (barra de progreso reutilizable) con test.
 
 ### Añadido
+- **Panel de auto-roles + contenido del servidor (F1)**: `/setup` publica y fija un panel en
+  `🎭・roles` con menús (objetivo + notificaciones) gestionados por `PanelRolesListener` (además
+  del onboarding). Mensajes fijados de ayuda en los canales clave (empieza-aquí, reglas,
+  cómo-funciona, faq, redes, soporte, general, presentaciones, comandos-bot, fitness) y aviso de
+  «próximamente» en los de fases futuras. Permisos por rol (Silenciado no habla en ningún canal),
+  categorías decoradas. `/setup` corre fuera del hilo del gateway, comprueba permisos antes de
+  tocar nada y ya no borra roles del propio bot ni se autobloquea en categorías ocultas.
 - **Administración del servidor (F1)**: `/setup` (solo admin) monta roles, categorías y canales
   (F1–F4) con permisos según `SetupServidorPlan` (blueprint testeable), purga los mensajes
   recientes existentes y autorrellena `config_servidor`; opción `desde_cero` que borra todos los
