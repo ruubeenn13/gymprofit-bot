@@ -151,6 +151,21 @@ ES/EN.
   `config`, unicidad de nombres).
 - Ejecución en vivo de `/setup` y `/limpiar`: **smoke test manual** en el servidor de pruebas.
 
+## Automatización futura por comandos (visión)
+
+El objetivo es un servidor **gestionable por comandos** (bot-native). `/setup` crea la estructura
+(canales vacíos); el **contenido** lo pondrán comandos de staff que se añadirán de forma
+incremental, cada uno como su propia feature:
+
+- `/anuncio` → publica un embed en `📣・anuncios`.
+- `/redes` → gestiona y publica el embed de `📱・redes-sociales` (redes de admins).
+- `/reglas publicar` → publica/edita el embed de `📜・reglas`.
+- `/panel` → coloca componentes fijos: botón de abrir ticket en `🎫・soporte`, menú de objetivos,
+  paneles de roles opt-in.
+- (ya en curso/hechos) `/setup`, `/limpiar`, `/config`.
+
+No forman parte de este plan: se planifican y construyen después, uno a uno.
+
 ## Fuera de alcance
 
 - Vaciado total por clonación (cambio de ID + re-mapeo).

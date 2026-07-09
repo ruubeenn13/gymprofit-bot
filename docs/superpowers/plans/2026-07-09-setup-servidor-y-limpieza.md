@@ -208,10 +208,13 @@ public final class SetupServidorPlan {
     public static final List<CategoriaPlan> CATEGORIAS = List.of(
             new CategoriaPlan("📢 INFORMACIÓN", false, false, List.of(
                     info("👋・bienvenidas", TipoCanal.BIENVENIDA),
+                    info("🚀・empieza-aquí", null),
                     info("📜・reglas", null),
-                    info("📣・anuncios", null),
                     info("🗺️・cómo-funciona", null),
-                    info("📲・novedades-app", null))),
+                    info("❓・faq", null),
+                    info("📣・anuncios", null),
+                    info("📲・novedades-app", null),
+                    info("📱・redes-sociales", null))),
             new CategoriaPlan("💬 COMUNIDAD", false, false, List.of(
                     texto("💬・general", null),
                     texto("👋・presentaciones", null),
