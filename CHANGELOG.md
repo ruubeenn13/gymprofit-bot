@@ -7,6 +7,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **XP y niveles (F1)**: XP por mensaje con cooldown anti-spam de 60 s (`XpMensajeListener` +
+  `util/Cooldown`), `XpService` con curva de nivel documentada (`NivelCalculadora`,
+  `50·n²+50·n`), anuncio de subida de nivel (embed dorado), y comandos `/nivel [usuario]` y
+  `/top` (leaderboard) en `commands/gamificacion`. Nueva consulta `listarTopPorXp` en el
+  repositorio. Tests unitarios (`NivelCalculadoraTest`, `CooldownTest`, `XpServiceTest` con
+  Mockito) y de repositorio (Testcontainers). XP por mensaje, `/nivel` y `/top` en vivo quedan
+  pendientes de smoke test manual (registro de los 3 comandos verificado en vivo).
 - **Infraestructura de slash commands + `/ping` (F1)**: interfaz `Comando`, `RouterComandos`
   (registra los comandos por servidor en `onGuildReady` y enruta las interacciones, aislando
   errores) y primer comando `/ping` (`commands/general`) con descripción localizada ES/EN y

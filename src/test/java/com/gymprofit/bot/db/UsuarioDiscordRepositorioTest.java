@@ -60,6 +60,16 @@ class UsuarioDiscordRepositorioTest {
 
                 // Un usuario inexistente no aparece.
                 assertTrue(repo.buscar(9999L).isEmpty());
+
+                // Leaderboard: ordena por XP descendente.
+                repo.guardar(new UsuarioDiscord(1002L, 300, 2, 0, 0, null, "es", false));
+                repo.guardar(new UsuarioDiscord(1003L, 50, 0, 0, 0, null, "es", false));
+                var top = repo.listarTopPorXp(10);
+                assertEquals(3, top.size());
+                assertEquals(1002L, top.get(0).discordId(), "El de más XP va primero");
+                assertEquals(1001L, top.get(1).discordId());
+                assertEquals(1003L, top.get(2).discordId());
+                assertTrue(repo.listarTopPorXp(2).size() == 2, "Respeta el límite");
             }
         }
     }

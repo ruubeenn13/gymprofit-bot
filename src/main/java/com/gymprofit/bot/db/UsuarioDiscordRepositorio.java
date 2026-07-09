@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -84,6 +86,30 @@ public final class UsuarioDiscordRepositorio {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Error guardando el usuario " + u.discordId(), e);
+        }
+    }
+
+    /**
+     * Devuelve los usuarios con más XP, de mayor a menor (leaderboard de {@code /top}).
+     *
+     * @param limite número máximo de usuarios a devolver
+     */
+    public List<UsuarioDiscord> listarTopPorXp(int limite) {
+        String sql = "SELECT discord_id, xp, nivel, coins, racha, ultima_racha_fecha, "
+                + "idioma, opt_out_logros FROM usuarios_discord "
+                + "ORDER BY xp DESC, discord_id ASC LIMIT ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, limite);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<UsuarioDiscord> top = new ArrayList<>();
+                while (rs.next()) {
+                    top.add(mapear(rs));
+                }
+                return top;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error listando el top de XP", e);
         }
     }
 

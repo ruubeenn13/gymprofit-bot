@@ -2,14 +2,20 @@ package com.gymprofit.bot;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.commands.RouterComandos;
+import com.gymprofit.bot.commands.gamificacion.NivelComando;
+import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.Database;
+import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
+import com.gymprofit.bot.events.XpMensajeListener;
+import com.gymprofit.bot.services.XpService;
 import net.dv8tion.jda.api.JDA;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,7 +50,7 @@ public final class Main {
         log.info("Health server escuchando en http://0.0.0.0:{}/health", BotConfig.port());
 
         Database db = iniciarBaseDeDatos();
-        JDA jda = iniciarDiscord();
+        JDA jda = iniciarDiscord(db);
 
         // Cierre ordenado ante SIGTERM (Render lo envía en cada deploy): JDA → BD → health.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -84,16 +90,35 @@ public final class Main {
     }
 
     /**
-     * Construye y conecta JDA. Devuelve {@code null} si no hay {@code DISCORD_TOKEN}
-     * (arranque degradado solo con health server).
+     * Construye y conecta JDA con sus comandos y listeners. Devuelve {@code null} si no hay
+     * {@code DISCORD_TOKEN} (arranque degradado solo con health server).
+     *
+     * <p>Los comandos y el listener de XP que dependen de la BD solo se registran si hay BD; sin
+     * ella queda disponible {@code /ping}.</p>
+     *
+     * @param db la BD ya conectada, o {@code null} si se arrancó sin BD
      */
-    private static JDA iniciarDiscord() {
+    private static JDA iniciarDiscord(Database db) {
         if (BotConfig.discordToken().isBlank()) {
             log.warn("DISCORD_TOKEN no presente: JDA no se conectará (solo health server).");
             return null;
         }
-        // Router con los comandos de la Fase 1 (de momento /ping); se registran al conectar.
-        List<Comando> comandos = List.of(new PingComando());
-        return DiscordBot.start(BotConfig.discordToken(), new RouterComandos(comandos));
+
+        List<Comando> comandos = new ArrayList<>();
+        comandos.add(new PingComando());
+        List<Object> listeners = new ArrayList<>();
+
+        if (db != null) {
+            UsuarioDiscordRepositorio usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+            XpService xpService = new XpService(usuarios);
+            comandos.add(new NivelComando(usuarios));
+            comandos.add(new TopComando(usuarios));
+            listeners.add(new XpMensajeListener(xpService));
+        } else {
+            log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
+        }
+
+        listeners.add(new RouterComandos(comandos));
+        return DiscordBot.start(BotConfig.discordToken(), listeners.toArray());
     }
 }
