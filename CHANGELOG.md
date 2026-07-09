@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Configuración de servidor (F1)**: entidad `ConfigServidor` + `ConfigServidorRepositorio`
+  (upsert de `config_servidor`), `ConfigServidorService` (fijar canal/rol/idioma conservando el
+  resto) y comando `/config` (solo staff, `MANAGE_SERVER`, guild-only) con subcomandos `ver`,
+  `canal`, `rol` e `idioma`. Base para bienvenida/auto-roles y el resto de F1. Tests
+  `ConfigServidorServiceTest` (Mockito) y `ConfigServidorRepositorioTest` (Testcontainers).
+  Registro verificado en vivo (4 comandos); uso en vivo pendiente de smoke test manual.
 - **XP y niveles (F1)**: XP por mensaje con cooldown anti-spam de 60 s (`XpMensajeListener` +
   `util/Cooldown`), `XpService` con curva de nivel documentada (`NivelCalculadora`,
   `50·n²+50·n`), anuncio de subida de nivel (embed dorado), y comandos `/nivel [usuario]` y

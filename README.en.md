@@ -53,6 +53,7 @@ GymProBot turns the community server into a gamified gym and wires it to the app
 | `/ping` | Checks that the bot is responsive and shows its latency |
 | `/nivel [user]` | Shows your level, XP and progress (or another user's) |
 | `/top` | Server XP leaderboard |
+| `/config` | Server configuration: channels, goal roles and language (staff only) |
 
 Also: **message XP** (with a 60 s anti-spam cooldown) that levels users up and announces it.
 

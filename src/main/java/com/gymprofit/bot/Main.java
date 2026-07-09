@@ -2,13 +2,16 @@ package com.gymprofit.bot;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.commands.RouterComandos;
+import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
 import com.gymprofit.bot.config.BotConfig;
+import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.events.XpMensajeListener;
+import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.XpService;
 import net.dv8tion.jda.api.JDA;
 import org.slf4j.Logger;
@@ -114,6 +117,10 @@ public final class Main {
             comandos.add(new NivelComando(usuarios));
             comandos.add(new TopComando(usuarios));
             listeners.add(new XpMensajeListener(xpService));
+
+            ConfigServidorService configService =
+                    new ConfigServidorService(new ConfigServidorRepositorio(db.dataSource()));
+            comandos.add(new ConfigComando(configService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

@@ -53,6 +53,7 @@ GymProBot convierte el servidor de la comunidad en un gimnasio gamificado y lo c
 | `/ping` | Comprueba que el bot responde y muestra su latencia |
 | `/nivel [usuario]` | Muestra tu nivel, XP y progreso (o los de otro usuario) |
 | `/top` | Ranking de XP del servidor |
+| `/config` | Configuración del servidor: canales, roles de objetivo e idioma (solo staff) |
 
 Además: **XP por mensaje** (con cooldown anti-spam de 60 s) que sube de nivel y lo anuncia.
 
