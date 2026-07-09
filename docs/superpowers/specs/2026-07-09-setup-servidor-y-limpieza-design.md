@@ -36,19 +36,25 @@ a re-mapear `config_servidor`); si algún día se quiere, sería una ampliación
 
 ### Roles (creados por `/setup` si no existen)
 
-El bot solo puede crear roles **por debajo del suyo**; los de objetivo quedan así asignables.
-Admin = el owner (tú). El rol Staff se crea abajo; el owner lo arrastra por encima del bot si
-quiere que modere (paso manual).
+El bot solo crea roles **por debajo del suyo** y solo puede otorgar permisos que **él mismo
+posee** (no tiene Administrador ni Expulsar). Por eso los roles de jerarquía staff se crean como
+**identidad/color** y el owner les asigna los permisos reales y los sube de posición (pasos
+manuales). Los de objetivo quedan por debajo del bot, asignables por la bienvenida.
 
-| Rol | Permisos | Notas |
+Jerarquía objetivo (de arriba a abajo): 👑 Fundador › 🛡️ Admin › 🧹 Staff › 🤖 GymProBot ›
+💎 Booster › 🏅 veteranía › objetivos › 📣/🎯 › 🤝 Miembro › 🔇 Silenciado › `@everyone`.
+
+| Rol | Permisos que aplica `/setup` | Notas |
 |---|---|---|
-| 🧹 Staff | Ver categoría STAFF, Gestionar mensajes, Expulsar, Moderar miembros | mod |
-| 💪 Fuerza | — | objetivo (auto-rol bienvenida) |
-| 🏃 Cardio | — | objetivo |
-| ⚖️ Pérdida de peso | — | objetivo |
-| 🌟 General | — | objetivo |
-| 📣 Avisos | — (mencionable) | opt-in de notificación (Onboarding) |
-| 🎯 Retos | — (mencionable) | opt-in de notificación (Onboarding) |
+| 👑 Fundador | — (color) | tuyo; el owner lo sube arriba (manual) |
+| 🛡️ Admin | — (color) | el owner le da **Administrador** y lo sube (manual) |
+| 🧹 Staff / Mod | Ver categoría STAFF (overwrite) | el owner añade Gestionar mensajes/Expulsar/Moderar y lo sube por encima del bot (manual) |
+| 💎 Booster | *(no se crea)* | rol nativo de Discord; se estiliza a mano |
+| 🏅 Leyenda / Veterano / Habitual / Novato | — | veteranía cosmética (por ahora manual/futuro) |
+| 💪 Fuerza · 🏃 Cardio · ⚖️ Pérdida de peso · 🌟 General | — | objetivo (auto-rol bienvenida) |
+| 📣 Avisos · 🎯 Retos | — (mencionables) | opt-in de notificación (Onboarding) |
+| 🤝 Miembro | — | se da en onboarding; **no** oculta canales (server público) |
+| 🔇 Silenciado | overwrites en todos los canales: deny Enviar mensajes, Añadir reacciones, Hablar | moderación |
 
 ### Categorías y canales (separador `・`)
 
@@ -121,7 +127,9 @@ ES/EN.
 3. Configurar **Onboarding**: preguntas que asignen los roles opt-in (📣 Avisos, 🎯 Retos) y
    guíen a los canales clave.
 4. Activar **AutoMod nativo** (spam, spam de menciones, palabras) como primera barrera.
-5. Arrastrar el rol **🧹 Staff por encima de 🤖 GymProBot** si se quiere que modere.
+5. Subir la jerarquía y dar permisos reales: **👑 Fundador** y **🛡️ Admin** (con
+   *Administrador*) por encima del bot; **🧹 Staff** por encima del bot con
+   *Gestionar mensajes / Expulsar / Moderar miembros*. Estilizar el rol nativo **💎 Booster**.
 6. Pegar los **textos de `📜・reglas` y `🗺️・cómo-funciona`** (los entrega el bot/documentación).
 7. Perfil del servidor **público**; descripción y 5 rasgos con emoji (ya definidos).
 
