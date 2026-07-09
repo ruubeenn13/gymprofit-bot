@@ -35,7 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code /setup}: monta la estructura del servidor (roles, categorías, canales, permisos y
@@ -57,6 +56,19 @@ public final class SetupComando implements Comando {
     /** Permisos que niega el rol Silenciado en todo el servidor. */
     private static final long DENY_SILENCIADO = Permission.getRaw(
             Permission.MESSAGE_SEND, Permission.MESSAGE_ADD_REACTION, Permission.VOICE_SPEAK);
+
+    /**
+     * Permisos que {@code /setup} asigna a los roles de gestión (el resto de roles se crean sin
+     * permisos). Requiere que el bot tenga Administrador para poder otorgarlos.
+     */
+    private static final Map<String, Long> PERMISOS_ROL = Map.of(
+            "👑 Fundador", Permission.ADMINISTRATOR.getRawValue(),
+            "🛡️ Admin", Permission.ADMINISTRATOR.getRawValue(),
+            "🧹 Staff", Permission.getRaw(
+                    Permission.MESSAGE_MANAGE, Permission.MODERATE_MEMBERS,
+                    Permission.KICK_MEMBERS, Permission.BAN_MEMBERS,
+                    Permission.MANAGE_THREADS, Permission.NICKNAME_MANAGE,
+                    Permission.VIEW_AUDIT_LOGS, Permission.MESSAGE_MENTION_EVERYONE));
 
     private final ConfigServidorService config;
     private final LimpiezaService limpieza;
@@ -99,8 +111,9 @@ public final class SetupComando implements Comando {
             return;
         }
 
-        // Trabajo pesado en un hilo aparte para no bloquear el gateway (evita perder heartbeats).
-        CompletableFuture.runAsync(() -> {
+        // Trabajo pesado en un HILO PROPIO (no en el commonPool, que JDA usa para sus callbacks:
+        // bloquearlo con complete() causaba thread starvation y desconexiones).
+        Thread hilo = new Thread(() -> {
             try {
                 int limpiados = desdeCero ? vaciarServidor(guild) : purgarCanalesExistentes(guild);
                 Map<String, Role> roles = crearRoles(guild);
@@ -110,12 +123,18 @@ public final class SetupComando implements Comando {
                         Messages.get(locale, "setup.titulo"),
                         Messages.get(locale, "setup.resumen",
                                 SetupServidorPlan.ROLES.size(), canales, limpiados)).build();
-                evento.getHook().sendMessageEmbeds(embed).queue();
+                // Si la interacción ya expiró (setup largo), el resumen falla sin pasa nada grave.
+                evento.getHook().sendMessageEmbeds(embed).queue(null,
+                        err -> log.info("Setup terminado, pero no se pudo enviar el resumen: {}",
+                                err.toString()));
             } catch (RuntimeException e) {
                 log.error("Error en /setup en el servidor {}", guild.getId(), e);
-                evento.getHook().sendMessage(Messages.get(locale, "setup.error")).queue();
+                evento.getHook().sendMessage(Messages.get(locale, "setup.error"))
+                        .queue(null, ignorado -> { });
             }
-        });
+        }, "gymprobot-setup");
+        hilo.setDaemon(true);
+        hilo.start();
     }
 
     /**
@@ -163,21 +182,31 @@ public final class SetupComando implements Comando {
         return total;
     }
 
-    /** Crea (o reutiliza) los roles; devuelve un mapa nombre → rol. */
+    /** Crea (o reutiliza) los roles con sus permisos; devuelve un mapa nombre → rol. */
     private Map<String, Role> crearRoles(Guild guild) {
         Map<String, Role> creados = new HashMap<>();
         for (RolPlan plan : SetupServidorPlan.ROLES) {
-            Role rol = guild.getRolesByName(plan.nombre(), false).stream().findFirst().orElse(null);
-            if (rol == null) {
-                var accion = guild.createRole().setName(plan.nombre());
-                if (plan.colorRgb() != 0) {
-                    accion = accion.setColor(new Color(plan.colorRgb()));
+            try {
+                long permisos = PERMISOS_ROL.getOrDefault(plan.nombre(), 0L);
+                Role rol = guild.getRolesByName(plan.nombre(), false).stream().findFirst().orElse(null);
+                if (rol == null) {
+                    var accion = guild.createRole().setName(plan.nombre());
+                    if (plan.colorRgb() != 0) {
+                        accion = accion.setColor(new Color(plan.colorRgb()));
+                    }
+                    if (permisos != 0) {
+                        accion = accion.setPermissions(permisos);
+                    }
+                    rol = accion.complete();
+                } else if (permisos != 0) {
+                    rol.getManager().setPermissions(permisos).complete();
                 }
-                rol = accion.complete();
-            }
-            creados.put(plan.nombre(), rol);
-            if (plan.objetivo() != null) {
-                config.fijarRol(guild.getIdLong(), plan.objetivo(), rol.getIdLong());
+                creados.put(plan.nombre(), rol);
+                if (plan.objetivo() != null) {
+                    config.fijarRol(guild.getIdLong(), plan.objetivo(), rol.getIdLong());
+                }
+            } catch (RuntimeException e) {
+                log.warn("No se pudo crear/ajustar el rol {}", plan.nombre(), e);
             }
         }
         return creados;
@@ -191,31 +220,38 @@ public final class SetupComando implements Comando {
         Role silenciado = roles.get(ROL_SILENCIADO);
 
         for (CategoriaPlan catPlan : SetupServidorPlan.CATEGORIAS) {
-            Category categoria = guild.getCategoriesByName(catPlan.nombre(), false)
-                    .stream().findFirst().orElse(null);
-            if (categoria == null) {
-                var accion = guild.createCategory(catPlan.nombre());
-                if (catPlan.oculta()) {
-                    accion = accion.addRolePermissionOverride(everyone.getIdLong(),
-                            0L, Permission.VIEW_CHANNEL.getRawValue());
-                    if (catPlan.soloStaff() && staff != null) {
-                        accion = accion.addRolePermissionOverride(staff.getIdLong(),
+            try {
+                Category categoria = guild.getCategoriesByName(catPlan.nombre(), false)
+                        .stream().findFirst().orElse(null);
+                if (categoria == null) {
+                    var accion = guild.createCategory(catPlan.nombre());
+                    if (catPlan.oculta()) {
+                        accion = accion.addRolePermissionOverride(everyone.getIdLong(),
+                                0L, Permission.VIEW_CHANNEL.getRawValue());
+                        if (catPlan.soloStaff() && staff != null) {
+                            accion = accion.addRolePermissionOverride(staff.getIdLong(),
+                                    Permission.VIEW_CHANNEL.getRawValue(), 0L);
+                        }
+                        // El bot debe ver la categoría oculta para crear/gestionar dentro.
+                        accion = accion.addMemberPermissionOverride(guild.getSelfMember().getIdLong(),
                                 Permission.VIEW_CHANNEL.getRawValue(), 0L);
                     }
-                    // El propio bot debe poder ver la categoría oculta para crear/gestionar dentro
-                    // (si no, al estar en @everyone se auto-bloquea).
-                    accion = accion.addMemberPermissionOverride(guild.getSelfMember().getIdLong(),
-                            Permission.VIEW_CHANNEL.getRawValue(), 0L);
+                    if (silenciado != null) {
+                        accion = accion.addRolePermissionOverride(silenciado.getIdLong(), 0L, DENY_SILENCIADO);
+                    }
+                    categoria = accion.complete();
                 }
-                if (silenciado != null) {
-                    accion = accion.addRolePermissionOverride(silenciado.getIdLong(), 0L, DENY_SILENCIADO);
-                }
-                categoria = accion.complete();
-            }
 
-            for (CanalPlan chPlan : catPlan.canales()) {
-                canales++;
-                crearCanal(guild, categoria, chPlan, everyone, locale);
+                for (CanalPlan chPlan : catPlan.canales()) {
+                    canales++;
+                    try {
+                        crearCanal(guild, categoria, chPlan, everyone, locale);
+                    } catch (RuntimeException e) {
+                        log.warn("No se pudo crear el canal {}", chPlan.nombre(), e);
+                    }
+                }
+            } catch (RuntimeException e) {
+                log.warn("No se pudo crear la categoría {}", catPlan.nombre(), e);
             }
         }
         return canales;
