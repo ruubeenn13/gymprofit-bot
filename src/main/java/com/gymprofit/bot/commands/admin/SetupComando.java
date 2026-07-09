@@ -19,6 +19,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -52,6 +53,7 @@ public final class SetupComando implements Comando {
     private static final String NOMBRE = "setup";
     private static final String ROL_STAFF = "🧹 Staff";
     private static final String ROL_SILENCIADO = "🔇 Silenciado";
+    private static final String CANAL_EMPIEZA = "🚀・empieza-aquí";
 
     /** Permisos que niega el rol Silenciado en todo el servidor. */
     private static final long DENY_SILENCIADO = Permission.getRaw(
@@ -218,6 +220,8 @@ public final class SetupComando implements Comando {
         Role everyone = guild.getPublicRole();
         Role staff = roles.get(ROL_STAFF);
         Role silenciado = roles.get(ROL_SILENCIADO);
+        Map<String, Long> idsPorNombre = new HashMap<>();
+        boolean empiezaNueva = false;
 
         for (CategoriaPlan catPlan : SetupServidorPlan.CATEGORIAS) {
             try {
@@ -245,7 +249,20 @@ public final class SetupComando implements Comando {
                 for (CanalPlan chPlan : catPlan.canales()) {
                     canales++;
                     try {
-                        crearCanal(guild, categoria, chPlan, everyone, locale);
+                        GuildChannel existente = guild.getChannels().stream()
+                                .filter(c -> c.getName().equals(chPlan.nombre()))
+                                .findFirst().orElse(null);
+                        GuildChannel canal;
+                        if (existente != null) {
+                            aplicarConfig(guild, existente, chPlan);
+                            canal = existente;
+                        } else {
+                            canal = crearCanal(guild, categoria, chPlan, everyone, locale);
+                            if (CANAL_EMPIEZA.equals(chPlan.nombre())) {
+                                empiezaNueva = true;
+                            }
+                        }
+                        idsPorNombre.put(chPlan.nombre(), canal.getIdLong());
                     } catch (RuntimeException e) {
                         log.warn("No se pudo crear el canal {}", chPlan.nombre(), e);
                     }
@@ -254,20 +271,17 @@ public final class SetupComando implements Comando {
                 log.warn("No se pudo crear la categoría {}", catPlan.nombre(), e);
             }
         }
+
+        // Panel de accesos rápidos (botones que llevan a los canales clave) en 🚀 empieza-aquí.
+        if (empiezaNueva) {
+            publicarNavegacion(guild, idsPorNombre, locale);
+        }
         return canales;
     }
 
-    /** Crea (o reutiliza) un canal bajo su categoría, sincroniza permisos, fija intro y config. */
-    private void crearCanal(Guild guild, Category categoria, CanalPlan chPlan, Role everyone,
-                            Locale locale) {
-        GuildChannel existente = guild.getChannels().stream()
-                .filter(c -> c.getName().equals(chPlan.nombre()))
-                .findFirst().orElse(null);
-        if (existente != null) {
-            aplicarConfig(guild, existente, chPlan);
-            return;
-        }
-
+    /** Crea un canal nuevo bajo su categoría, sincroniza permisos, fija intro y config. */
+    private GuildChannel crearCanal(Guild guild, Category categoria, CanalPlan chPlan, Role everyone,
+                                    Locale locale) {
         GuildChannel creado;
         if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.VOZ) {
             var accionVoz = categoria.createVoiceChannel(chPlan.nombre());
@@ -296,6 +310,44 @@ public final class SetupComando implements Comando {
             creado = tc;
         }
         aplicarConfig(guild, creado, chPlan);
+        return creado;
+    }
+
+    /** Publica en 🚀 empieza-aquí una fila de botones que llevan a los canales clave. */
+    private void publicarNavegacion(Guild guild, Map<String, Long> ids, Locale locale) {
+        Long empiezaId = ids.get(CANAL_EMPIEZA);
+        TextChannel empieza = (empiezaId == null) ? null : guild.getTextChannelById(empiezaId);
+        if (empieza == null) {
+            return;
+        }
+        long guildId = guild.getIdLong();
+        List<Button> botones = new java.util.ArrayList<>();
+        anadirNav(botones, ids, guildId, "📜・reglas", "📜", "nav.btn.reglas", locale);
+        anadirNav(botones, ids, guildId, "🗺️・cómo-funciona", "🗺️", "nav.btn.como", locale);
+        anadirNav(botones, ids, guildId, "🎭・roles", "🎭", "nav.btn.roles", locale);
+        anadirNav(botones, ids, guildId, "💬・general", "💬", "nav.btn.general", locale);
+        anadirNav(botones, ids, guildId, "🎫・soporte", "🎫", "nav.btn.soporte", locale);
+        if (botones.isEmpty()) {
+            return;
+        }
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
+                        Messages.get(locale, "nav.titulo"), Messages.get(locale, "nav.desc"))
+                .setThumbnail(EmbedFactory.iconoUrl())
+                .build();
+        empieza.sendMessageEmbeds(embed).addActionRow(botones).queue(
+                mensaje -> mensaje.pin().queue(),
+                error -> log.warn("No se pudo publicar la navegación en {}", empieza.getId(), error));
+    }
+
+    /** Añade un botón de enlace a un canal si existe en el mapa de IDs. */
+    private static void anadirNav(List<Button> botones, Map<String, Long> ids, long guildId,
+                                  String canalNombre, String emoji, String labelKey, Locale locale) {
+        Long id = ids.get(canalNombre);
+        if (id == null) {
+            return;
+        }
+        String url = "https://discord.com/channels/" + guildId + "/" + id;
+        botones.add(Button.link(url, Messages.get(locale, labelKey)).withEmoji(Emoji.fromUnicode(emoji)));
     }
 
     /** Publica y fija el panel de auto-roles (menús de objetivo y notificaciones) en el canal. */
