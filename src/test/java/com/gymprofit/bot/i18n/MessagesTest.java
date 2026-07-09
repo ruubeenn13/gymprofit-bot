@@ -28,4 +28,13 @@ class MessagesTest {
         Set<String> en = new TreeSet<>(ResourceBundle.getBundle("messages", Messages.EN).keySet());
         assertEquals(es, en, "Las claves de messages_es y messages_en deben coincidir");
     }
+
+    @Test
+    void desdeTagResuelveElIdioma() {
+        assertEquals(Messages.EN, Messages.desdeTag("en-US"));
+        assertEquals(Messages.EN, Messages.desdeTag("en-GB"));
+        assertEquals(Messages.ES, Messages.desdeTag("es-ES"));
+        assertEquals(Messages.ES, Messages.desdeTag("fr"), "Idioma no soportado cae a español");
+        assertEquals(Messages.ES, Messages.desdeTag(null), "Sin idioma, español por defecto");
+    }
 }

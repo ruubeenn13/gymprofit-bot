@@ -43,7 +43,14 @@ GymProBot turns the community server into a gamified gym and wires it to the app
 5. **Run:** export the `.env` variables and `java -jar target/gymprofit-bot.jar`.
    Check `http://localhost:8080/health` → `OK`.
 
-> Current status: **scaffolding** (Phase 0). Commands arrive in Phase 1.
+> Current status: **Phase 1 (Core) in progress**. Foundation ready (DB + Flyway, EmbedFactory,
+> Discord connection) and slash command infrastructure.
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `/ping` | Checks that the bot is responsive and shows its latency |
 
 ---
 

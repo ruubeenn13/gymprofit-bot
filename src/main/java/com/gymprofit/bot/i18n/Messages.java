@@ -36,6 +36,18 @@ public final class Messages {
         return (args == null || args.length == 0) ? pattern : MessageFormat.format(pattern, args);
     }
 
+    /**
+     * Resuelve el {@link Locale} soportado a partir de una etiqueta de idioma (p. ej. la que da
+     * Discord con {@code DiscordLocale.getLocale()}, como {@code "es-ES"} o {@code "en-US"}).
+     * Cualquier idioma que no sea inglés cae a español (idioma por defecto).
+     *
+     * @param languageTag etiqueta de idioma; {@code null}/vacía usa español
+     */
+    public static Locale desdeTag(String languageTag) {
+        return (languageTag != null && languageTag.toLowerCase(Locale.ROOT).startsWith("en"))
+                ? EN : ES;
+    }
+
     private static Locale normalize(Locale locale) {
         if (locale != null && "en".equalsIgnoreCase(locale.getLanguage())) {
             return EN;

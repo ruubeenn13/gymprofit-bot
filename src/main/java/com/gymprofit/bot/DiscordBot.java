@@ -43,10 +43,11 @@ public final class DiscordBot {
      * conexión se establece en segundo plano; usar {@link JDA#awaitReady()} si se
      * necesita esperar a que esté lista.
      *
-     * @param token token del bot (nunca se loggea)
+     * @param token     token del bot (nunca se loggea)
+     * @param listeners listeners a registrar antes de conectar (router de comandos, eventos…)
      * @return la instancia de JDA en proceso de conexión
      */
-    public static JDA start(String token) {
+    public static JDA start(String token, Object... listeners) {
         return JDABuilder.createDefault(token)
                 // Intents privilegiados necesarios para F1; el resto (por defecto) ya están.
                 .enableIntents(PRIVILEGED_INTENTS)
@@ -55,6 +56,8 @@ public final class DiscordBot {
                 .setChunkingFilter(ChunkingFilter.ALL)
                 .setStatus(OnlineStatus.ONLINE)
                 .setActivity(Activity.customStatus(Messages.get(Messages.ES, "bot.actividad")))
+                // Se registran antes de build() para no perder eventos de arranque (GuildReady).
+                .addEventListeners(listeners)
                 .build();
     }
 }

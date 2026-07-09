@@ -43,7 +43,14 @@ GymProBot convierte el servidor de la comunidad en un gimnasio gamificado y lo c
 5. **Arranca:** exporta las variables del `.env` y `java -jar target/gymprofit-bot.jar`.
    Comprueba `http://localhost:8080/health` → `OK`.
 
-> Estado actual: **andamiaje** (Fase 0). Los comandos llegan en la Fase 1.
+> Estado actual: **Fase 1 (Núcleo) en curso**. Base lista (BD + Flyway, EmbedFactory, conexión
+> a Discord) e infraestructura de slash commands.
+
+### Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `/ping` | Comprueba que el bot responde y muestra su latencia |
 
 ---
 

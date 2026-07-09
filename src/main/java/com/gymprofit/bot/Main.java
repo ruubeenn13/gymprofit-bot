@@ -1,5 +1,8 @@
 package com.gymprofit.bot;
 
+import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.commands.RouterComandos;
+import com.gymprofit.bot.commands.general.PingComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.Database;
 import net.dv8tion.jda.api.JDA;
@@ -7,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Punto de entrada de GymProBot.
@@ -16,10 +20,12 @@ import java.io.IOException;
  *   <li>Levantar el {@link HealthServer} en {@code /health} (usado por Render y por
  *       {@code keep-alive.yml}). Se arranca <b>siempre</b>.</li>
  *   <li>Conectar la BD del bot y aplicar las migraciones Flyway ({@link Database}).</li>
- *   <li>Construir y conectar JDA (los slash commands, listeners y jobs llegan después).</li>
+ *   <li>Construir y conectar JDA registrando el router de slash commands (los listeners de
+ *       eventos y los jobs programados llegan después).</li>
  * </ol>
  *
  * <p>Arranque degradado: si falta {@code DB_URL} se omiten BD/Flyway y si falta
+
  * {@code DISCORD_TOKEN} se omite JDA. Con solo {@code PORT} arranca el health server aislado
  * (útil para andamiaje y para el keep-alive de Render).</p>
  */
@@ -86,6 +92,8 @@ public final class Main {
             log.warn("DISCORD_TOKEN no presente: JDA no se conectará (solo health server).");
             return null;
         }
-        return DiscordBot.start(BotConfig.discordToken());
+        // Router con los comandos de la Fase 1 (de momento /ping); se registran al conectar.
+        List<Comando> comandos = List.of(new PingComando());
+        return DiscordBot.start(BotConfig.discordToken(), new RouterComandos(comandos));
     }
 }

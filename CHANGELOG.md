@@ -7,6 +7,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Infraestructura de slash commands + `/ping` (F1)**: interfaz `Comando`, `RouterComandos`
+  (registra los comandos por servidor en `onGuildReady` y enruta las interacciones, aislando
+  errores) y primer comando `/ping` (`commands/general`) con descripción localizada ES/EN y
+  respuesta por `EmbedFactory`. `DiscordBot.start` acepta listeners; `Main` monta el router.
+  Helper `Messages.desdeTag` para resolver idioma desde el locale de Discord. Tests
+  `PingComandoTest` y ampliación de `MessagesTest`. Registro verificado en vivo; invocación de
+  `/ping` pendiente de smoke test manual.
 - **EmbedFactory central (F1, SPEC §7)**: única vía para crear embeds. `Categoria` fija la
   paleta (naranja/dorado/verde/azul/rojo) y `Tipo` asocia cada emoji identificador (uno por
   título) con su color; footer de marca `GymProBot • GymProFit` + timestamp e i18n del footer
