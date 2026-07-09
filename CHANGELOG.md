@@ -7,6 +7,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **EmbedFactory central (F1, SPEC §7)**: única vía para crear embeds. `Categoria` fija la
+  paleta (naranja/dorado/verde/azul/rojo) y `Tipo` asocia cada emoji identificador (uno por
+  título) con su color; footer de marca `GymProBot • GymProFit` + timestamp e i18n del footer
+  (`embed.footer`). Los tipos sin color en la §7 (duelos, trivia, sugerencias, tickets) usan
+  azul como color de info. Test `EmbedFactoryTest`.
 - **Capa de BD y arranque de Flyway (F1)**: `db/Database` monta el pool **HikariCP** y aplica
   las migraciones Flyway al arrancar; `Main` sigue el orden health → Flyway → JDA con arranque
   degradado si falta `DB_URL` o `DISCORD_TOKEN`. Primer repositorio JDBC

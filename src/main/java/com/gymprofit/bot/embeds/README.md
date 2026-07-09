@@ -7,7 +7,10 @@ comandos o listeners). Garantiza las reglas visuales de la SPEC §7: color por c
 emoji en el título, footer `GymProBot • GymProFit` + timestamp, fields inline, imágenes grandes
 solo en hitos y paginación con botones cuando no cabe. Textos por i18n. Ver skill `nuevo-embed`.
 
-_Ejemplo:_ `EmbedFactory.logro(...)` ⇒ embed dorado (`#E8B84B`) con 🏆.
+Los tipos cuyo color no fija la §7 (duelos, trivia, sugerencias, tickets) usan **azul** como
+color de información general.
+
+_Ejemplo:_ `EmbedFactory.base(Tipo.LOGRO, locale, titulo)` ⇒ embed dorado (`#E8B84B`) con 🏆.
 
 ---
 
@@ -18,4 +21,7 @@ commands or listeners). It enforces the §7 visual rules: per-category color, a 
 emoji, footer `GymProBot • GymProFit` + timestamp, inline fields, large images only on
 milestones and button pagination when it doesn't fit. Text via i18n. See the `nuevo-embed` skill.
 
-_Example:_ `EmbedFactory.logro(...)` ⇒ gold embed (`#E8B84B`) with 🏆.
+Types whose color §7 does not define (duels, trivia, suggestions, tickets) use **blue** as the
+general-info color.
+
+_Example:_ `EmbedFactory.base(Tipo.LOGRO, locale, titulo)` ⇒ gold embed (`#E8B84B`) with 🏆.
