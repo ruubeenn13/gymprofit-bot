@@ -51,10 +51,17 @@ public final class TopComando implements Comando {
             StringBuilder sb = new StringBuilder();
             int puesto = 1;
             for (UsuarioDiscord u : top) {
+                // Medalla para el podio; número para el resto.
+                String posicion = switch (puesto) {
+                    case 1 -> "🥇";
+                    case 2 -> "🥈";
+                    case 3 -> "🥉";
+                    default -> "**" + puesto + ".**";
+                };
                 // El ID va como String para que MessageFormat no le meta separadores de miles
                 // (romperían la mención <@id>).
                 sb.append(Messages.get(locale, "comando.top.linea",
-                        puesto, String.valueOf(u.discordId()),
+                        posicion, String.valueOf(u.discordId()),
                         NivelCalculadora.nivelDeXp(u.xp()), u.xp()));
                 sb.append('\n');
                 puesto++;

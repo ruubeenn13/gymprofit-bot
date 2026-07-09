@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Cambiado
+- **Pase visual (2)**: `/top` con medallas 🥇🥈🥉 en el podio; el embed de subida de nivel
+  añade thumbnail del avatar. `/ping` y las confirmaciones de `/config` se dejan como están
+  (línea corta, sin muro).
 - **Pase visual de embeds**: footer con el avatar del bot en todos los embeds
   (`EmbedFactory.configurarIconoFooter`); `/config ver` pasa de 11 campos sueltos a una
   descripción agrupada (Canales / Roles) con indicadores ✅/⚪, emoji por línea y thumbnail;

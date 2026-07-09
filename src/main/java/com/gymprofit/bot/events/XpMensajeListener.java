@@ -62,12 +62,13 @@ public final class XpMensajeListener extends ListenerAdapter {
     private void anunciarSubida(MessageReceivedEvent evento, XpResultado resultado) {
         // Anuncio público del servidor: idioma por defecto (la config por servidor llega después).
         MessageEmbed embed = EmbedFactory.base(
-                EmbedFactory.Tipo.LOGRO,
-                Messages.ES,
-                Messages.get(Messages.ES, "xp.subida.titulo"),
-                Messages.get(Messages.ES, "xp.subida.desc",
-                        evento.getAuthor().getAsMention(), resultado.nivelNuevo())
-        ).build();
+                        EmbedFactory.Tipo.LOGRO,
+                        Messages.ES,
+                        Messages.get(Messages.ES, "xp.subida.titulo"),
+                        Messages.get(Messages.ES, "xp.subida.desc",
+                                evento.getAuthor().getAsMention(), resultado.nivelNuevo()))
+                .setThumbnail(evento.getAuthor().getEffectiveAvatarUrl())
+                .build();
         evento.getChannel().sendMessageEmbeds(embed).queue();
     }
 }
