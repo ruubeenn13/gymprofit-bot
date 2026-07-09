@@ -30,6 +30,16 @@ public final class ConfigServidorService {
         return repositorio.obtenerOCrear(guildId);
     }
 
+    /** ID del rol configurado para un objetivo, o {@code null} si no está fijado. */
+    public static Long rolDe(ConfigServidor c, Objetivo objetivo) {
+        return switch (objetivo) {
+            case FUERZA -> c.rolObjetivoFuerza();
+            case CARDIO -> c.rolObjetivoCardio();
+            case PERDIDA_PESO -> c.rolObjetivoPerdidaPeso();
+            case GENERAL -> c.rolObjetivoGeneral();
+        };
+    }
+
     /** Fija (o limpia, con {@code null}) el canal del tipo indicado. */
     public ConfigServidor fijarCanal(long guildId, TipoCanal tipo, Long canalId) {
         ConfigServidor a = repositorio.obtenerOCrear(guildId);

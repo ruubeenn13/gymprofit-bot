@@ -17,6 +17,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   (barra de progreso reutilizable) con test.
 
 ### Añadido
+- **Bienvenida + auto-roles (F1)**: `BienvenidaListener` publica un embed de bienvenida (con
+  thumbnail del avatar) en el canal configurado al entrar un miembro, con un menú de selección de
+  objetivo (Fuerza/Cardio/Pérdida de peso/General); al elegir, asigna el rol configurado en
+  `/config`. Helper `ConfigServidorService.rolDe` (con test). Pendiente de smoke test manual
+  (requiere canal y roles configurados en el servidor).
 - **Configuración de servidor (F1)**: entidad `ConfigServidor` + `ConfigServidorRepositorio`
   (upsert de `config_servidor`), `ConfigServidorService` (fijar canal/rol/idioma conservando el
   resto) y comando `/config` (solo staff, `MANAGE_SERVER`, guild-only) con subcomandos `ver`,

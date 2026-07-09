@@ -60,4 +60,14 @@ class ConfigServidorServiceTest {
         verify(repositorio).guardar(cap.capture());
         assertEquals("en", cap.getValue().idioma());
     }
+
+    @Test
+    void rolDeDevuelveElRolDelObjetivo() {
+        ConfigServidor c = new ConfigServidor(1L, "es", null, null, null, null, null, null,
+                111L, null, 333L, null);
+        assertEquals(111L, ConfigServidorService.rolDe(c, Objetivo.FUERZA));
+        assertEquals(333L, ConfigServidorService.rolDe(c, Objetivo.PERDIDA_PESO));
+        assertNull(ConfigServidorService.rolDe(c, Objetivo.CARDIO), "Objetivo sin rol = null");
+        assertNull(ConfigServidorService.rolDe(c, Objetivo.GENERAL));
+    }
 }

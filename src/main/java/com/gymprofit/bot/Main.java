@@ -11,6 +11,7 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.XpService;
@@ -124,6 +125,7 @@ public final class Main {
             ConfigServidorService configService =
                     new ConfigServidorService(new ConfigServidorRepositorio(db.dataSource()));
             comandos.add(new ConfigComando(configService));
+            listeners.add(new BienvenidaListener(configService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
