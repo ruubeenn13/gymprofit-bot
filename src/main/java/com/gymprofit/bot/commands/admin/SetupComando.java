@@ -19,12 +19,15 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -48,23 +51,32 @@ public final class SetupComando implements Comando {
 
     @Override
     public SlashCommandData definicion() {
+        OptionData desdeCero = new OptionData(OptionType.BOOLEAN, "desde_cero",
+                Messages.get(Messages.ES, "comando.setup.opcion.desde_cero"), false)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.setup.opcion.desde_cero"));
+
         return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.setup.descripcion"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
                         Messages.get(Messages.ES, "comando.setup.descripcion"))
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.setup.descripcion"))
                 .setContexts(InteractionContextType.GUILD)
-                .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
+                .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR))
+                .addOptions(desdeCero);
     }
 
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         Guild guild = evento.getGuild();
+        boolean desdeCero = evento.getOption("desde_cero") != null
+                && evento.getOption("desde_cero").getAsBoolean();
         evento.deferReply(true).queue();
 
         try {
-            int limpiados = purgarCanalesExistentes(guild);
+            // Con desde_cero se borra todo antes; entonces no hay mensajes que purgar.
+            int limpiados = desdeCero ? vaciarServidor(guild) : purgarCanalesExistentes(guild);
             Role staff = crearRoles(guild);
             int canales = crearCategoriasYCanales(guild, staff);
 
@@ -77,6 +89,35 @@ public final class SetupComando implements Comando {
             log.error("Error en /setup en el servidor {}", guild.getId(), e);
             evento.getHook().sendMessage(Messages.get(locale, "setup.error")).queue();
         }
+    }
+
+    /**
+     * Vacía el servidor: borra todos los canales y los roles borrables (no {@code @everyone}, no
+     * gestionados, no por encima del bot). Devuelve cuántos elementos se borraron. Irreversible.
+     */
+    private int vaciarServidor(Guild guild) {
+        int borrados = 0;
+        for (GuildChannel canal : List.copyOf(guild.getChannels())) {
+            try {
+                canal.delete().complete();
+                borrados++;
+            } catch (RuntimeException e) {
+                log.warn("No se pudo borrar el canal {}", canal.getId(), e);
+            }
+        }
+        var self = guild.getSelfMember();
+        for (Role rol : List.copyOf(guild.getRoles())) {
+            if (rol.isPublicRole() || rol.isManaged() || !self.canInteract(rol)) {
+                continue;
+            }
+            try {
+                rol.delete().complete();
+                borrados++;
+            } catch (RuntimeException e) {
+                log.warn("No se pudo borrar el rol {}", rol.getId(), e);
+            }
+        }
+        return borrados;
     }
 
     /** Purga mensajes recientes de todos los canales de texto existentes; devuelve cuántos. */
