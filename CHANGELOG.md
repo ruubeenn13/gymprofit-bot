@@ -7,6 +7,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Cambiado
+- **Servidor pulido (visual)**: `/setup` publica mensajes fijados con **contenido rico**
+  (reglas largas y estructuradas por secciones, guías con divisores), **thumbnail** del bot en los
+  embeds, **categorías decoradas** (`▬▬ 📢 INFORMACIÓN ▬▬`) y un **panel de navegación con
+  botones-enlace** en `🚀・empieza-aquí` que salta a los canales clave. `/setup` corre en hilo
+  propio, es resiliente por ítem y tolera la expiración de la interacción.
 - **Pase visual (2)**: `/top` con medallas 🥇🥈🥉 en el podio; el embed de subida de nivel
   añade thumbnail del avatar. `/ping` y las confirmaciones de `/config` se dejan como están
   (línea corta, sin muro).
