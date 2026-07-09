@@ -26,7 +26,8 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 
 | Paquete | Responsabilidad |
 |---|---|
-| `Main` | Arranque: health server → (F1) Flyway → (F1) JDA + listeners + jobs |
+| `Main` | Arranque: health server → **JDA** (vía `DiscordBot`) → (F1) Flyway → (F1) listeners + jobs |
+| `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados, cache de miembros, presencia |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
 | `commands/` | Un archivo por slash command, subpaquetes por categoría |
 | `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod |

@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Conexión con Discord (F1, bootstrap JDA)**: `DiscordBot` centraliza la construcción de
+  JDA con los intents privilegiados `GUILD_MEMBERS` + `MESSAGE_CONTENT`, cache de miembros,
+  presencia (`bot.actividad` en ES/EN) y estado *online*. `Main` conecta al arrancar si hay
+  `DISCORD_TOKEN` (si no, solo el health server) y cierra JDA + health de forma ordenada en
+  `SIGTERM`. Sin comandos ni listeners todavía. Test `DiscordBotTest` (contrato de intents).
+  Verificado en vivo: *Login Successful!* contra el servidor de test.
 - **Andamiaje del repositorio** (sin lógica de comandos todavía):
   - Esqueleto Maven Java 21 + JDA 5: `pom.xml`, estructura de paquetes de la SPEC §4
     (con `package-info.java`), `Main` con health server en `/health`, `BotConfig`, `Messages` (i18n).

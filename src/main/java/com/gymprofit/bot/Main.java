@@ -1,6 +1,7 @@
 package com.gymprofit.bot;
 
 import com.gymprofit.bot.config.BotConfig;
+import net.dv8tion.jda.api.JDA;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +18,9 @@ import java.io.IOException;
  *   <li>(F1) Construir y conectar JDA (slash commands, listeners, jobs).</li>
  * </ol>
  *
- * <p>En esta fase de andamiaje solo se arranca el health server y se registra la
- * configuración detectada; la conexión a Discord y a la BD se implementan en la Fase 1.</p>
+ * <p>Estado actual: health server + conexión JDA (sin comandos ni listeners todavía).
+ * Si falta {@code DISCORD_TOKEN} se arranca solo el health server (útil para el andamiaje
+ * y para el keep-alive de Render). La BD/Flyway se conecta en el siguiente paso de F1.</p>
  */
 public final class Main {
 
@@ -35,12 +37,26 @@ public final class Main {
         log.info("Health server escuchando en http://0.0.0.0:{}/health", BotConfig.port());
 
         if (BotConfig.discordToken().isBlank()) {
-            log.warn("DISCORD_TOKEN no presente: JDA no se conectará (esperado en andamiaje).");
-        } else {
-            log.info("DISCORD_TOKEN presente: la conexión JDA se implementa en la Fase 1.");
+            log.warn("DISCORD_TOKEN no presente: JDA no se conectará (solo health server).");
+            // Cierre ordenado del health server al recibir SIGTERM (Render lo envía en cada deploy).
+            Runtime.getRuntime().addShutdownHook(new Thread(health::stop, "shutdown-health"));
+            return;
         }
 
-        // Cierre ordenado del health server al recibir SIGTERM (Render lo envía en cada deploy).
-        Runtime.getRuntime().addShutdownHook(new Thread(health::stop, "shutdown-health"));
+        JDA jda = DiscordBot.start(BotConfig.discordToken());
+        // Cierre ordenado de JDA + health al recibir SIGTERM (Render lo envía en cada deploy).
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            jda.shutdown();
+            health.stop();
+        }, "shutdown"));
+
+        try {
+            jda.awaitReady();
+            log.info("Conectado a Discord como {} (guilds: {})",
+                    jda.getSelfUser().getName(), jda.getGuilds().size());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrumpido esperando la conexión con Discord.", e);
+        }
     }
 }
