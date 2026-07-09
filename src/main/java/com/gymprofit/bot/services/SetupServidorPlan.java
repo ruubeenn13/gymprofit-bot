@@ -110,7 +110,7 @@ public final class SetupServidorPlan {
 
     /** Categorías y canales del servidor (F1–F4). Nombres decorados con «›» como separador. */
     public static final List<CategoriaPlan> CATEGORIAS = List.of(
-            new CategoriaPlan("📢 › INFORMACIÓN", false, false, List.of(
+            new CategoriaPlan("▬▬ 📢 INFORMACIÓN ▬▬", false, false, List.of(
                     info("👋・bienvenidas", TipoCanal.BIENVENIDA),
                     info("🚀・empieza-aquí", null, "intro.empieza"),
                     info("🎭・roles", null, "panel.roles"),
@@ -120,21 +120,21 @@ public final class SetupServidorPlan {
                     info("📣・anuncios", null, "intro.anuncios"),
                     info("📲・novedades-app", null),
                     info("📱・redes-sociales", null, "intro.redes"))),
-            new CategoriaPlan("💬 › COMUNIDAD", false, false, List.of(
+            new CategoriaPlan("▬▬ 💬 COMUNIDAD ▬▬", false, false, List.of(
                     texto("💬・general", null, "intro.general"),
                     texto("👋・presentaciones", null, "intro.presentaciones"),
                     texto("😂・memes", null),
                     texto("🎮・gaming", null),
                     texto("🎵・música", null),
                     texto("🎧・off-topic", null))),
-            new CategoriaPlan("🏋️ › FITNESS", false, false, List.of(
+            new CategoriaPlan("▬▬ 🏋️ FITNESS ▬▬", false, false, List.of(
                     texto("🗓️・ejercicio-del-día", TipoCanal.EJERCICIO_DIA),
                     texto("📈・progresos", null, "intro.progresos"),
                     texto("📸・fotos", null),
                     texto("🍎・nutrición", null, "intro.nutricion"),
                     texto("📚・rutinas", null, "intro.rutinas"),
                     texto("❓・dudas", null, "intro.dudas"))),
-            new CategoriaPlan("🎮 › GAMIFICACIÓN", false, false, List.of(
+            new CategoriaPlan("▬▬ 🎮 GAMIFICACIÓN ▬▬", false, false, List.of(
                     texto("🏆・logros", TipoCanal.LOGROS),
                     texto("📊・ranking", null),
                     texto("🪙・economía", null, "intro.proximamente"),
@@ -142,10 +142,10 @@ public final class SetupServidorPlan {
                     texto("⚔️・duelos", null, "intro.proximamente"),
                     texto("🎯・retos", null, "intro.proximamente"),
                     slow("🤖・comandos-bot", 5, "intro.comandos"))),
-            new CategoriaPlan("🛎️ › AYUDA", false, false, List.of(
+            new CategoriaPlan("▬▬ 🛎️ AYUDA ▬▬", false, false, List.of(
                     texto("💡・sugerencias", TipoCanal.SUGERENCIAS),
                     texto("🎫・soporte", TipoCanal.SOPORTE, "intro.soporte"))),
-            new CategoriaPlan("🔊 › VOZ", false, false, List.of(
+            new CategoriaPlan("▬▬ 🔊 VOZ ▬▬", false, false, List.of(
                     voz("🔊 General", 0),
                     voz("🎮 Gaming", 0),
                     voz("🎮 Gaming 2", 0),
@@ -154,13 +154,13 @@ public final class SetupServidorPlan {
                     voz("👥 Privada", 4),
                     voz("🎥 Directo", 0),
                     voz("💤 AFK", 0))),
-            new CategoriaPlan("🔒 › STAFF", true, true, List.of(
+            new CategoriaPlan("▬▬ 🔒 STAFF ▬▬", true, true, List.of(
                     texto("🛠️・staff-chat", null),
                     texto("🤖・bot-logs", TipoCanal.BOT_LOGS),
                     texto("📋・moderación", null),
                     texto("📥・reportes", null),
                     texto("🗄️・logs-tickets", null),
                     voz("🔒 Voz staff", 0))),
-            new CategoriaPlan("🎫 › TICKETS", true, true, List.of())
+            new CategoriaPlan("▬▬ 🎫 TICKETS ▬▬", true, true, List.of())
     );
 }

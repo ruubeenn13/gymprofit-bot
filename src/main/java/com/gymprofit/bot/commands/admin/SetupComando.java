@@ -302,7 +302,9 @@ public final class SetupComando implements Comando {
     private void publicarPanelRoles(TextChannel canal, Locale locale) {
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, "panel.roles.titulo"),
-                Messages.get(locale, "panel.roles.desc")).build();
+                Messages.get(locale, "panel.roles.desc"))
+                .setThumbnail(EmbedFactory.iconoUrl())
+                .build();
 
         StringSelectMenu objetivo = StringSelectMenu.create("roles:objetivo")
                 .setPlaceholder(Messages.get(locale, "panel.roles.objetivo.placeholder"))
@@ -332,7 +334,9 @@ public final class SetupComando implements Comando {
         }
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, chPlan.introKey() + ".titulo"),
-                Messages.get(locale, chPlan.introKey() + ".desc")).build();
+                Messages.get(locale, chPlan.introKey() + ".desc"))
+                .setThumbnail(EmbedFactory.iconoUrl())
+                .build();
         canal.sendMessageEmbeds(embed).queue(
                 mensaje -> mensaje.pin().queue(),
                 error -> log.warn("No se pudo fijar la intro en {}", canal.getId(), error));
