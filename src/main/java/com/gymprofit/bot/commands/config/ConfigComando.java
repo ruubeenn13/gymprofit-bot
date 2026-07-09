@@ -170,7 +170,8 @@ public final class ConfigComando implements Comando {
         } else {
             estado = "⚪ " + Messages.get(locale, "config.sinconfigurar");
         }
-        return emoji + " **" + Messages.get(locale, etiquetaKey) + "** — " + estado + "\n";
+        // Doble salto de línea: deja aire entre ítems (si no, salen muy pegados en Discord).
+        return emoji + " **" + Messages.get(locale, etiquetaKey) + "** — " + estado + "\n\n";
     }
 
     private static String etiquetaCanal(TipoCanal tipo) {
