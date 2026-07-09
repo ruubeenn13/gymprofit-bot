@@ -17,6 +17,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   (barra de progreso reutilizable) con test.
 
 ### Añadido
+- **Administración del servidor (F1)**: `/setup` (solo admin) monta roles, categorías y canales
+  (F1–F4) con permisos según `SetupServidorPlan` (blueprint testeable), purga los mensajes
+  recientes existentes y autorrellena `config_servidor`; opción `desde_cero` que borra todos los
+  canales y roles borrables antes de montar (irreversible). `/limpiar <cantidad>` purga los
+  últimos N mensajes del canal (solo staff), vía `LimpiezaService`. Tests `SetupServidorPlanTest`,
+  `LimpiezaServiceTest`, `LimpiarComandoTest`. Ejecución en vivo pendiente de smoke test manual.
 - **Bienvenida + auto-roles (F1)**: `BienvenidaListener` publica un embed de bienvenida (con
   thumbnail del avatar) en el canal configurado al entrar un miembro, con un menú de selección de
   objetivo (Fuerza/Cardio/Pérdida de peso/General); al elegir, asigna el rol configurado en
