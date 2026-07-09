@@ -34,6 +34,7 @@
         <logback.version>1.5.18</logback.version>
         <junit.version>5.11.4</junit.version>
         <mockito.version>5.18.0</mockito.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
 
         <!-- Clase main para el jar ejecutable -->
         <main.class>com.gymprofit.bot.Main</main.class>
@@ -127,6 +128,23 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
             <version>${okhttp.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Testcontainers: levanta un MySQL real en Docker para probar las migraciones Flyway
+          contra el mismo motor que producción (Aiven MySQL), no un sustituto embebido.
+          Justificación en docs/decisions.md (ADR "Test de migraciones con Testcontainers").
+        -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -89,3 +89,27 @@ primer deploy de producción.**
   extra) y el fat-jar se genera con `maven-shade-plugin`.
 
 **Estado:** aceptada. Toda dependencia añadida después amplía este ADR con su justificación.
+
+---
+
+## ADR-006 — Test de migraciones con Testcontainers (MySQL real)
+
+**Contexto.** Las migraciones Flyway deben probarse antes de aplicarse contra Aiven. Un motor
+embebido (H2 en modo MySQL) es rápido y no necesita Docker, pero no reproduce el dialecto real:
+tipos, `CHECK`, `ON UPDATE CURRENT_TIMESTAMP`, charset `utf8mb4`, etc. pueden pasar en H2 y
+fallar en MySQL.
+
+**Decisión.** Probar las migraciones con **Testcontainers** levantando `mysql:8.0` (misma
+familia que Aiven). Dependencias nuevas (test scope): `org.testcontainers:junit-jupiter` y
+`org.testcontainers:mysql`. `MigracionesTest` ejecuta `flyway migrate` y valida el esquema y los
+conteos de seeds (§10).
+
+**Consecuencia operativa.** El test requiere un daemon Docker alcanzable por el cliente Java.
+En **CI (Linux)** Docker es nativo y el test corre siempre. En **local** puede no correr si el
+cliente docker-java no habla con Docker Desktop (bug del transporte *npipe* en Windows con
+engines recientes): en ese caso el test se **salta** (`assumeTrue`), nunca rompe el build, y la
+migración se valida a mano contra un MySQL de Docker. Alternativa para ejecutarlo también en
+local: exponer el daemon en `tcp://localhost:2375` (Docker Desktop → Settings) y fijar
+`DOCKER_HOST`.
+
+**Estado:** aceptada.

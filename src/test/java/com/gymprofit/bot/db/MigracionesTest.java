@@ -1,0 +1,79 @@
+package com.gymprofit.bot.db;
+
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.output.MigrateResult;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.utility.DockerImageName;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+/**
+ * Prueba que las migraciones Flyway aplican limpiamente sobre el <b>mismo motor que
+ * producción</b> (MySQL, vía Testcontainers) y que los seeds obligatorios de la Fase 1
+ * cumplen los mínimos de la SPEC §10 (≥50 preguntas de trivia, ≥30 frases). Usar H2 u otro
+ * sustituto ocultaría diferencias de dialecto que sí fallarían en Aiven.
+ *
+ * <p>El contenedor se arranca <b>manualmente</b> (no con {@code @Testcontainers}) tras
+ * comprobar que Docker es alcanzable: así, en entornos donde el cliente Java no puede hablar
+ * con el daemon (p. ej. el transporte npipe de Docker Desktop en algunas versiones de
+ * Windows), el test se <b>salta</b> en vez de romper el build. En CI (Linux) Docker es nativo
+ * y el test se ejecuta de verdad.</p>
+ */
+class MigracionesTest {
+
+    @Test
+    void migracionesAplicanYSeedsCumplenMinimos() throws Exception {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+
+            MigrateResult resultado = Flyway.configure()
+                    .dataSource(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())
+                    .load()
+                    .migrate();
+
+            // V1 (esquema) + V2 (seeds) = 2 migraciones aplicadas, sin errores.
+            assertEquals(2, resultado.migrationsExecuted, "Deben aplicarse exactamente V1 y V2");
+            assertTrue(resultado.success, "La migración debe terminar con éxito");
+
+            try (Connection con = DriverManager.getConnection(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
+                 Statement st = con.createStatement()) {
+
+                assertTrue(contar(st, "SELECT COUNT(*) FROM trivia_preguntas") >= 50,
+                        "La SPEC §10 exige ≥50 preguntas de trivia");
+                assertTrue(contar(st, "SELECT COUNT(*) FROM frases") >= 30,
+                        "La SPEC §10 exige ≥30 frases motivadoras");
+
+                // Toda pregunta debe tener una opción correcta válida (A-D) y ambos idiomas.
+                assertEquals(0, contar(st,
+                        "SELECT COUNT(*) FROM trivia_preguntas WHERE correcta NOT IN ('A','B','C','D')"),
+                        "Ninguna pregunta puede tener una opción correcta fuera de A-D");
+                assertEquals(0, contar(st,
+                        "SELECT COUNT(*) FROM trivia_preguntas WHERE pregunta_es = '' OR pregunta_en = ''"),
+                        "Ninguna pregunta puede quedar sin texto en algún idioma");
+            }
+        }
+    }
+
+    /** Ejecuta una consulta de conteo y devuelve el entero de la primera columna. */
+    private static int contar(Statement st, String sql) throws Exception {
+        try (ResultSet rs = st.executeQuery(sql)) {
+            rs.next();
+            return rs.getInt(1);
+        }
+    }
+}

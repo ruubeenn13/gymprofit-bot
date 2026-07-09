@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Esquema inicial de la BD + seeds (F1)**: migraciones Flyway `V1__esquema_inicial_f1.sql`
+  (tablas de la Fase 1: `usuarios_discord`, `config_servidor`, `warns`, `tickets`,
+  `sugerencias`, `trivia_preguntas`, `trivia_scores`, `frases`) y `V2__seed_frases_trivia.sql`
+  (seeds obligatorios SPEC §10: 50 preguntas de trivia y 32 frases, bilingües ES/EN). Test de
+  migración con **Testcontainers** (`mysql:8.0`) que valida `flyway migrate` y los mínimos de
+  seeds; se salta si el cliente Docker no es alcanzable en local (corre en CI). Ver ADR-006.
 - **Conexión con Discord (F1, bootstrap JDA)**: `DiscordBot` centraliza la construcción de
   JDA con los intents privilegiados `GUILD_MEMBERS` + `MESSAGE_CONTENT`, cache de miembros,
   presencia (`bot.actividad` en ES/EN) y estado *online*. `Main` conecta al arrancar si hay
