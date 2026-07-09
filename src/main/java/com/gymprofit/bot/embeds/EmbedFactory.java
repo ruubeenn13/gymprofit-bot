@@ -87,7 +87,26 @@ public final class EmbedFactory {
         }
     }
 
+    /**
+     * URL del icono que acompaña al footer de todos los embeds (el avatar del bot). Se configura
+     * una vez al arrancar con {@link #configurarIconoFooter(String)}; si es {@code null} el footer
+     * va sin icono (p. ej. en tests).
+     */
+    private static volatile String iconoFooterUrl;
+
     private EmbedFactory() {
+    }
+
+    /**
+     * Fija el icono del footer (normalmente el avatar del bot). Llamar una vez tras conectar JDA.
+     */
+    public static void configurarIconoFooter(String url) {
+        iconoFooterUrl = url;
+    }
+
+    /** URL del icono/avatar del bot, para usarlo como thumbnail donde aporte. */
+    public static String iconoUrl() {
+        return iconoFooterUrl;
     }
 
     /**
@@ -103,7 +122,7 @@ public final class EmbedFactory {
         return new EmbedBuilder()
                 .setColor(tipo.categoria().color())
                 .setTitle(tipo.emoji() + "  " + titulo)
-                .setFooter(Messages.get(locale, "embed.footer"))
+                .setFooter(Messages.get(locale, "embed.footer"), iconoFooterUrl)
                 .setTimestamp(Instant.now());
     }
 

@@ -10,6 +10,7 @@ import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.XpService;
@@ -69,6 +70,8 @@ public final class Main {
         if (jda != null) {
             try {
                 jda.awaitReady();
+                // El avatar del bot acompaña al footer de todos los embeds (marca visual).
+                EmbedFactory.configurarIconoFooter(jda.getSelfUser().getEffectiveAvatarUrl());
                 log.info("Conectado a Discord como {} (guilds: {})",
                         jda.getSelfUser().getName(), jda.getGuilds().size());
             } catch (InterruptedException e) {

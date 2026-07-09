@@ -8,7 +8,10 @@ emoji en el título, footer `GymProBot • GymProFit` + timestamp, fields inline
 solo en hitos y paginación con botones cuando no cabe. Textos por i18n. Ver skill `nuevo-embed`.
 
 Los tipos cuyo color no fija la §7 (duelos, trivia, sugerencias, tickets) usan **azul** como
-color de información general.
+color de información general. El footer lleva el avatar del bot
+(`configurarIconoFooter`, fijado al arrancar). Para datos con muchos ítems, preferir una
+descripción agrupada con indicadores (✅/⚪) antes que decenas de fields; barras de progreso
+con `util/Barras`.
 
 _Ejemplo:_ `EmbedFactory.base(Tipo.LOGRO, locale, titulo)` ⇒ embed dorado (`#E8B84B`) con 🏆.
 

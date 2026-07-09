@@ -6,6 +6,7 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.NivelCalculadora;
+import com.gymprofit.bot.util.Barras;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
@@ -68,15 +69,18 @@ public final class NivelComando implements Comando {
         int progreso = datos.xp() - baseNivel;
         int objetivoXp = siguienteNivel - baseNivel;
 
+        String valorProgreso = Barras.progreso(progreso, objetivoXp, 12) + "\n"
+                + Messages.get(locale, "comando.nivel.valor.progreso", progreso, objetivoXp, nivel + 1);
+
         var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "comando.nivel.titulo", objetivo.getEffectiveName()))
+                .setThumbnail(objetivo.getEffectiveAvatarUrl())
                 .addField(Messages.get(locale, "comando.nivel.campo.nivel"),
-                        String.valueOf(nivel), true)
+                        "**" + nivel + "**", true)
                 .addField(Messages.get(locale, "comando.nivel.campo.xp"),
-                        String.valueOf(datos.xp()), true)
-                .addField(Messages.get(locale, "comando.nivel.campo.progreso"),
-                        Messages.get(locale, "comando.nivel.valor.progreso",
-                                progreso, objetivoXp, nivel + 1), false)
+                        datos.xp() + " XP", true)
+                .addBlankField(true)
+                .addField(Messages.get(locale, "comando.nivel.campo.progreso"), valorProgreso, false)
                 .build();
 
         evento.replyEmbeds(embed).queue();

@@ -136,29 +136,41 @@ public final class ConfigComando implements Comando {
 
     private void responderVer(SlashCommandInteractionEvent evento, Locale locale, long guildId) {
         ConfigServidor c = servicio.obtener(guildId);
+
+        StringBuilder d = new StringBuilder();
+        d.append("🌐 **").append(Messages.get(locale, "config.ver.idioma"))
+                .append(":** `").append(c.idioma()).append("`\n\n");
+
+        d.append("__**").append(Messages.get(locale, "config.ver.seccion.canales")).append("**__\n");
+        d.append(linea(locale, "👋", "config.campo.bienvenida", c.canalBienvenida(), true));
+        d.append(linea(locale, "🏋️", "config.campo.ejercicio", c.canalEjercicioDia(), true));
+        d.append(linea(locale, "🏆", "config.campo.logros", c.canalLogros(), true));
+        d.append(linea(locale, "💡", "config.campo.sugerencias", c.canalSugerencias(), true));
+        d.append(linea(locale, "🎫", "config.campo.soporte", c.canalSoporte(), true));
+        d.append(linea(locale, "🛡️", "config.campo.botlogs", c.canalBotLogs(), true));
+
+        d.append("\n__**").append(Messages.get(locale, "config.ver.seccion.roles")).append("**__\n");
+        d.append(linea(locale, "💪", "config.campo.rol.fuerza", c.rolObjetivoFuerza(), false));
+        d.append(linea(locale, "🏃", "config.campo.rol.cardio", c.rolObjetivoCardio(), false));
+        d.append(linea(locale, "⚖️", "config.campo.rol.perdidapeso", c.rolObjetivoPerdidaPeso(), false));
+        d.append(linea(locale, "🌟", "config.campo.rol.general", c.rolObjetivoGeneral(), false));
+
         var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
-                        Messages.get(locale, "config.ver.titulo"))
-                .addField(Messages.get(locale, "config.ver.idioma"), c.idioma(), true)
-                .addField(Messages.get(locale, "config.campo.bienvenida"), canal(c.canalBienvenida(), locale), true)
-                .addField(Messages.get(locale, "config.campo.ejercicio"), canal(c.canalEjercicioDia(), locale), true)
-                .addField(Messages.get(locale, "config.campo.logros"), canal(c.canalLogros(), locale), true)
-                .addField(Messages.get(locale, "config.campo.sugerencias"), canal(c.canalSugerencias(), locale), true)
-                .addField(Messages.get(locale, "config.campo.soporte"), canal(c.canalSoporte(), locale), true)
-                .addField(Messages.get(locale, "config.campo.botlogs"), canal(c.canalBotLogs(), locale), true)
-                .addField(Messages.get(locale, "config.campo.rol.fuerza"), rol(c.rolObjetivoFuerza(), locale), true)
-                .addField(Messages.get(locale, "config.campo.rol.cardio"), rol(c.rolObjetivoCardio(), locale), true)
-                .addField(Messages.get(locale, "config.campo.rol.perdidapeso"), rol(c.rolObjetivoPerdidaPeso(), locale), true)
-                .addField(Messages.get(locale, "config.campo.rol.general"), rol(c.rolObjetivoGeneral(), locale), true)
+                        Messages.get(locale, "config.ver.titulo"), d.toString().strip())
+                .setThumbnail(EmbedFactory.iconoUrl())
                 .build();
         evento.replyEmbeds(embed).setEphemeral(true).queue();
     }
 
-    private static String canal(Long id, Locale locale) {
-        return id != null ? "<#" + id + ">" : Messages.get(locale, "config.sinconfigurar");
-    }
-
-    private static String rol(Long id, Locale locale) {
-        return id != null ? "<@&" + id + ">" : Messages.get(locale, "config.sinconfigurar");
+    /** Una línea de la vista de config: {@code emoji **Etiqueta** — ✅ mención} o {@code — ⚪ sin configurar}. */
+    private static String linea(Locale locale, String emoji, String etiquetaKey, Long id, boolean esCanal) {
+        String estado;
+        if (id != null) {
+            estado = "✅ " + (esCanal ? "<#" + id + ">" : "<@&" + id + ">");
+        } else {
+            estado = "⚪ " + Messages.get(locale, "config.sinconfigurar");
+        }
+        return emoji + " **" + Messages.get(locale, etiquetaKey) + "** — " + estado + "\n";
     }
 
     private static String etiquetaCanal(TipoCanal tipo) {
