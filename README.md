@@ -107,6 +107,8 @@ en el dashboard (ver [`render.yaml`](render.yaml)). **Nunca se commitean secreto
 
 ### Comandos de desarrollo
 
+- **Arrancar/reiniciar en local:** `.\scripts\run-local.ps1` (compila, carga `.env` y ejecuta).
+  Guía completa de operación (reiniciar tras cambios, 24/7 en Render): [`docs/operacion.md`](docs/operacion.md).
 - `./mvnw verify` — build + tests (gate de CI).
 - `./mvnw -DskipTests package` — genera el fat-jar ejecutable.
 - Reglas del repo: [`CLAUDE.md`](CLAUDE.md), [`rules/`](rules/). Fuente de verdad:
