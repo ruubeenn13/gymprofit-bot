@@ -68,6 +68,11 @@ public final class SetupComando implements Comando {
     private static final String CANAL_EMPIEZA = "🚀・empieza-aquí";
     /** Canal (solo staff) al que AutoMod manda las alertas de contenido bloqueado. */
     private static final String CANAL_MODERACION = "📋・moderación";
+    /** Canales a los que se reapuntan los ajustes de comunidad tras montar (reglas/updates/seguridad). */
+    private static final String CANAL_REGLAS = "📜・reglas";
+    private static final String CANAL_BOTLOGS = "🤖・bot-logs";
+    /** Canal temporal que sostiene los ajustes de comunidad mientras se borran los viejos. */
+    private static final String CANAL_TEMPORAL = "setup-temporal";
     /** Categoría de contadores en vivo: se fuerza arriba del todo y sus canales de voz se bloquean. */
     private static final String CAT_STATS = "▬▬ 📊 SERVER STATS ▬▬";
 
@@ -140,10 +145,33 @@ public final class SetupComando implements Comando {
         // bloquearlo con complete() causaba thread starvation y desconexiones).
         Thread hilo = new Thread(() -> {
             try {
-                int limpiados = desdeCero ? vaciarServidor(guild) : purgarCanalesExistentes(guild);
+                // Con Comunidad activada, Discord no deja borrar los canales de reglas/updates/
+                // seguridad. Se crean-y-reasignan a un canal temporal para poder borrar los viejos;
+                // al final se reapuntan a los nuevos y se borra el temporal.
+                TextChannel temporal = null;
+                int limpiados;
+                if (desdeCero) {
+                    if (guild.getFeatures().contains("COMMUNITY")) {
+                        temporal = guild.createTextChannel(CANAL_TEMPORAL).complete();
+                        reasignarComunidad(guild, temporal);
+                    }
+                    limpiados = vaciarServidor(guild, temporal == null ? 0L : temporal.getIdLong());
+                } else {
+                    limpiados = purgarCanalesExistentes(guild);
+                }
                 Map<String, Role> roles = crearRoles(guild);
                 int canales = crearCategoriasYCanales(guild, roles, locale);
                 int reglasAutoMod = crearReglasAutoMod(guild);
+
+                // Reapunta la comunidad a los canales recién montados y elimina el temporal.
+                if (temporal != null) {
+                    restaurarComunidad(guild);
+                    try {
+                        temporal.delete().complete();
+                    } catch (RuntimeException e) {
+                        log.warn("No se pudo borrar el canal temporal de setup", e);
+                    }
+                }
 
                 var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "setup.titulo"),
@@ -164,12 +192,19 @@ public final class SetupComando implements Comando {
     }
 
     /**
-     * Vacía el servidor: borra todos los canales y los roles borrables (no {@code @everyone}, no
-     * gestionados, no por encima del bot). Devuelve cuántos elementos se borraron. Irreversible.
+     * Vacía el servidor: borra todos los canales (salvo {@code exceptoCanalId}) y los roles
+     * borrables (no {@code @everyone}, no gestionados, no por encima del bot). Devuelve cuántos
+     * elementos se borraron. Irreversible.
+     *
+     * @param exceptoCanalId canal a conservar (el temporal que sostiene la comunidad), o 0 si ninguno
      */
-    private int vaciarServidor(Guild guild) {
+    private int vaciarServidor(Guild guild, long exceptoCanalId) {
         int borrados = 0;
         for (GuildChannel canal : List.copyOf(guild.getChannels())) {
+            // El canal temporal sostiene los ajustes de comunidad; no se borra en esta pasada.
+            if (canal.getIdLong() == exceptoCanalId) {
+                continue;
+            }
             try {
                 canal.delete().complete();
                 borrados++;
@@ -486,6 +521,53 @@ public final class SetupComando implements Comando {
             return canal.getName().startsWith(nombre.substring(0, dosPuntos + 1));
         }
         return canal.getName().equals(nombre);
+    }
+
+    /**
+     * Apunta los tres canales de comunidad (reglas, actualizaciones y seguridad) al canal dado.
+     * Se usa con un canal temporal antes de vaciar, para que Discord permita borrar los actuales
+     * (no deja borrar los canales requeridos por una comunidad).
+     */
+    private void reasignarComunidad(Guild guild, TextChannel destino) {
+        try {
+            guild.getManager()
+                    .setRulesChannel(destino)
+                    .setCommunityUpdatesChannel(destino)
+                    .setSafetyAlertsChannel(destino)
+                    .complete();
+        } catch (RuntimeException e) {
+            log.warn("No se pudieron reasignar los canales de comunidad al temporal", e);
+        }
+    }
+
+    /**
+     * Reapunta los canales de comunidad a los canales recién montados: reglas → {@code 📜・reglas},
+     * actualizaciones → {@code 🤖・bot-logs}, seguridad → {@code 📋・moderación} (los que existan).
+     */
+    private void restaurarComunidad(Guild guild) {
+        TextChannel reglas = primerCanal(guild, CANAL_REGLAS);
+        TextChannel botLogs = primerCanal(guild, CANAL_BOTLOGS);
+        TextChannel moderacion = primerCanal(guild, CANAL_MODERACION);
+        try {
+            var manager = guild.getManager();
+            if (reglas != null) {
+                manager = manager.setRulesChannel(reglas);
+            }
+            if (botLogs != null) {
+                manager = manager.setCommunityUpdatesChannel(botLogs);
+            }
+            if (moderacion != null) {
+                manager = manager.setSafetyAlertsChannel(moderacion);
+            }
+            manager.complete();
+        } catch (RuntimeException e) {
+            log.warn("No se pudieron reapuntar los canales de comunidad a los nuevos", e);
+        }
+    }
+
+    /** Primer canal de texto con ese nombre exacto, o {@code null}. */
+    private static TextChannel primerCanal(Guild guild, String nombre) {
+        return guild.getTextChannelsByName(nombre, false).stream().findFirst().orElse(null);
     }
 
     /** Si el canal representa un canal de config, lo guarda en config_servidor. */

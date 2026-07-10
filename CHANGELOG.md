@@ -6,6 +6,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin publicar]
 
+### Corregido
+- **`/setup desde_cero` ahora borra también los canales de comunidad**: Discord no deja borrar los
+  canales de reglas/actualizaciones/seguridad de una comunidad. `/setup` crea un canal temporal,
+  reapunta esos ajustes a él (`setRulesChannel`/`setCommunityUpdatesChannel`/`setSafetyAlertsChannel`),
+  borra los viejos, y tras montar reapunta la comunidad a los nuevos (`📜・reglas`, `🤖・bot-logs`,
+  `📋・moderación`) y elimina el temporal. Antes quedaban 2 canales huérfanos arriba del todo.
+
 ### Añadido
 - **Eventos del servidor (`/reto` y `/evento`)**: dos contadores más en SERVER STATS —`🎯 Reto`
   (reto de la semana) y `⏳ Evento` (próximo evento con cuenta atrás «en 3d 4h»)— alimentados por
