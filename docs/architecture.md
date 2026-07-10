@@ -32,7 +32,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
 | `commands/` | Un archivo por slash command, subpaquetes por categoría |
 | `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod |
-| `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EconomyService`…) |
+| `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
 | `api/` | Cliente Retrofit hacia la API GymProFit (interfaces por dominio) |
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |

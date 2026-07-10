@@ -7,6 +7,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Eventos del servidor (`/reto` y `/evento`)**: dos contadores más en SERVER STATS —`🎯 Reto`
+  (reto de la semana) y `⏳ Evento` (próximo evento con cuenta atrás «en 3d 4h»)— alimentados por
+  la nueva tabla `eventos_servidor` (migración **V3**) vía `EventoServidorRepositorio` y
+  `EventoService`. Comandos solo-staff `/reto <texto>` y `/evento <nombre> <fecha>` (formato
+  `2026-07-20 18:30`, hora peninsular; la confirmación usa timestamps dinámicos de Discord). El job
+  de estadísticas refresca ambos contadores. Tests `EventoServiceTest` (parseo de fecha) y
+  ampliación de `EstadisticasServiceTest` (cuenta atrás). Ejecución en vivo pendiente de smoke test.
 - **Tipos de canal coherentes en `/setup` (foros, media, anuncios)**: `TipoCanalDiscord` amplía a
   `FORO`, `MEDIA` y `ANUNCIOS` y `/setup` los crea con su rama propia:
   - **Foros** (publicaciones título+imagen+descripción con etiquetas): `💡 sugerencias`

@@ -3,6 +3,8 @@ package com.gymprofit.bot;
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.commands.RouterComandos;
 import com.gymprofit.bot.commands.admin.SetupComando;
+import com.gymprofit.bot.commands.comunidad.EventoComando;
+import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
@@ -11,7 +13,9 @@ import com.gymprofit.bot.commands.moderacion.LimpiarComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
+import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
+import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.PanelRolesListener;
@@ -67,8 +71,10 @@ public final class Main {
         // que se resuelva la caché de miembros/estados de voz.
         UsuarioDiscordRepositorio usuariosStats =
                 (db == null) ? null : new UsuarioDiscordRepositorio(db.dataSource());
+        EventoServidorRepositorio eventosStats =
+                (db == null) ? null : new EventoServidorRepositorio(db.dataSource());
         EstadisticasService stats =
-                (jda == null) ? null : new EstadisticasService(jda, usuariosStats);
+                (jda == null) ? null : new EstadisticasService(jda, usuariosStats, eventosStats);
         if (stats != null) {
             stats.iniciar();
         }
@@ -150,6 +156,11 @@ public final class Main {
             LimpiezaService limpieza = new LimpiezaService();
             comandos.add(new LimpiarComando(limpieza));
             comandos.add(new SetupComando(configService, limpieza));
+
+            EventoService eventoService =
+                    new EventoService(new EventoServidorRepositorio(db.dataSource()));
+            comandos.add(new RetoComando(eventoService));
+            comandos.add(new EventoComando(eventoService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

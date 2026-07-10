@@ -1,5 +1,7 @@
 package com.gymprofit.bot.services;
 
+import com.gymprofit.bot.db.EventoServidor;
+import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscord;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import net.dv8tion.jda.api.JDA;
@@ -36,6 +38,10 @@ public final class EstadisticasService {
     public static final String PREFIJO_TOP = "🏆 Nº1:";
     public static final String PREFIJO_BOOSTS = "🚀 Boosts:";
     public static final String PREFIJO_VOZ = "🔊 En voz:";
+    public static final String PREFIJO_RETO = "🎯 Reto:";
+    public static final String PREFIJO_EVENTO = "⏳ Evento:";
+    /** Valor mostrado cuando un contador aún no tiene dato (reto/evento sin fijar). */
+    private static final String SIN_DATO = "—";
 
     /** Cada cuánto se refrescan los contadores (holgado frente al rate limit de renombrado). */
     private static final long INTERVALO_MINUTOS = 6;
@@ -45,17 +51,20 @@ public final class EstadisticasService {
     private static final int MAX_NOMBRE_TOP = 80;
 
     private final JDA jda;
-    /** Repositorio de usuarios para XP repartido y Nº1; {@code null} si el bot arrancó sin BD. */
+    /** Repositorios para los contadores que salen de BD; {@code null} si el bot arrancó sin BD. */
     private final UsuarioDiscordRepositorio usuarios;
+    private final EventoServidorRepositorio eventos;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "gymprobot-stats");
         t.setDaemon(true);
         return t;
     });
 
-    public EstadisticasService(JDA jda, UsuarioDiscordRepositorio usuarios) {
+    public EstadisticasService(JDA jda, UsuarioDiscordRepositorio usuarios,
+                               EventoServidorRepositorio eventos) {
         this.jda = jda;
         this.usuarios = usuarios;
+        this.eventos = eventos;
     }
 
     /** Arranca el job periódico. Idempotente respecto a la API (no renombra si nada cambió). */
@@ -90,6 +99,41 @@ public final class EstadisticasService {
             renombrar(guild, PREFIJO_XP, String.valueOf(usuarios.sumaXp()));
             renombrar(guild, PREFIJO_TOP, nombreDelNumeroUno(guild));
         }
+
+        if (eventos != null) {
+            EventoServidor ev = eventos.obtener(guild.getIdLong());
+            renombrar(guild, PREFIJO_RETO, ev.retoTexto() == null ? SIN_DATO : ev.retoTexto());
+            renombrar(guild, PREFIJO_EVENTO, valorEvento(ev, System.currentTimeMillis() / 1000));
+        }
+    }
+
+    /** Texto del contador de evento: «nombre · cuenta atrás», o «—» si no hay evento fijado. */
+    static String valorEvento(EventoServidor ev, long ahoraSeg) {
+        if (ev.eventoNombre() == null || ev.eventoFin() == null) {
+            return SIN_DATO;
+        }
+        return ev.eventoNombre() + " · " + cuentaAtras(ev.eventoFin(), ahoraSeg);
+    }
+
+    /**
+     * Cuenta atrás legible hasta un instante ({@code finSeg}) desde {@code ahoraSeg}, ambos en epoch
+     * de segundos. Ejemplos: «en 3d 4h», «en 5h 20m», «en 12m», o «¡ya!» si ya pasó. Lógica pura.
+     */
+    static String cuentaAtras(long finSeg, long ahoraSeg) {
+        long restante = finSeg - ahoraSeg;
+        if (restante <= 0) {
+            return "¡ya!";
+        }
+        long dias = restante / 86400;
+        long horas = (restante % 86400) / 3600;
+        long minutos = (restante % 3600) / 60;
+        if (dias > 0) {
+            return "en " + dias + "d " + horas + "h";
+        }
+        if (horas > 0) {
+            return "en " + horas + "h " + minutos + "m";
+        }
+        return "en " + minutos + "m";
     }
 
     /** Nº de miembros conectados a algún canal de voz (excluye a nadie: cuenta todos los presentes). */

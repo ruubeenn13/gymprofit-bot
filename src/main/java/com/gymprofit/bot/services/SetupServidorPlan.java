@@ -146,7 +146,9 @@ public final class SetupServidorPlan {
                     voz("🔥 XP repartido: …", 0),
                     voz("🏆 Nº1: …", 0),
                     voz("🚀 Boosts: …", 0),
-                    voz("🔊 En voz: …", 0))),
+                    voz("🔊 En voz: …", 0),
+                    voz("🎯 Reto: …", 0),
+                    voz("⏳ Evento: …", 0))),
             new CategoriaPlan("▬▬ 📢 INFORMACIÓN ▬▬", false, false, List.of(
                     info("👋・bienvenidas", TipoCanal.BIENVENIDA)
                             .conTopic("Damos la bienvenida a cada nuevo miembro de la comunidad. 👋"),
