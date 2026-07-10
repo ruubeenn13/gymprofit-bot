@@ -508,12 +508,13 @@ public final class SetupComando implements Comando {
             }
             return mc;
         } catch (RuntimeException e) {
-            // Se registra el error real de Discord para diagnosticar por qué no deja crear media.
-            log.warn("Media no disponible para {} ({}); creo un foro en vista galería",
-                    chPlan.nombre(), e.getMessage());
-            // Foro en layout GALERÍA: cuadrícula de miniaturas, casi idéntico a un canal de media.
+            // Discord no deja a los bots crear canales de media por token de bot (error 50024, igual
+            // que antes con los foros). Un canal de media ES un foro en vista galería, así que se crea
+            // exactamente eso: cuadrícula de miniaturas + reacción por defecto. Equivalente visual.
+            log.info("Media por bot no permitida para {}; se crea foro-galería equivalente", chPlan.nombre());
             var accion = categoria.createForumChannel(chPlan.nombre())
-                    .setDefaultLayout(ForumChannel.Layout.GALLERY_VIEW);
+                    .setDefaultLayout(ForumChannel.Layout.GALLERY_VIEW)
+                    .setDefaultReaction(Emoji.fromUnicode("👍"));
             if (chPlan.topic() != null) {
                 accion = accion.setTopic(chPlan.topic());
             }
