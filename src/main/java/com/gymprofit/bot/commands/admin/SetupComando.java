@@ -490,23 +490,30 @@ public final class SetupComando implements Comando {
      * y da una galería por publicaciones equivalente. Sincroniza permisos con la categoría.
      */
     private GuildChannel crearMediaOForo(Category categoria, CanalPlan chPlan) {
+        Guild guild = categoria.getGuild();
         try {
-            // Creación "desnuda": el topic en la acción de creación parece disparar el 50024 en
-            // media; se crea el canal y luego se le pone topic y se sincronizan permisos aparte,
-            // sin tumbar el canal si esos pasos fallan.
-            MediaChannel mc = categoria.createMediaChannel(chPlan.nombre()).complete();
+            // Se crea a nivel de servidor y se mueve a la categoría: crear media directamente bajo
+            // la categoría (category.createMediaChannel) daba 50024 en algunas guilds. El topic y el
+            // sync se aplican después, sin tumbar el canal si esos pasos fallan.
+            MediaChannel mc = guild.createMediaChannel(chPlan.nombre()).complete();
             try {
+                mc.getManager().setParent(categoria).complete();
                 mc.getManager().sync().complete();
                 if (chPlan.topic() != null) {
                     mc.getManager().setTopic(chPlan.topic()).complete();
                 }
             } catch (RuntimeException ajuste) {
-                log.warn("Canal de media {} creado, pero falló topic/sync", chPlan.nombre());
+                log.warn("Canal de media {} creado, pero falló mover/topic/sync: {}",
+                        chPlan.nombre(), ajuste.getMessage());
             }
             return mc;
         } catch (RuntimeException e) {
-            log.warn("Media no disponible para {}; creo un foro en su lugar", chPlan.nombre());
-            var accion = categoria.createForumChannel(chPlan.nombre());
+            // Se registra el error real de Discord para diagnosticar por qué no deja crear media.
+            log.warn("Media no disponible para {} ({}); creo un foro en vista galería",
+                    chPlan.nombre(), e.getMessage());
+            // Foro en layout GALERÍA: cuadrícula de miniaturas, casi idéntico a un canal de media.
+            var accion = categoria.createForumChannel(chPlan.nombre())
+                    .setDefaultLayout(ForumChannel.Layout.GALLERY_VIEW);
             if (chPlan.topic() != null) {
                 accion = accion.setTopic(chPlan.topic());
             }
