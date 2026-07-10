@@ -21,11 +21,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   nombre o la haya creado el staff a mano), evitando el error 50035 (máximo de reglas superado).
 
 ### Añadido
-- **FAQ pulido + Staff publica en solo-lectura**: el foro `❓・faq` se crea con **reacción por
-  defecto** (👍) y **7 publicaciones iniciales** de preguntas frecuentes (con su etiqueta);
-  `💡・sugerencias` también lleva reacción por defecto para votar. Los canales de solo-lectura
-  (anuncios, reglas, info…) ahora **permiten publicar al Staff** (no solo al bot/admin): niegan
-  escribir a `@everyone` pero conceden `MESSAGE_SEND` al rol Staff.
+- **Todos los foros pulidos + Staff publica en solo-lectura**: cada foro (faq, rutinas, nutrición,
+  dudas, sugerencias, reportes, progresos, fotos) se crea con **etiquetas**, **reacción por defecto
+  temática** (faq 💡, rutinas 💪, nutrición 🍎, dudas 🙋, sugerencias 👍, reportes 🚨, progresos 🔥,
+  fotos ❤️) y una **primera publicación** (guía + ejemplo) para que no arranque vacío. Los canales de
+  solo-lectura (anuncios, reglas, info…) ahora **permiten publicar al Staff** (no solo al bot/admin):
+  niegan escribir a `@everyone` pero conceden `MESSAGE_SEND` al rol Staff.
 - **Coherencia de tipos de canal + AFK**: `❓・faq` y `📥・reportes` pasan a **foro** (con etiquetas);
   `🏆・logros` y `📊・ranking` a **solo-lectura** (los publica el bot, sin chatter); y `/setup` fija
   `💤 AFK` como **canal AFK** del servidor (timeout 5 min).

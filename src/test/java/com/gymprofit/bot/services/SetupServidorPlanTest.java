@@ -72,17 +72,19 @@ class SetupServidorPlanTest {
     }
 
     @Test
-    void soloLosForosLlevanEtiquetas() {
+    void soloForosYMediaLlevanEtiquetasYSonValidas() {
         for (CategoriaPlan cat : SetupServidorPlan.CATEGORIAS) {
             for (CanalPlan ch : cat.canales()) {
-                if (ch.tipo() == SetupServidorPlan.TipoCanalDiscord.FORO) {
+                boolean postContainer = ch.tipo() == SetupServidorPlan.TipoCanalDiscord.FORO
+                        || ch.tipo() == SetupServidorPlan.TipoCanalDiscord.MEDIA;
+                if (postContainer) {
                     assertTrue(!ch.etiquetas().isEmpty(),
-                            "foro sin etiquetas: " + ch.nombre());
+                            "foro/media sin etiquetas: " + ch.nombre());
                     ch.etiquetas().forEach(t -> assertTrue(t.length() <= 20,
-                            "etiqueta de foro >20 chars: " + t));
+                            "etiqueta >20 chars: " + t));
                 } else {
                     assertTrue(ch.etiquetas().isEmpty(),
-                            "solo los foros llevan etiquetas: " + ch.nombre());
+                            "solo foros y media llevan etiquetas: " + ch.nombre());
                 }
             }
         }

@@ -127,9 +127,9 @@ public final class SetupServidorPlan {
         return new CanalPlan(nombre, TipoCanalDiscord.FORO, false, 0, clave, 0, null, null, List.of(etiquetas));
     }
 
-    /** Canal de media (galería de imágenes). */
-    private static CanalPlan media(String nombre, TipoCanal clave) {
-        return new CanalPlan(nombre, TipoCanalDiscord.MEDIA, false, 0, clave, 0, null, null, List.of());
+    /** Canal de media (galería de imágenes) con sus etiquetas. */
+    private static CanalPlan media(String nombre, TipoCanal clave, String... etiquetas) {
+        return new CanalPlan(nombre, TipoCanalDiscord.MEDIA, false, 0, clave, 0, null, null, List.of(etiquetas));
     }
 
     /** Canal de anuncios (News, seguible). Admite pin de intro como un canal de texto. */
@@ -184,9 +184,9 @@ public final class SetupServidorPlan {
             new CategoriaPlan("▬▬ 🏋️ FITNESS ▬▬", false, false, List.of(
                     texto("🗓️・ejercicio-del-día", TipoCanal.EJERCICIO_DIA)
                             .conTopic("El ejercicio o reto del día. ¡A moverse! 🗓️"),
-                    media("📈・progresos", null)
+                    media("📈・progresos", null, "Antes/Después", "Marca (PR)", "Medidas", "Otro")
                             .conTopic("Comparte tus progresos y marcas (antes/después). Una foto por publicación."),
-                    media("📸・fotos", null)
+                    media("📸・fotos", null, "Entreno", "Comida", "Material", "Gym")
                             .conTopic("Fotos de entrenos, comidas y avances."),
                     foro("🍎・nutrición", null, "Receta", "Plan", "Duda", "Suplementación")
                             .conTopic("Recetas, planes y dudas de alimentación. Abre un post y etiquétalo."),

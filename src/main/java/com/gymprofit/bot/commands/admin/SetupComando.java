@@ -26,6 +26,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.NewsChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.StageChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.entities.channel.attribute.IPostContainer;
 import net.dv8tion.jda.api.entities.channel.forums.ForumTagData;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
@@ -77,29 +78,104 @@ public final class SetupComando implements Comando {
     private static final String CANAL_FAQ = "❓・faq";
     private static final String CANAL_SUGERENCIAS = "💡・sugerencias";
 
-    /** FAQ inicial que se publica en el foro (pregunta, respuesta, etiqueta). En español. */
-    private static final List<String[]> FAQ = List.of(
-            new String[]{"¿Cómo gano XP?",
-                    "Participando: cada mensaje te da XP y subes de nivel. Los detalles, en 🗺️・cómo-funciona.",
-                    "XP y niveles"},
-            new String[]{"¿Cómo veo mi nivel y el ranking?",
-                    "Usa **/nivel** para tu progreso y **/top** para la clasificación del servidor.",
-                    "XP y niveles"},
-            new String[]{"¿Cómo consigo mis roles?",
-                    "En 🎭・roles elige tu objetivo y tus notificaciones con los menús desplegables.",
-                    "General"},
-            new String[]{"¿Qué es la economía?",
-                    "Monedas, tienda y recompensas. Está en camino: lo verás en 🪙・economía.",
-                    "Economía"},
-            new String[]{"¿Cómo vinculo la app GymProFit?",
-                    "La vinculación con la app llegará pronto. Lo anunciaremos en 📣・anuncios.",
-                    "App"},
-            new String[]{"¿Cómo pido ayuda al equipo?",
-                    "En 🎫・soporte pulsa el botón para abrir un ticket privado con el staff.",
-                    "General"},
-            new String[]{"¿Dónde comparto mis progresos?",
-                    "Fotos antes/después en 📈・progresos, y tus entrenos en 📚・rutinas.",
-                    "General"});
+    /** Reacción por defecto de cada foro, temática según su contenido (fallback 👍). */
+    private static final Map<String, String> REACCION_FORO = Map.of(
+            CANAL_FAQ, "💡",
+            "📚・rutinas", "💪",
+            "🍎・nutrición", "🍎",
+            "❓・dudas", "🙋",
+            CANAL_SUGERENCIAS, "👍",
+            "📥・reportes", "🚨",
+            "📈・progresos", "🔥",
+            "📸・fotos", "❤️");
+
+    /**
+     * Publicaciones iniciales por foro (nombre de canal → lista de {título, cuerpo, etiqueta}). La
+     * etiqueta vacía = sin etiqueta. En español. Sirven de guía y de "primera publicación" para que
+     * cada foro no arranque vacío.
+     */
+    private static final Map<String, List<String[]>> POSTS_FORO = Map.of(
+            CANAL_FAQ, List.of(
+                    new String[]{"¿Cómo gano XP?",
+                            "Participando: cada mensaje te da XP y subes de nivel. Los detalles, en 🗺️・cómo-funciona.",
+                            "XP y niveles"},
+                    new String[]{"¿Cómo veo mi nivel y el ranking?",
+                            "Usa **/nivel** para tu progreso y **/top** para la clasificación del servidor.",
+                            "XP y niveles"},
+                    new String[]{"¿Cómo consigo mis roles?",
+                            "En 🎭・roles elige tu objetivo y tus notificaciones con los menús desplegables.",
+                            "General"},
+                    new String[]{"¿Qué es la economía?",
+                            "Monedas, tienda y recompensas. Está en camino: lo verás en 🪙・economía.",
+                            "Economía"},
+                    new String[]{"¿Cómo vinculo la app GymProFit?",
+                            "La vinculación con la app llegará pronto. Lo anunciaremos en 📣・anuncios.",
+                            "App"},
+                    new String[]{"¿Cómo pido ayuda al equipo?",
+                            "En 🎫・soporte pulsa el botón para abrir un ticket privado con el staff.",
+                            "General"},
+                    new String[]{"¿Dónde comparto mis progresos?",
+                            "Fotos antes/después en 📈・progresos, y tus entrenos en 📚・rutinas.",
+                            "General"}),
+            "📚・rutinas", List.<String[]>of(new String[]{"📌 Cómo compartir tu rutina", """
+                    ¡Bienvenido a **rutinas**! 💪
+
+                    Aquí compartimos entrenos. Para publicar la tuya:
+                    • Abre un **post** con un título claro (ej: «Torso-Pierna 4 días»).
+                    • Pon el objetivo, los días y los ejercicios con series × reps.
+                    • Añade la **etiqueta** que corresponda (Push, Pull, Pierna, Full-body, Cardio, Movilidad).
+
+                    Ejemplo — **Full-body 3 días**:
+                    Sentadilla 3×8 · Press banca 3×8 · Remo 3×10 · Press militar 3×10 · Peso muerto rumano 3×10
+
+                    ¡Comparte la tuya! 🔥""", "Full-body"}),
+            "🍎・nutrición", List.<String[]>of(new String[]{"📌 Recetas, planes y dudas", """
+                    Bienvenido a **nutrición** 🍎
+
+                    Comparte recetas y planes, y resuelve dudas de alimentación. Al publicar:
+                    • Título claro (ej: «Tortitas de avena proteicas»).
+                    • Ingredientes, pasos y, si quieres, macros.
+                    • Etiqueta: **Receta**, **Plan**, **Duda** o **Suplementación**.
+
+                    Ejemplo — **Tortitas de avena (alto en proteína)**:
+                    40 g de avena · 1 plátano · 2 huevos · 1 scoop de proteína. Tritura y a la sartén. 💪""", "Receta"}),
+            "❓・dudas", List.<String[]>of(new String[]{"📌 Cómo preguntar (y resolver)", """
+                    Bienvenido a **dudas** ❓
+
+                    ¿Atascado con un ejercicio, con material o con una molestia? Pregunta aquí:
+                    • Título con tu duda concreta.
+                    • Explica qué te pasa y qué has probado.
+                    • Etiqueta: **Técnica**, **Material** o **Lesión**.
+                    • Cuando te la resuelvan, marca la etiqueta **Resuelto** ✅.
+
+                    Nota: ante un dolor real, consulta a un profesional. 🩺""", "Técnica"}),
+            CANAL_SUGERENCIAS, List.<String[]>of(new String[]{"📌 Cómo proponer mejoras", """
+                    Bienvenido a **sugerencias** 💡
+
+                    ¿Ideas para mejorar el servidor o la comunidad? Cuéntanoslas:
+                    • Un **post** por idea, con un título claro.
+                    • Describe la mejora y por qué aporta. Puedes adjuntar imagen.
+                    • Vota las que te gusten con 👍.
+
+                    El equipo revisará cada una y le pondrá su estado: **En estudio**, **Aprobada**, **Rechazada** o **Implementada**. ¡Gracias por construir esto con nosotros! 🚀""", ""}),
+            "📥・reportes", List.<String[]>of(new String[]{"📌 Plantilla de reporte", """
+                    Canal interno de **reportes** del staff.
+
+                    Un **post** por caso, con esta plantilla:
+                    • **Usuario:** @mención o ID
+                    • **Motivo:** qué ha pasado
+                    • **Pruebas:** capturas o enlaces a mensajes
+                    • **Canal/hora:** dónde y cuándo
+
+                    Estados (etiquetas): **Pendiente** → **En curso** → **Resuelto** / **Descartado**.""", "Pendiente"}),
+            "📈・progresos", List.<String[]>of(new String[]{"📸 Comparte tu progreso", """
+                    ¡Bienvenido a **progresos**! 📈
+
+                    Sube tus avances y marcas: fotos antes/después, PRs, medidas… Una **publicación por avance**, con su foto. Apóyate y deja que te apoyen: aquí no se juzga, se motiva. 💪🔥""", ""}),
+            "📸・fotos", List.<String[]>of(new String[]{"📸 Sube tus fotos", """
+                    Bienvenido a **fotos** 📸
+
+                    Comparte fotos de tus entrenos, comidas, material o del gym. Una foto por publicación. ¡A darle vida a la galería! 📷""", ""}));
     /** Canal (solo staff) al que AutoMod manda las alertas de contenido bloqueado. */
     private static final String CANAL_MODERACION = "📋・moderación";
     /** Categoría privada de staff (para recolocar dentro las anclas de comunidad). */
@@ -433,16 +509,11 @@ public final class SetupComando implements Comando {
                 accion = accion.setAvailableTags(
                         chPlan.etiquetas().stream().map(ForumTagData::new).toList());
             }
-            boolean esFaq = CANAL_FAQ.equals(chPlan.nombre());
-            // Reacción por defecto (voto rápido en cada post) para FAQ y sugerencias.
-            if (esFaq || CANAL_SUGERENCIAS.equals(chPlan.nombre())) {
-                accion = accion.setDefaultReaction(Emoji.fromUnicode("👍"));
-            }
+            // Todos los foros llevan reacción por defecto (temática) y su primera publicación.
+            accion = accion.setDefaultReaction(reaccionDe(chPlan.nombre()));
             ForumChannel fc = accion.complete();
             fc.getManager().sync().complete();
-            if (esFaq) {
-                publicarFaq(fc);
-            }
+            publicarPostsIniciales(fc, chPlan.nombre());
             creado = fc;
         } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.MEDIA) {
             creado = crearMediaOForo(categoria, chPlan);
@@ -491,11 +562,17 @@ public final class SetupComando implements Comando {
      */
     private GuildChannel crearMediaOForo(Category categoria, CanalPlan chPlan) {
         Guild guild = categoria.getGuild();
+        List<ForumTagData> tags = chPlan.etiquetas().stream().map(ForumTagData::new).toList();
         try {
             // Se crea a nivel de servidor y se mueve a la categoría: crear media directamente bajo
             // la categoría (category.createMediaChannel) daba 50024 en algunas guilds. El topic y el
             // sync se aplican después, sin tumbar el canal si esos pasos fallan.
-            MediaChannel mc = guild.createMediaChannel(chPlan.nombre()).complete();
+            var accionMedia = guild.createMediaChannel(chPlan.nombre())
+                    .setDefaultReaction(reaccionDe(chPlan.nombre()));
+            if (!tags.isEmpty()) {
+                accionMedia = accionMedia.setAvailableTags(tags);
+            }
+            MediaChannel mc = accionMedia.complete();
             try {
                 mc.getManager().setParent(categoria).complete();
                 mc.getManager().sync().complete();
@@ -506,20 +583,25 @@ public final class SetupComando implements Comando {
                 log.warn("Canal de media {} creado, pero falló mover/topic/sync: {}",
                         chPlan.nombre(), ajuste.getMessage());
             }
+            publicarPostsIniciales(mc, chPlan.nombre());
             return mc;
         } catch (RuntimeException e) {
             // Discord no deja a los bots crear canales de media por token de bot (error 50024, igual
             // que antes con los foros). Un canal de media ES un foro en vista galería, así que se crea
-            // exactamente eso: cuadrícula de miniaturas + reacción por defecto. Equivalente visual.
+            // exactamente eso: galería + etiquetas + reacción por defecto + primera publicación.
             log.info("Media por bot no permitida para {}; se crea foro-galería equivalente", chPlan.nombre());
             var accion = categoria.createForumChannel(chPlan.nombre())
                     .setDefaultLayout(ForumChannel.Layout.GALLERY_VIEW)
-                    .setDefaultReaction(Emoji.fromUnicode("👍"));
+                    .setDefaultReaction(reaccionDe(chPlan.nombre()));
+            if (!tags.isEmpty()) {
+                accion = accion.setAvailableTags(tags);
+            }
             if (chPlan.topic() != null) {
                 accion = accion.setTopic(chPlan.topic());
             }
             ForumChannel fc = accion.complete();
             fc.getManager().sync().complete();
+            publicarPostsIniciales(fc, chPlan.nombre());
             return fc;
         }
     }
@@ -532,18 +614,29 @@ public final class SetupComando implements Comando {
         }
     }
 
-    /** Publica en el foro de FAQ las preguntas frecuentes iniciales, cada una con su etiqueta. */
-    private void publicarFaq(ForumChannel faq) {
-        for (String[] qa : FAQ) {
+    /** Reacción por defecto temática del foro (fallback 👍 si no está en el mapa). */
+    private static Emoji reaccionDe(String nombreCanal) {
+        return Emoji.fromUnicode(REACCION_FORO.getOrDefault(nombreCanal, "👍"));
+    }
+
+    /** Publica las publicaciones iniciales (si las hay) en un foro o media, cada una etiquetada. */
+    private void publicarPostsIniciales(IPostContainer foro, String nombreCanal) {
+        List<String[]> posts = POSTS_FORO.get(nombreCanal);
+        if (posts == null) {
+            return;
+        }
+        for (String[] p : posts) {
             try {
-                ForumPostAction accion = faq.createForumPost(qa[0], MessageCreateData.fromContent(qa[1]));
-                faq.getAvailableTags().stream()
-                        .filter(t -> t.getName().equals(qa[2]))
-                        .findFirst()
-                        .ifPresent(tag -> accion.setTags(List.of(tag)));
+                ForumPostAction accion = foro.createForumPost(p[0], MessageCreateData.fromContent(p[1]));
+                if (!p[2].isEmpty()) {
+                    foro.getAvailableTags().stream()
+                            .filter(t -> t.getName().equals(p[2]))
+                            .findFirst()
+                            .ifPresent(tag -> accion.setTags(List.of(tag)));
+                }
                 accion.complete();
             } catch (RuntimeException e) {
-                log.warn("No se pudo crear el post de FAQ «{}»", qa[0]);
+                log.warn("No se pudo crear el post «{}» en {}", p[0], nombreCanal);
             }
         }
     }
