@@ -45,8 +45,9 @@ class MigracionesTest {
                     .load()
                     .migrate();
 
-            // V1 (esquema) + V2 (seeds) = 2 migraciones aplicadas, sin errores.
-            assertEquals(2, resultado.migrationsExecuted, "Deben aplicarse exactamente V1 y V2");
+            // V1 (esquema) + V2 (seeds) + V3 (eventos) al menos; todas sin errores.
+            assertTrue(resultado.migrationsExecuted >= 3,
+                    "Deben aplicarse al menos V1, V2 y V3");
             assertTrue(resultado.success, "La migración debe terminar con éxito");
 
             try (Connection con = DriverManager.getConnection(
@@ -57,6 +58,9 @@ class MigracionesTest {
                         "La SPEC §10 exige ≥50 preguntas de trivia");
                 assertTrue(contar(st, "SELECT COUNT(*) FROM frases") >= 30,
                         "La SPEC §10 exige ≥30 frases motivadoras");
+                // V3 aplicada: la tabla de eventos existe y consulta sin error.
+                assertEquals(0, contar(st, "SELECT COUNT(*) FROM eventos_servidor"),
+                        "eventos_servidor debe existir y arrancar vacía");
 
                 // Toda pregunta debe tener una opción correcta válida (A-D) y ambos idiomas.
                 assertEquals(0, contar(st,
