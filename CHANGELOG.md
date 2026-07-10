@@ -14,6 +14,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   `📋・moderación`) y elimina el temporal. Antes quedaban 2 canales huérfanos arriba del todo.
 
 ### Añadido
+- **Pantalla de bienvenida (Welcome Screen) en `/setup`**: al montar, si el servidor es Comunidad,
+  `/setup` configura la pantalla de bienvenida (`modifyWelcomeScreen`) con descripción de marca y 5
+  canales sugeridos con emoji (empieza-aquí, reglas, roles, general, soporte). Es lo único de la
+  «incorporación» que expone la API; el onboarding con preguntas de personalización sigue siendo
+  manual (Discord no da API de escritura). Pendiente de smoke test manual.
 - **Eventos del servidor (`/reto` y `/evento`)**: dos contadores más en SERVER STATS —`🎯 Reto`
   (reto de la semana) y `⏳ Evento` (próximo evento con cuenta atrás «en 3d 4h»)— alimentados por
   la nueva tabla `eventos_servidor` (migración **V3**) vía `EventoServidorRepositorio` y

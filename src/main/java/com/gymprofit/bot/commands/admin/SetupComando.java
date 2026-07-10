@@ -11,6 +11,7 @@ import com.gymprofit.bot.services.SetupServidorPlan.CategoriaPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.RolPlan;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.GuildWelcomeScreen;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.automod.AutoModResponse;
@@ -172,6 +173,10 @@ public final class SetupComando implements Comando {
                         log.warn("No se pudo borrar el canal temporal de setup", e);
                     }
                 }
+
+                // Pantalla de bienvenida (Welcome Screen): lo único de la incorporación que expone
+                // la API. El resto del onboarding (canales por defecto, preguntas) es manual.
+                configurarBienvenida(guild);
 
                 var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "setup.titulo"),
@@ -568,6 +573,46 @@ public final class SetupComando implements Comando {
     /** Primer canal de texto con ese nombre exacto, o {@code null}. */
     private static TextChannel primerCanal(Guild guild, String nombre) {
         return guild.getTextChannelsByName(nombre, false).stream().findFirst().orElse(null);
+    }
+
+    /**
+     * Configura la pantalla de bienvenida (Welcome Screen): descripción + hasta 5 canales sugeridos
+     * con emoji. Es lo único de la «incorporación» que expone la API (el onboarding con preguntas es
+     * manual). Requiere que el servidor sea Comunidad; si no, se omite.
+     */
+    private void configurarBienvenida(Guild guild) {
+        if (!guild.getFeatures().contains("COMMUNITY")) {
+            return;
+        }
+        List<GuildWelcomeScreen.Channel> canales = new java.util.ArrayList<>();
+        anadirBienvenida(canales, guild, CANAL_EMPIEZA, "🚀", "bienvenida.canal.empieza");
+        anadirBienvenida(canales, guild, CANAL_REGLAS, "📜", "bienvenida.canal.reglas");
+        anadirBienvenida(canales, guild, "🎭・roles", "🎭", "bienvenida.canal.roles");
+        anadirBienvenida(canales, guild, "💬・general", "💬", "bienvenida.canal.general");
+        anadirBienvenida(canales, guild, "🎫・soporte", "🎫", "bienvenida.canal.soporte");
+        if (canales.isEmpty()) {
+            return;
+        }
+        try {
+            guild.modifyWelcomeScreen()
+                    .setEnabled(true)
+                    .setDescription(Messages.get(Messages.ES, "bienvenida.descripcion"))
+                    .setWelcomeChannels(canales)
+                    .complete();
+        } catch (RuntimeException e) {
+            log.warn("No se pudo configurar la pantalla de bienvenida", e);
+        }
+    }
+
+    /** Añade un canal a la pantalla de bienvenida si existe (nombre exacto). */
+    private static void anadirBienvenida(List<GuildWelcomeScreen.Channel> lista, Guild guild,
+                                         String canalNombre, String emoji, String descKey) {
+        TextChannel canal = primerCanal(guild, canalNombre);
+        if (canal == null) {
+            return;
+        }
+        lista.add(GuildWelcomeScreen.Channel.of(canal, Messages.get(Messages.ES, descKey),
+                Emoji.fromUnicode(emoji)));
     }
 
     /** Si el canal representa un canal de config, lo guarda en config_servidor. */
