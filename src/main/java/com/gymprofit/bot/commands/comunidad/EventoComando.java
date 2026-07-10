@@ -72,8 +72,9 @@ public final class EventoComando implements Comando {
         // Timestamps dinámicos de Discord: fecha absoluta y cuenta atrás relativa que se actualiza.
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, "evento.fijado.titulo"),
-                Messages.get(locale, "evento.fijado.desc",
-                        nombre, "<t:" + finEpoch + ":F>", "<t:" + finEpoch + ":R>")).build();
+                Messages.get(locale, "evento.fijado.desc", nombre,
+                        EmbedFactory.fechaLarga(finEpoch), EmbedFactory.tiempoRelativo(finEpoch)))
+                .build();
         evento.getHook().sendMessageEmbeds(embed).queue();
     }
 }

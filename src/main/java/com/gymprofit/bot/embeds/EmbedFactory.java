@@ -121,9 +121,30 @@ public final class EmbedFactory {
     public static EmbedBuilder base(Tipo tipo, Locale locale, String titulo) {
         return new EmbedBuilder()
                 .setColor(tipo.categoria().color())
+                .setAuthor(Messages.get(locale, "embed.autor"), null, iconoFooterUrl)
                 .setTitle(tipo.emoji() + "  " + titulo)
                 .setFooter(Messages.get(locale, "embed.footer"), iconoFooterUrl)
                 .setTimestamp(Instant.now());
+    }
+
+    /**
+     * Marca de tiempo dinámica de Discord en formato relativo ({@code <t:...:R>}, p. ej. «en 3
+     * días» / «hace 5 min»). Discord la renderiza y actualiza sola en el cliente.
+     *
+     * @param epochSegundos instante en epoch (segundos)
+     */
+    public static String tiempoRelativo(long epochSegundos) {
+        return "<t:" + epochSegundos + ":R>";
+    }
+
+    /**
+     * Marca de tiempo dinámica de Discord en formato de fecha larga ({@code <t:...:F>}, p. ej.
+     * «martes, 20 de julio de 2026 18:30»), localizada por el cliente de cada usuario.
+     *
+     * @param epochSegundos instante en epoch (segundos)
+     */
+    public static String fechaLarga(long epochSegundos) {
+        return "<t:" + epochSegundos + ":F>";
     }
 
     /**

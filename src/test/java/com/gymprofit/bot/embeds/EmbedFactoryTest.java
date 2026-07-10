@@ -43,4 +43,17 @@ class EmbedFactoryTest {
         assertNotNull(embed.getTimestamp(), "Todo embed lleva timestamp (§7 regla 3)");
         assertEquals("Descripción corta", embed.getDescription());
     }
+
+    @Test
+    void poneLineaDeAutorDeMarca() {
+        MessageEmbed embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, Messages.ES, "Stats").build();
+        assertNotNull(embed.getAuthor(), "Todo embed lleva línea de autor (cabecera de marca)");
+        assertEquals("GymProBot", embed.getAuthor().getName());
+    }
+
+    @Test
+    void generaTimestampsDinamicosDeDiscord() {
+        assertEquals("<t:1000:R>", EmbedFactory.tiempoRelativo(1000));
+        assertEquals("<t:1000:F>", EmbedFactory.fechaLarga(1000));
+    }
 }

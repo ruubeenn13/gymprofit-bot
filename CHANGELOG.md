@@ -46,6 +46,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
     canales/reglas y renombrado) **pendiente de smoke test manual**.
 
 ### Cambiado
+- **Estilo de embeds mejorado**: todos los embeds llevan ahora **línea de autor** (cabecera de
+  marca con el avatar del bot arriba), además del footer y el timestamp. `EmbedFactory` expone
+  **helpers de timestamp dinámico** de Discord (`tiempoRelativo` → `<t:…:R>`, `fechaLarga` →
+  `<t:…:F>`), que se renderizan y actualizan solos en el cliente; `/evento` los usa en su
+  confirmación. Tests ampliados en `EmbedFactoryTest`. (Los mensajes fijados de los canales heredan
+  el nuevo estilo automáticamente al pasar por la factoría.)
 - **Servidor pulido (visual)**: `/setup` publica mensajes fijados con **contenido rico**
   (reglas largas y estructuradas por secciones, guías con divisores), **thumbnail** del bot en los
   embeds, **categorías decoradas** (`▬▬ 📢 INFORMACIÓN ▬▬`) y un **panel de navegación con
