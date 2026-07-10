@@ -1,7 +1,8 @@
 package com.gymprofit.bot.services;
 
+import com.gymprofit.bot.db.UsuarioDiscord;
+import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
@@ -14,46 +15,47 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Mantiene al día los canales de estadísticas del servidor (los contadores en vivo de la categoría
- * «SERVER STATS» que crea {@code /setup}): miembros humanos, miembros en línea y bots.
+ * Mantiene al día los contadores en vivo de la categoría «SERVER STATS» que crea {@code /setup}:
+ * XP repartido, Nº1 del ranking, boosts del servidor y gente conectada a voz.
  *
  * <p>Discord no permite un contador «en tiempo real» literal: renombrar un canal está limitado a
  * ~2 veces por 10 min. Por eso el servicio recalcula y renombra en un job periódico
- * ({@link #INTERVALO_MINUTOS} min) y <b>solo llama a la API si el número cambió</b>, para no gastar
- * rate limit. Los canales se localizan por <b>prefijo de nombre</b> (el valor tras «:» cambia), de
- * modo que no hace falta persistir sus IDs.</p>
+ * ({@link #INTERVALO_MINUTOS} min) y <b>solo llama a la API si el valor cambió</b>. Los canales se
+ * localizan por <b>prefijo de nombre</b> (el valor tras «:» cambia), sin persistir sus IDs.</p>
  *
- * <p>El contador «En línea» requiere el intent privilegiado {@code GUILD_PRESENCES} y la caché
- * {@code ONLINE_STATUS}; sin ellos {@link Member#getOnlineStatus()} devuelve OFFLINE para todos y
- * el contador quedaría a 0.</p>
+ * <p>XP repartido y Nº1 salen de la BD (repositorio de usuarios); si el bot arranca sin BD esos dos
+ * se omiten. Boosts y «En voz» salen de la caché estándar de JDA (no requieren intents
+ * privilegiados).</p>
  */
 public final class EstadisticasService {
 
     private static final Logger log = LoggerFactory.getLogger(EstadisticasService.class);
 
     /** Prefijos que identifican cada contador. Deben coincidir con {@code SetupServidorPlan}. */
-    public static final String PREFIJO_MIEMBROS = "👥 Miembros:";
-    public static final String PREFIJO_ONLINE = "🟢 En línea:";
-    public static final String PREFIJO_BOTS = "🤖 Bots:";
+    public static final String PREFIJO_XP = "🔥 XP repartido:";
+    public static final String PREFIJO_TOP = "🏆 Nº1:";
+    public static final String PREFIJO_BOOSTS = "🚀 Boosts:";
+    public static final String PREFIJO_VOZ = "🔊 En voz:";
 
     /** Cada cuánto se refrescan los contadores (holgado frente al rate limit de renombrado). */
     private static final long INTERVALO_MINUTOS = 6;
-    /** Retardo inicial: da tiempo a que se resuelvan miembros y presencias tras conectar. */
+    /** Retardo inicial: da tiempo a que se resuelvan miembros y estados de voz tras conectar. */
     private static final long RETARDO_INICIAL_MINUTOS = 1;
-
-    /** Conteo de una guild. Separado del renombrado para poder testear la lógica sin JDA. */
-    public record Conteo(long miembros, long online, long bots) {
-    }
+    /** Máx. de caracteres del nombre del Nº1 dentro del nombre del canal (límite total 100). */
+    private static final int MAX_NOMBRE_TOP = 80;
 
     private final JDA jda;
+    /** Repositorio de usuarios para XP repartido y Nº1; {@code null} si el bot arrancó sin BD. */
+    private final UsuarioDiscordRepositorio usuarios;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "gymprobot-stats");
         t.setDaemon(true);
         return t;
     });
 
-    public EstadisticasService(JDA jda) {
+    public EstadisticasService(JDA jda, UsuarioDiscordRepositorio usuarios) {
         this.jda = jda;
+        this.usuarios = usuarios;
     }
 
     /** Arranca el job periódico. Idempotente respecto a la API (no renombra si nada cambió). */
@@ -81,31 +83,43 @@ public final class EstadisticasService {
 
     /** Recalcula los contadores de una guild y renombra sus canales de stats si existen. */
     void actualizarGuild(Guild guild) {
-        Conteo conteo = contar(guild.getMembers());
-        renombrar(guild, PREFIJO_MIEMBROS, conteo.miembros());
-        renombrar(guild, PREFIJO_ONLINE, conteo.online());
-        renombrar(guild, PREFIJO_BOTS, conteo.bots());
+        renombrar(guild, PREFIJO_BOOSTS, String.valueOf(guild.getBoostCount()));
+        renombrar(guild, PREFIJO_VOZ, String.valueOf(contarEnVoz(guild.getVoiceChannels())));
+
+        if (usuarios != null) {
+            renombrar(guild, PREFIJO_XP, String.valueOf(usuarios.sumaXp()));
+            renombrar(guild, PREFIJO_TOP, nombreDelNumeroUno(guild));
+        }
+    }
+
+    /** Nº de miembros conectados a algún canal de voz (excluye a nadie: cuenta todos los presentes). */
+    public static int contarEnVoz(List<VoiceChannel> canales) {
+        return canales.stream().mapToInt(c -> c.getMembers().size()).sum();
     }
 
     /**
-     * Cuenta miembros humanos, humanos en línea y bots de una lista de miembros. Lógica pura
-     * (sin JDA) para poder testearla. «En línea» = cualquier estado distinto de OFFLINE/UNKNOWN.
+     * Nombre a mostrar del Nº1 del ranking de XP: resuelve el miembro por su ID de Discord. Si no
+     * hay ranking o el miembro ya no está en el server, devuelve un guion. Trunca a
+     * {@link #MAX_NOMBRE_TOP} para no pasarse del límite de longitud del nombre de canal.
      */
-    public static Conteo contar(List<Member> miembros) {
-        long bots = miembros.stream().filter(m -> m.getUser().isBot()).count();
-        long online = miembros.stream()
-                .filter(m -> !m.getUser().isBot())
-                .filter(m -> m.getOnlineStatus() != OnlineStatus.OFFLINE
-                        && m.getOnlineStatus() != OnlineStatus.UNKNOWN)
-                .count();
-        return new Conteo(miembros.size() - bots, online, bots);
+    private String nombreDelNumeroUno(Guild guild) {
+        List<UsuarioDiscord> top = usuarios.listarTopPorXp(1);
+        if (top.isEmpty()) {
+            return "—";
+        }
+        Member miembro = guild.getMemberById(top.get(0).discordId());
+        if (miembro == null) {
+            return "—";
+        }
+        String nombre = miembro.getEffectiveName();
+        return nombre.length() > MAX_NOMBRE_TOP ? nombre.substring(0, MAX_NOMBRE_TOP) : nombre;
     }
 
     /**
      * Renombra el canal de voz cuyo nombre empieza por {@code prefijo} al valor dado. No hace nada
      * si el canal no existe o si el nombre ya es el correcto (evita gastar rate limit).
      */
-    private void renombrar(Guild guild, String prefijo, long valor) {
+    private void renombrar(Guild guild, String prefijo, String valor) {
         VoiceChannel canal = guild.getVoiceChannels().stream()
                 .filter(c -> c.getName().startsWith(prefijo))
                 .findFirst().orElse(null);

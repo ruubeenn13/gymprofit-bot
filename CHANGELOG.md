@@ -21,12 +21,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
     `/setup desde_cero:true`**: reutilizar por nombre no cambia el tipo de un canal existente.
     Creación en vivo pendiente de smoke test manual.
 - **Estadísticas en vivo + AutoMod + más canales en `/setup`**:
-  - Categoría **`📊 SERVER STATS`** (arriba del todo, de solo lectura) con 3 contadores en canales
-    de voz bloqueados: **Miembros**, **En línea** y **Bots**. Los mantiene al día el nuevo
-    `EstadisticasService` (job cada 6 min; renombra solo si el número cambió, para no gastar rate
-    limit; localiza los canales por prefijo de nombre → sin persistir IDs). El contador «En línea»
-    necesita el intent privilegiado **`GUILD_PRESENCES`** (+ caché `ONLINE_STATUS`), ya activado en
-    `DiscordBot`: **hay que marcarlo también en el Developer Portal** o el bot no conecta.
+  - Categoría **`📊 SERVER STATS`** (arriba del todo, de solo lectura) con 4 contadores en canales
+    de voz bloqueados: **XP repartido**, **Nº1** (líder de XP), **Boosts** y **En voz**. Los
+    mantiene al día el nuevo `EstadisticasService` (job cada 6 min; renombra solo si el valor
+    cambió, para no gastar rate limit; localiza los canales por prefijo de nombre → sin persistir
+    IDs). XP repartido y Nº1 salen de la BD (`sumaXp` / `listarTopPorXp`); boosts y gente en voz, de
+    la caché estándar. **No requiere intents privilegiados adicionales.**
   - **AutoMod por código**: `/setup` crea (idempotente) 3 reglas con alerta a `📋・moderación`:
     anti-menciones masivas (>8), anti-spam y lenguaje inapropiado (presets PROFANITY/SLURS/
     SEXUAL_CONTENT, que cubren español). Se omite sin romper si falta `MANAGE_SERVER`.

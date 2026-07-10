@@ -143,9 +143,10 @@ public final class SetupServidorPlan {
             // que EstadisticasService renombra periódicamente. Se localizan por PREFIJO de nombre,
             // por eso el prefijo debe coincidir con las constantes del servicio. Van arriba del todo.
             new CategoriaPlan("▬▬ 📊 SERVER STATS ▬▬", false, false, List.of(
-                    voz("👥 Miembros: …", 0),
-                    voz("🟢 En línea: …", 0),
-                    voz("🤖 Bots: …", 0))),
+                    voz("🔥 XP repartido: …", 0),
+                    voz("🏆 Nº1: …", 0),
+                    voz("🚀 Boosts: …", 0),
+                    voz("🔊 En voz: …", 0))),
             new CategoriaPlan("▬▬ 📢 INFORMACIÓN ▬▬", false, false, List.of(
                     info("👋・bienvenidas", TipoCanal.BIENVENIDA)
                             .conTopic("Damos la bienvenida a cada nuevo miembro de la comunidad. 👋"),

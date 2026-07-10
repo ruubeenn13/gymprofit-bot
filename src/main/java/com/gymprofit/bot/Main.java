@@ -62,9 +62,13 @@ public final class Main {
         Database db = iniciarBaseDeDatos();
         JDA jda = iniciarDiscord(db);
 
-        // Job de contadores en vivo (categoría SERVER STATS). No depende de BD; lee la caché de
-        // miembros/presencias. El primer tick espera un poco a que se resuelva esa caché.
-        EstadisticasService stats = (jda == null) ? null : new EstadisticasService(jda);
+        // Job de contadores en vivo (categoría SERVER STATS). XP repartido y Nº1 salen de la BD
+        // (si la hay); boosts y gente en voz, de la caché estándar. El primer tick espera un poco a
+        // que se resuelva la caché de miembros/estados de voz.
+        UsuarioDiscordRepositorio usuariosStats =
+                (db == null) ? null : new UsuarioDiscordRepositorio(db.dataSource());
+        EstadisticasService stats =
+                (jda == null) ? null : new EstadisticasService(jda, usuariosStats);
         if (stats != null) {
             stats.iniciar();
         }

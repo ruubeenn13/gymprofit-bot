@@ -27,7 +27,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | Paquete | Responsabilidad |
 |---|---|
 | `Main` | Arranque: health server → **Flyway** (`Database`) → **JDA** (`DiscordBot`) → (F1) listeners + jobs. Arranque degradado si falta `DB_URL` o `DISCORD_TOKEN` |
-| `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados (`GUILD_MEMBERS`, `MESSAGE_CONTENT`, `GUILD_PRESENCES`), cache de miembros + `ONLINE_STATUS`, presencia |
+| `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados (`GUILD_MEMBERS`, `MESSAGE_CONTENT`), cache de miembros, presencia |
 | `db/Database` | Pool HikariCP + ejecución de migraciones Flyway; expone el `DataSource` a los repos |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
 | `commands/` | Un archivo por slash command, subpaquetes por categoría |

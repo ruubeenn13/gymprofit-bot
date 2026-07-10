@@ -8,7 +8,6 @@ import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.ChunkingFilter;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
-import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
 import java.util.EnumSet;
 
@@ -29,14 +28,15 @@ public final class DiscordBot {
      * <ul>
      *   <li>{@link GatewayIntent#GUILD_MEMBERS}: bienvenida y auto-roles (F1).</li>
      *   <li>{@link GatewayIntent#MESSAGE_CONTENT}: XP por mensaje y auto-mod (F1).</li>
-     *   <li>{@link GatewayIntent#GUILD_PRESENCES}: contador de miembros en línea de los canales
-     *       de estadísticas (necesita además la caché {@link CacheFlag#ONLINE_STATUS}).</li>
      * </ul>
+     *
+     * <p>Los contadores de estadísticas (XP repartido, Nº1, boosts, gente en voz) usan datos de la
+     * BD y de la caché estándar (estados de voz), así que <b>no</b> requieren intents privilegiados
+     * adicionales.</p>
      */
     static final EnumSet<GatewayIntent> PRIVILEGED_INTENTS = EnumSet.of(
             GatewayIntent.GUILD_MEMBERS,
-            GatewayIntent.MESSAGE_CONTENT,
-            GatewayIntent.GUILD_PRESENCES
+            GatewayIntent.MESSAGE_CONTENT
     );
 
     private DiscordBot() {
@@ -58,8 +58,6 @@ public final class DiscordBot {
                 // Cacheamos todos los miembros: la bienvenida y el XP los necesitan resueltos.
                 .setMemberCachePolicy(MemberCachePolicy.ALL)
                 .setChunkingFilter(ChunkingFilter.ALL)
-                // Estado en línea de cada miembro, para el contador "En línea" de las stats.
-                .enableCache(CacheFlag.ONLINE_STATUS)
                 .setStatus(OnlineStatus.ONLINE)
                 .setActivity(Activity.customStatus(Messages.get(Messages.ES, "bot.actividad")))
                 // Se registran antes de build() para no perder eventos de arranque (GuildReady).

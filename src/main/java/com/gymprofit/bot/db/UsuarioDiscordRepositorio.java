@@ -113,6 +113,18 @@ public final class UsuarioDiscordRepositorio {
         }
     }
 
+    /** Suma el XP de todos los usuarios (contador «XP repartido» de las estadísticas del server). */
+    public long sumaXp() {
+        String sql = "SELECT COALESCE(SUM(xp), 0) FROM usuarios_discord";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            return rs.next() ? rs.getLong(1) : 0L;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error sumando el XP total", e);
+        }
+    }
+
     /** Mapea la fila actual del {@link ResultSet} a un {@link UsuarioDiscord}. */
     private static UsuarioDiscord mapear(ResultSet rs) throws SQLException {
         return new UsuarioDiscord(
