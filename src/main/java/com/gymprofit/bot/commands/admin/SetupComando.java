@@ -157,30 +157,29 @@ public final class SetupComando implements Comando {
             try {
                 // Con Comunidad activada, Discord no deja borrar los canales de reglas/updates/
                 // seguridad (error 50074). Solución: dos canales-ancla permanentes y ocultos
-                // (reglas-comunidad y avisos-comunidad) sostienen esos ajustes. Se anclan ANTES de
-                // vaciar (para liberar los canales viejos) y se conservan; tras montar se recolocan
-                // en STAFF ocultos. Así el resto de canales se borra y recrea libremente.
-                List<GuildChannel> protegidos = new ArrayList<>();
+                // (reglas-comunidad y avisos-comunidad) sostienen esos ajustes. Se aseguran y anclan
+                // en CADA /setup (para liberar los canales viejos y quedar como canales de comunidad)
+                // y tras montar se recolocan en STAFF ocultos. Nunca se borran.
+                boolean comunidad = guild.getFeatures().contains("COMMUNITY");
                 Set<Long> conservar = new HashSet<>();
-                int limpiados;
-                if (desdeCero) {
-                    if (guild.getFeatures().contains("COMMUNITY")) {
-                        TextChannel anclaReglas = reusarOCrearAncla(guild, ANCLA_REGLAS);
-                        TextChannel anclaAvisos = reusarOCrearAncla(guild, ANCLA_AVISOS);
-                        anclarComunidad(guild, anclaReglas, anclaAvisos);
-                        conservar.add(anclaReglas.getIdLong());
-                        conservar.add(anclaAvisos.getIdLong());
-                    }
-                    limpiados = vaciarServidor(guild, protegidos, conservar);
-                } else {
-                    limpiados = purgarCanalesExistentes(guild);
+                if (comunidad) {
+                    TextChannel anclaReglas = reusarOCrearAncla(guild, ANCLA_REGLAS);
+                    TextChannel anclaAvisos = reusarOCrearAncla(guild, ANCLA_AVISOS);
+                    anclarComunidad(guild, anclaReglas, anclaAvisos);
+                    conservar.add(anclaReglas.getIdLong());
+                    conservar.add(anclaAvisos.getIdLong());
                 }
+
+                List<GuildChannel> protegidos = new ArrayList<>();
+                int limpiados = desdeCero
+                        ? vaciarServidor(guild, protegidos, conservar)
+                        : purgarCanalesExistentes(guild);
                 Map<String, Role> roles = crearRoles(guild);
                 int canales = crearCategoriasYCanales(guild, roles, locale);
                 int reglasAutoMod = crearReglasAutoMod(guild);
 
-                // Recoloca las anclas en STAFF y las oculta (solo bot + Fundador).
-                if (!conservar.isEmpty()) {
+                // Recoloca las anclas en STAFF y las oculta (solo bot + Fundador), en cada /setup.
+                if (comunidad) {
                     colocarAnclas(guild, roles);
                 }
                 // Reintento por si quedó algún protegido (no debería, ya se anclaron antes de vaciar).
