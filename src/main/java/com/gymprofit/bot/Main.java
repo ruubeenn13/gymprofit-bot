@@ -17,6 +17,7 @@ import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.services.ConfigServidorService;
+import com.gymprofit.bot.services.EstadisticasService;
 import com.gymprofit.bot.services.LimpiezaService;
 import com.gymprofit.bot.services.XpService;
 import net.dv8tion.jda.api.JDA;
@@ -61,8 +62,18 @@ public final class Main {
         Database db = iniciarBaseDeDatos();
         JDA jda = iniciarDiscord(db);
 
-        // Cierre ordenado ante SIGTERM (Render lo envía en cada deploy): JDA → BD → health.
+        // Job de contadores en vivo (categoría SERVER STATS). No depende de BD; lee la caché de
+        // miembros/presencias. El primer tick espera un poco a que se resuelva esa caché.
+        EstadisticasService stats = (jda == null) ? null : new EstadisticasService(jda);
+        if (stats != null) {
+            stats.iniciar();
+        }
+
+        // Cierre ordenado ante SIGTERM (Render lo envía en cada deploy): stats → JDA → BD → health.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (stats != null) {
+                stats.detener();
+            }
             if (jda != null) {
                 jda.shutdown();
             }

@@ -6,6 +6,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin publicar]
 
+### Añadido
+- **Estadísticas en vivo + AutoMod + más canales en `/setup`**:
+  - Categoría **`📊 SERVER STATS`** (arriba del todo, de solo lectura) con 3 contadores en canales
+    de voz bloqueados: **Miembros**, **En línea** y **Bots**. Los mantiene al día el nuevo
+    `EstadisticasService` (job cada 6 min; renombra solo si el número cambió, para no gastar rate
+    limit; localiza los canales por prefijo de nombre → sin persistir IDs). El contador «En línea»
+    necesita el intent privilegiado **`GUILD_PRESENCES`** (+ caché `ONLINE_STATUS`), ya activado en
+    `DiscordBot`: **hay que marcarlo también en el Developer Portal** o el bot no conecta.
+  - **AutoMod por código**: `/setup` crea (idempotente) 3 reglas con alerta a `📋・moderación`:
+    anti-menciones masivas (>8), anti-spam y lenguaje inapropiado (presets PROFANITY/SLURS/
+    SEXUAL_CONTENT, que cubren español). Se omite sin romper si falta `MANAGE_SERVER`.
+  - **Descripciones (topic)** en todos los canales de texto; se aplican al crear y al reejecutar.
+  - Nuevos canales: **`🎤 Escenario`** (Stage, mano levantada) + rol **Ponente**, y lobby
+    **`➕ Crear sala`** (base del futuro Join-To-Create) en sustitución de la `Privada` fija.
+  - Idempotencia reforzada: los canales de stats se casan por prefijo, así reejecutar `/setup` no
+    los duplica tras el renombrado. Tests `EstadisticasServiceTest`, ampliación de
+    `SetupServidorPlanTest` (topics) y `DiscordBotTest` (3 intents). Ejecución en vivo (creación de
+    canales/reglas y renombrado) **pendiente de smoke test manual**.
+
 ### Cambiado
 - **Servidor pulido (visual)**: `/setup` publica mensajes fijados con **contenido rico**
   (reglas largas y estructuradas por secciones, guías con divisores), **thumbnail** del bot en los

@@ -14,12 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DiscordBotTest {
 
     @Test
-    void habilitaSoloLosDosIntentsPrivilegiadosNecesarios() {
-        assertEquals(2, DiscordBot.PRIVILEGED_INTENTS.size(),
+    void habilitaSoloLosIntentsPrivilegiadosNecesarios() {
+        assertEquals(3, DiscordBot.PRIVILEGED_INTENTS.size(),
                 "Solo deben activarse los intents estrictamente necesarios (principio de mínimo privilegio)");
         assertTrue(DiscordBot.PRIVILEGED_INTENTS.contains(GatewayIntent.GUILD_MEMBERS),
                 "GUILD_MEMBERS es necesario para bienvenida y auto-roles");
         assertTrue(DiscordBot.PRIVILEGED_INTENTS.contains(GatewayIntent.MESSAGE_CONTENT),
                 "MESSAGE_CONTENT es necesario para XP por mensaje y auto-mod");
+        assertTrue(DiscordBot.PRIVILEGED_INTENTS.contains(GatewayIntent.GUILD_PRESENCES),
+                "GUILD_PRESENCES es necesario para el contador de miembros en línea");
     }
 }

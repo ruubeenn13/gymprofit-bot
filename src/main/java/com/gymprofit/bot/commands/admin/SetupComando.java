@@ -13,7 +13,12 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.automod.AutoModResponse;
+import net.dv8tion.jda.api.entities.automod.AutoModRule;
+import net.dv8tion.jda.api.entities.automod.build.AutoModRuleData;
+import net.dv8tion.jda.api.entities.automod.build.TriggerConfig;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.StageChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
@@ -32,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +60,17 @@ public final class SetupComando implements Comando {
     private static final String ROL_STAFF = "🧹 Staff";
     private static final String ROL_SILENCIADO = "🔇 Silenciado";
     private static final String CANAL_EMPIEZA = "🚀・empieza-aquí";
+    /** Canal (solo staff) al que AutoMod manda las alertas de contenido bloqueado. */
+    private static final String CANAL_MODERACION = "📋・moderación";
+    /** Categoría de contadores en vivo: se fuerza arriba del todo y sus canales de voz se bloquean. */
+    private static final String CAT_STATS = "▬▬ 📊 SERVER STATS ▬▬";
+
+    /** Nombres de las reglas de AutoMod que crea {@code /setup} (clave de idempotencia). */
+    private static final String AUTOMOD_MENCIONES = "Anti-menciones masivas";
+    private static final String AUTOMOD_SPAM = "Anti-spam";
+    private static final String AUTOMOD_LENGUAJE = "Lenguaje inapropiado";
+    /** Máximo de menciones únicas por mensaje antes de bloquear (raid/ping masivo). */
+    private static final int AUTOMOD_LIMITE_MENCIONES = 8;
 
     /** Permisos que niega el rol Silenciado en todo el servidor. */
     private static final long DENY_SILENCIADO = Permission.getRaw(
@@ -120,11 +137,12 @@ public final class SetupComando implements Comando {
                 int limpiados = desdeCero ? vaciarServidor(guild) : purgarCanalesExistentes(guild);
                 Map<String, Role> roles = crearRoles(guild);
                 int canales = crearCategoriasYCanales(guild, roles, locale);
+                int reglasAutoMod = crearReglasAutoMod(guild);
 
                 var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "setup.titulo"),
                         Messages.get(locale, "setup.resumen",
-                                SetupServidorPlan.ROLES.size(), canales, limpiados)).build();
+                                SetupServidorPlan.ROLES.size(), canales, limpiados, reglasAutoMod)).build();
                 // Si la interacción ya expiró (setup largo), el resumen falla sin pasa nada grave.
                 evento.getHook().sendMessageEmbeds(embed).queue(null,
                         err -> log.info("Setup terminado, pero no se pudo enviar el resumen: {}",
@@ -243,18 +261,33 @@ public final class SetupComando implements Comando {
                     if (silenciado != null) {
                         accion = accion.addRolePermissionOverride(silenciado.getIdLong(), 0L, DENY_SILENCIADO);
                     }
+                    // STATS: todos VEN los contadores pero nadie se conecta (canales de solo lectura).
+                    if (CAT_STATS.equals(catPlan.nombre())) {
+                        accion = accion.addRolePermissionOverride(everyone.getIdLong(),
+                                0L, Permission.VOICE_CONNECT.getRawValue());
+                    }
                     categoria = accion.complete();
+                }
+
+                // La categoría de stats va arriba del todo (nuevo o reutilizado).
+                if (CAT_STATS.equals(catPlan.nombre())) {
+                    try {
+                        categoria.getManager().setPosition(0).complete();
+                    } catch (RuntimeException e) {
+                        log.warn("No se pudo colocar la categoría de stats arriba", e);
+                    }
                 }
 
                 for (CanalPlan chPlan : catPlan.canales()) {
                     canales++;
                     try {
                         GuildChannel existente = guild.getChannels().stream()
-                                .filter(c -> c.getName().equals(chPlan.nombre()))
+                                .filter(c -> mismoCanal(c, chPlan))
                                 .findFirst().orElse(null);
                         GuildChannel canal;
                         if (existente != null) {
                             aplicarConfig(guild, existente, chPlan);
+                            aplicarTopic(existente, chPlan);
                             canal = existente;
                         } else {
                             canal = crearCanal(guild, categoria, chPlan, everyone, locale);
@@ -291,10 +324,17 @@ public final class SetupComando implements Comando {
             VoiceChannel vc = accionVoz.complete();
             vc.getManager().sync().complete();
             creado = vc;
+        } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.ESCENARIO) {
+            StageChannel sc = categoria.createStageChannel(chPlan.nombre()).complete();
+            sc.getManager().sync().complete();
+            creado = sc;
         } else {
             var accion = categoria.createTextChannel(chPlan.nombre());
             if (chPlan.slowmodeSegundos() > 0) {
                 accion = accion.setSlowmode(chPlan.slowmodeSegundos());
+            }
+            if (chPlan.topic() != null) {
+                accion = accion.setTopic(chPlan.topic());
             }
             TextChannel tc = accion.complete();
             // Hereda los permisos de la categoría (ocultación, staff, silenciado).
@@ -394,10 +434,111 @@ public final class SetupComando implements Comando {
                 error -> log.warn("No se pudo fijar la intro en {}", canal.getId(), error));
     }
 
+    /**
+     * ¿Corresponde el canal existente al del plan? Normalmente por nombre exacto, pero los canales
+     * de stats («👥 Miembros: …») los renombra {@link com.gymprofit.bot.services.EstadisticasService}
+     * con el número real, así que se casan por el prefijo estable (hasta «:») para no duplicarlos al
+     * reejecutar {@code /setup}.
+     */
+    private static boolean mismoCanal(GuildChannel canal, CanalPlan chPlan) {
+        String nombre = chPlan.nombre();
+        int dosPuntos = nombre.indexOf(':');
+        if (dosPuntos > 0 && nombre.endsWith("…")) {
+            return canal.getName().startsWith(nombre.substring(0, dosPuntos + 1));
+        }
+        return canal.getName().equals(nombre);
+    }
+
     /** Si el canal representa un canal de config, lo guarda en config_servidor. */
     private void aplicarConfig(Guild guild, GuildChannel canal, CanalPlan chPlan) {
         if (chPlan.claveConfig() != null) {
             config.fijarCanal(guild.getIdLong(), chPlan.claveConfig(), canal.getIdLong());
+        }
+    }
+
+    /**
+     * Fija la descripción (topic) de un canal de texto existente si el plan la define y difiere de
+     * la actual. Solo aplica a texto (los canales de voz no tienen topic) y evita la llamada REST
+     * cuando ya coincide, para no gastar rate limit al reejecutar {@code /setup}.
+     */
+    private void aplicarTopic(GuildChannel canal, CanalPlan chPlan) {
+        if (chPlan.topic() == null || !(canal instanceof TextChannel tc)) {
+            return;
+        }
+        if (chPlan.topic().equals(tc.getTopic())) {
+            return;
+        }
+        try {
+            tc.getManager().setTopic(chPlan.topic()).complete();
+        } catch (RuntimeException e) {
+            log.warn("No se pudo fijar el topic de {}", canal.getName(), e);
+        }
+    }
+
+    /**
+     * Crea (o reutiliza por nombre) las reglas de AutoMod básicas y manda sus alertas al canal de
+     * moderación: anti-menciones masivas, anti-spam y filtro de lenguaje inapropiado (presets de
+     * Discord, que ya cubren español). Idempotente: no duplica reglas ya existentes. Devuelve
+     * cuántas reglas quedan cubiertas (creadas o ya presentes).
+     *
+     * <p>Requiere {@code MANAGE_SERVER}; si falta, se omite sin romper el resto del montaje. Los
+     * roles de gestión (Admin/Gestionar servidor) quedan exentos automáticamente por Discord.</p>
+     */
+    private int crearReglasAutoMod(Guild guild) {
+        if (!guild.getSelfMember().hasPermission(Permission.MANAGE_SERVER)) {
+            log.info("Sin MANAGE_SERVER: se omite la creación de reglas de AutoMod");
+            return 0;
+        }
+
+        TextChannel alertas = guild.getTextChannelsByName(CANAL_MODERACION, false)
+                .stream().findFirst().orElse(null);
+
+        List<String> existentes;
+        try {
+            existentes = guild.retrieveAutoModRules().complete()
+                    .stream().map(AutoModRule::getName).toList();
+        } catch (RuntimeException e) {
+            log.warn("No se pudieron listar las reglas de AutoMod existentes", e);
+            return 0;
+        }
+
+        int cubiertas = 0;
+        cubiertas += crearReglaAutoMod(guild, existentes, AUTOMOD_MENCIONES,
+                TriggerConfig.mentionSpam(AUTOMOD_LIMITE_MENCIONES), alertas);
+        cubiertas += crearReglaAutoMod(guild, existentes, AUTOMOD_SPAM,
+                TriggerConfig.antiSpam(), alertas);
+        cubiertas += crearReglaAutoMod(guild, existentes, AUTOMOD_LENGUAJE,
+                TriggerConfig.presetKeywordFilter(EnumSet.of(
+                        AutoModRule.KeywordPreset.PROFANITY,
+                        AutoModRule.KeywordPreset.SLURS,
+                        AutoModRule.KeywordPreset.SEXUAL_CONTENT)), alertas);
+        return cubiertas;
+    }
+
+    /**
+     * Crea una regla de AutoMod si no existe ya una con ese nombre. Respuesta: bloquear el mensaje
+     * (con aviso al autor) y, si hay canal de moderación, mandar alerta. Devuelve 1 si la regla
+     * queda cubierta (creada o ya existente), 0 si falla la creación.
+     */
+    private int crearReglaAutoMod(Guild guild, List<String> existentes, String nombre,
+                                  TriggerConfig config, TextChannel alertas) {
+        if (existentes.contains(nombre)) {
+            return 1; // ya existe: idempotencia, no duplicar
+        }
+        try {
+            // blockMessage() sin texto custom: no todos los triggers aceptan mensaje personalizado,
+            // así se evita un IllegalStateException al crear la regla. El aviso al autor lo pone
+            // Discord por defecto; lo importante es la alerta a moderación.
+            AutoModRuleData data = AutoModRuleData.onMessage(nombre, config)
+                    .putResponses(AutoModResponse.blockMessage());
+            if (alertas != null) {
+                data.putResponses(AutoModResponse.sendAlert(alertas));
+            }
+            guild.createAutoModRule(data).complete();
+            return 1;
+        } catch (RuntimeException e) {
+            log.warn("No se pudo crear la regla de AutoMod {}", nombre, e);
+            return 0;
         }
     }
 }

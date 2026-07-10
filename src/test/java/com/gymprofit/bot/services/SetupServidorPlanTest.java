@@ -53,6 +53,23 @@ class SetupServidorPlanTest {
     }
 
     @Test
+    void todosLosCanalesDeTextoTienenTopicValido() {
+        for (CategoriaPlan cat : SetupServidorPlan.CATEGORIAS) {
+            for (CanalPlan ch : cat.canales()) {
+                if (ch.tipo() == SetupServidorPlan.TipoCanalDiscord.TEXTO) {
+                    assertTrue(ch.topic() != null && !ch.topic().isBlank(),
+                            "canal de texto sin topic: " + ch.nombre());
+                    assertTrue(ch.topic().length() <= 1024,
+                            "topic demasiado largo (>1024): " + ch.nombre());
+                } else {
+                    assertTrue(ch.topic() == null,
+                            "canal de voz no debe llevar topic: " + ch.nombre());
+                }
+            }
+        }
+    }
+
+    @Test
     void losCuatroObjetivosTienenRol() {
         Set<Objetivo> objetivos = EnumSet.noneOf(Objetivo.class);
         SetupServidorPlan.ROLES.stream()
