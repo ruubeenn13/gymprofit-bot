@@ -16,6 +16,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.automod.AutoModResponse;
 import net.dv8tion.jda.api.entities.automod.AutoModRule;
+import net.dv8tion.jda.api.entities.automod.AutoModTriggerType;
 import net.dv8tion.jda.api.entities.automod.build.AutoModRuleData;
 import net.dv8tion.jda.api.entities.automod.build.TriggerConfig;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
@@ -44,11 +45,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * {@code /setup}: monta la estructura del servidor (roles, categorías, canales, permisos y
@@ -72,8 +76,6 @@ public final class SetupComando implements Comando {
     /** Canales a los que se reapuntan los ajustes de comunidad tras montar (reglas/updates/seguridad). */
     private static final String CANAL_REGLAS = "📜・reglas";
     private static final String CANAL_BOTLOGS = "🤖・bot-logs";
-    /** Canal temporal que sostiene los ajustes de comunidad mientras se borran los viejos. */
-    private static final String CANAL_TEMPORAL = "setup-temporal";
     /** Categoría de contadores en vivo: se fuerza arriba del todo y sus canales de voz se bloquean. */
     private static final String CAT_STATS = "▬▬ 📊 SERVER STATS ▬▬";
 
@@ -147,30 +149,26 @@ public final class SetupComando implements Comando {
         Thread hilo = new Thread(() -> {
             try {
                 // Con Comunidad activada, Discord no deja borrar los canales de reglas/updates/
-                // seguridad. Se crean-y-reasignan a un canal temporal para poder borrar los viejos;
-                // al final se reapuntan a los nuevos y se borra el temporal.
-                TextChannel temporal = null;
-                int limpiados;
-                if (desdeCero) {
-                    if (guild.getFeatures().contains("COMMUNITY")) {
-                        temporal = guild.createTextChannel(CANAL_TEMPORAL).complete();
-                        reasignarComunidad(guild, temporal);
-                    }
-                    limpiados = vaciarServidor(guild, temporal == null ? 0L : temporal.getIdLong());
-                } else {
-                    limpiados = purgarCanalesExistentes(guild);
-                }
+                // seguridad (error 50074). Estrategia: borrar todo lo que se pueda, montar la
+                // estructura nueva, reapuntar la comunidad a los canales nuevos y ENTONCES borrar
+                // los antiguos que quedaron protegidos (ya sin referencia de comunidad).
+                List<GuildChannel> protegidos = new ArrayList<>();
+                int limpiados = desdeCero
+                        ? vaciarServidor(guild, protegidos)
+                        : purgarCanalesExistentes(guild);
                 Map<String, Role> roles = crearRoles(guild);
                 int canales = crearCategoriasYCanales(guild, roles, locale);
                 int reglasAutoMod = crearReglasAutoMod(guild);
 
-                // Reapunta la comunidad a los canales recién montados y elimina el temporal.
-                if (temporal != null) {
+                if (desdeCero && !protegidos.isEmpty()) {
                     restaurarComunidad(guild);
-                    try {
-                        temporal.delete().complete();
-                    } catch (RuntimeException e) {
-                        log.warn("No se pudo borrar el canal temporal de setup", e);
+                    for (GuildChannel viejo : protegidos) {
+                        try {
+                            viejo.delete().complete();
+                            limpiados++;
+                        } catch (RuntimeException e) {
+                            log.warn("Sigue sin poder borrarse el canal {}", viejo.getName(), e);
+                        }
                     }
                 }
 
@@ -197,24 +195,23 @@ public final class SetupComando implements Comando {
     }
 
     /**
-     * Vacía el servidor: borra todos los canales (salvo {@code exceptoCanalId}) y los roles
-     * borrables (no {@code @everyone}, no gestionados, no por encima del bot). Devuelve cuántos
-     * elementos se borraron. Irreversible.
+     * Vacía el servidor: borra todos los canales y los roles borrables (no {@code @everyone}, no
+     * gestionados, no por encima del bot). Devuelve cuántos elementos se borraron. Irreversible.
      *
-     * @param exceptoCanalId canal a conservar (el temporal que sostiene la comunidad), o 0 si ninguno
+     * <p>Los canales que Discord no deja borrar (los requeridos por la comunidad: reglas, updates,
+     * seguridad) se acumulan en {@code protegidosOut} para reintentarlos tras reapuntar la comunidad
+     * a los canales nuevos.</p>
      */
-    private int vaciarServidor(Guild guild, long exceptoCanalId) {
+    private int vaciarServidor(Guild guild, List<GuildChannel> protegidosOut) {
         int borrados = 0;
         for (GuildChannel canal : List.copyOf(guild.getChannels())) {
-            // El canal temporal sostiene los ajustes de comunidad; no se borra en esta pasada.
-            if (canal.getIdLong() == exceptoCanalId) {
-                continue;
-            }
             try {
                 canal.delete().complete();
                 borrados++;
             } catch (RuntimeException e) {
-                log.warn("No se pudo borrar el canal {}", canal.getId(), e);
+                // Probablemente un canal protegido por la comunidad; se reintenta más tarde.
+                protegidosOut.add(canal);
+                log.warn("No se pudo borrar el canal {} (se reintentará al final)", canal.getName());
             }
         }
         Member yo = guild.getSelfMember();
@@ -387,13 +384,7 @@ public final class SetupComando implements Comando {
             fc.getManager().sync().complete();
             creado = fc;
         } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.MEDIA) {
-            var accion = categoria.createMediaChannel(chPlan.nombre());
-            if (chPlan.topic() != null) {
-                accion = accion.setTopic(chPlan.topic());
-            }
-            MediaChannel mc = accion.complete();
-            mc.getManager().sync().complete();
-            creado = mc;
+            creado = crearMediaOForo(categoria, chPlan);
         } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.ANUNCIOS) {
             var accion = categoria.createNewsChannel(chPlan.nombre());
             if (chPlan.topic() != null) {
@@ -430,6 +421,32 @@ public final class SetupComando implements Comando {
         }
         aplicarConfig(guild, creado, chPlan);
         return creado;
+    }
+
+    /**
+     * Crea un canal de media (galería). Si Discord no permite media en esta guild (error 50024,
+     * «Cannot execute action on this channel type»), cae a un canal de <b>foro</b>, que sí funciona
+     * y da una galería por publicaciones equivalente. Sincroniza permisos con la categoría.
+     */
+    private GuildChannel crearMediaOForo(Category categoria, CanalPlan chPlan) {
+        try {
+            var accion = categoria.createMediaChannel(chPlan.nombre());
+            if (chPlan.topic() != null) {
+                accion = accion.setTopic(chPlan.topic());
+            }
+            MediaChannel mc = accion.complete();
+            mc.getManager().sync().complete();
+            return mc;
+        } catch (RuntimeException e) {
+            log.warn("Media no disponible para {}; creo un foro en su lugar", chPlan.nombre());
+            var accion = categoria.createForumChannel(chPlan.nombre());
+            if (chPlan.topic() != null) {
+                accion = accion.setTopic(chPlan.topic());
+            }
+            ForumChannel fc = accion.complete();
+            fc.getManager().sync().complete();
+            return fc;
+        }
     }
 
     /** Publica en 🚀 empieza-aquí una fila de botones que llevan a los canales clave. */
@@ -526,23 +543,6 @@ public final class SetupComando implements Comando {
             return canal.getName().startsWith(nombre.substring(0, dosPuntos + 1));
         }
         return canal.getName().equals(nombre);
-    }
-
-    /**
-     * Apunta los tres canales de comunidad (reglas, actualizaciones y seguridad) al canal dado.
-     * Se usa con un canal temporal antes de vaciar, para que Discord permita borrar los actuales
-     * (no deja borrar los canales requeridos por una comunidad).
-     */
-    private void reasignarComunidad(Guild guild, TextChannel destino) {
-        try {
-            guild.getManager()
-                    .setRulesChannel(destino)
-                    .setCommunityUpdatesChannel(destino)
-                    .setSafetyAlertsChannel(destino)
-                    .complete();
-        } catch (RuntimeException e) {
-            log.warn("No se pudieron reasignar los canales de comunidad al temporal", e);
-        }
     }
 
     /**
@@ -669,21 +669,25 @@ public final class SetupComando implements Comando {
         TextChannel alertas = guild.getTextChannelsByName(CANAL_MODERACION, false)
                 .stream().findFirst().orElse(null);
 
-        List<String> existentes;
+        Set<String> nombres;
+        Set<AutoModTriggerType> tipos;
         try {
-            existentes = guild.retrieveAutoModRules().complete()
-                    .stream().map(AutoModRule::getName).toList();
+            List<AutoModRule> reglas = guild.retrieveAutoModRules().complete();
+            nombres = reglas.stream().map(AutoModRule::getName).collect(Collectors.toSet());
+            tipos = reglas.stream().map(AutoModRule::getTriggerType).collect(Collectors.toSet());
         } catch (RuntimeException e) {
             log.warn("No se pudieron listar las reglas de AutoMod existentes", e);
             return 0;
         }
 
         int cubiertas = 0;
-        cubiertas += crearReglaAutoMod(guild, existentes, AUTOMOD_MENCIONES,
+        cubiertas += crearReglaAutoMod(guild, nombres, tipos, AUTOMOD_MENCIONES,
+                AutoModTriggerType.MENTION_SPAM,
                 TriggerConfig.mentionSpam(AUTOMOD_LIMITE_MENCIONES), alertas);
-        cubiertas += crearReglaAutoMod(guild, existentes, AUTOMOD_SPAM,
-                TriggerConfig.antiSpam(), alertas);
-        cubiertas += crearReglaAutoMod(guild, existentes, AUTOMOD_LENGUAJE,
+        cubiertas += crearReglaAutoMod(guild, nombres, tipos, AUTOMOD_SPAM,
+                AutoModTriggerType.SPAM, TriggerConfig.antiSpam(), alertas);
+        cubiertas += crearReglaAutoMod(guild, nombres, tipos, AUTOMOD_LENGUAJE,
+                AutoModTriggerType.KEYWORD_PRESET,
                 TriggerConfig.presetKeywordFilter(EnumSet.of(
                         AutoModRule.KeywordPreset.PROFANITY,
                         AutoModRule.KeywordPreset.SLURS,
@@ -692,14 +696,17 @@ public final class SetupComando implements Comando {
     }
 
     /**
-     * Crea una regla de AutoMod si no existe ya una con ese nombre. Respuesta: bloquear el mensaje
-     * (con aviso al autor) y, si hay canal de moderación, mandar alerta. Devuelve 1 si la regla
-     * queda cubierta (creada o ya existente), 0 si falla la creación.
+     * Crea una regla de AutoMod si aún no está cubierta. Los tipos que usamos (mención, spam,
+     * preset de palabras) están <b>limitados a 1 regla por servidor</b>, así que se omite si ya
+     * existe una con ese nombre <b>o</b> con ese tipo de trigger (aunque la haya creado otro a
+     * mano). Respuesta: bloquear el mensaje y, si hay canal de moderación, mandar alerta. Devuelve
+     * 1 si queda cubierta (creada o ya existente), 0 si falla la creación.
      */
-    private int crearReglaAutoMod(Guild guild, List<String> existentes, String nombre,
-                                  TriggerConfig config, TextChannel alertas) {
-        if (existentes.contains(nombre)) {
-            return 1; // ya existe: idempotencia, no duplicar
+    private int crearReglaAutoMod(Guild guild, Set<String> nombres, Set<AutoModTriggerType> tipos,
+                                  String nombre, AutoModTriggerType tipo, TriggerConfig config,
+                                  TextChannel alertas) {
+        if (nombres.contains(nombre) || tipos.contains(tipo)) {
+            return 1; // ya cubierta (por nombre o por tipo): no duplicar ni exceder el máximo
         }
         try {
             // blockMessage() sin texto custom: no todos los triggers aceptan mensaje personalizado,
@@ -711,6 +718,8 @@ public final class SetupComando implements Comando {
                 data.putResponses(AutoModResponse.sendAlert(alertas));
             }
             guild.createAutoModRule(data).complete();
+            nombres.add(nombre);
+            tipos.add(tipo);
             return 1;
         } catch (RuntimeException e) {
             log.warn("No se pudo crear la regla de AutoMod {}", nombre, e);

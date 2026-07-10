@@ -8,10 +8,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ### Corregido
 - **`/setup desde_cero` ahora borra también los canales de comunidad**: Discord no deja borrar los
-  canales de reglas/actualizaciones/seguridad de una comunidad. `/setup` crea un canal temporal,
-  reapunta esos ajustes a él (`setRulesChannel`/`setCommunityUpdatesChannel`/`setSafetyAlertsChannel`),
-  borra los viejos, y tras montar reapunta la comunidad a los nuevos (`📜・reglas`, `🤖・bot-logs`,
-  `📋・moderación`) y elimina el temporal. Antes quedaban 2 canales huérfanos arriba del todo.
+  canales de reglas/actualizaciones/seguridad de una comunidad (error 50074). `/setup` borra todo lo
+  que puede, monta la estructura nueva, reapunta la comunidad a los canales nuevos (`📜・reglas`,
+  `🤖・bot-logs`, `📋・moderación`) y entonces sí borra los antiguos que habían quedado protegidos.
+  Antes quedaban 2 canales huérfanos arriba del todo.
+- **Canales de media con fallback a foro**: si Discord no permite crear canales de media en la guild
+  (error 50024), `/setup` crea un **foro** en su lugar (galería por publicaciones equivalente), en
+  vez de dejar el canal sin crear. Afecta a `📈・progresos` y `📸・fotos`.
+- **AutoMod idempotente por tipo de trigger**: las reglas de mención/spam/preset están limitadas a
+  1 por servidor; ahora `/setup` omite crearlas si ya existe una **de ese tipo** (aunque tenga otro
+  nombre o la haya creado el staff a mano), evitando el error 50035 (máximo de reglas superado).
 
 ### Añadido
 - **Pantalla de bienvenida (Welcome Screen) en `/setup`**: al montar, si el servidor es Comunidad,
