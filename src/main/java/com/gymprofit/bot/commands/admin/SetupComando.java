@@ -321,11 +321,16 @@ public final class SetupComando implements Comando {
     }
 
     /**
-     * Vacía el servidor: borra todos los canales y los roles borrables (no {@code @everyone}, no
-     * gestionados, no por encima del bot). Devuelve cuántos elementos se borraron. Irreversible.
+     * Vacía el servidor: borra todos los canales (los de {@code conservar} —anclas de comunidad—
+     * nunca). Devuelve cuántos canales se borraron. Irreversible.
      *
-     * <p>Los canales de {@code conservar} (las anclas de comunidad) nunca se borran. Los que Discord
-     * rechace borrar se acumulan en {@code protegidosOut} para reintentarlos al final.</p>
+     * <p><b>No borra roles a propósito.</b> Discord limita la <i>creación</i> de roles a un cupo
+     * diario por servidor; borrar y recrear los 25 roles en cada {@code desde_cero} agotaba ese cupo
+     * y bloqueaba la creación durante ~2 días (429 con retry-after enorme). Los roles se
+     * <b>reutilizan</b> por nombre en {@link #crearRoles(Guild)}: se crean solo los que falten.</p>
+     *
+     * <p>Los canales que Discord rechace borrar se acumulan en {@code protegidosOut} para
+     * reintentarlos al final (tras reapuntar la comunidad a las anclas).</p>
      */
     private int vaciarServidor(Guild guild, List<GuildChannel> protegidosOut, Set<Long> conservar) {
         int borrados = 0;
@@ -341,21 +346,6 @@ public final class SetupComando implements Comando {
                 // Probablemente un canal protegido por la comunidad; se reintenta más tarde.
                 protegidosOut.add(canal);
                 log.warn("No se pudo borrar el canal {} (se reintentará al final)", canal.getName());
-            }
-        }
-        Member yo = guild.getSelfMember();
-        List<Role> misRoles = yo.getRoles();
-        for (Role rol : List.copyOf(guild.getRoles())) {
-            // No borrar @everyone, roles gestionados, roles por encima del bot, ni roles que el
-            // propio bot tenga (borrarlos le quitaría permisos a mitad del montaje).
-            if (rol.isPublicRole() || rol.isManaged() || !yo.canInteract(rol) || misRoles.contains(rol)) {
-                continue;
-            }
-            try {
-                rol.delete().complete();
-                borrados++;
-            } catch (RuntimeException e) {
-                log.warn("No se pudo borrar el rol {}", rol.getId(), e);
             }
         }
         return borrados;

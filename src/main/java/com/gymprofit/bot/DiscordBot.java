@@ -6,10 +6,12 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.utils.ChunkingFilter;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 import java.util.EnumSet;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Fábrica de la conexión a Discord (bootstrap de JDA, SPEC §4).
@@ -52,6 +54,9 @@ public final class DiscordBot {
      * @return la instancia de JDA en proceso de conexión
      */
     public static JDA start(String token, Object... listeners) {
+        // Timeout global de las RestActions: si una acción no puede completarse en 30 s (p. ej. un
+        // rate limit 429 con retry-after enorme), falla en vez de bloquear el hilo durante horas.
+        RestAction.setDefaultTimeout(30, TimeUnit.SECONDS);
         return JDABuilder.createDefault(token)
                 // Intents privilegiados necesarios para F1; el resto (por defecto) ya están.
                 .enableIntents(PRIVILEGED_INTENTS)
