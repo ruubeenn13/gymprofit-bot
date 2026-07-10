@@ -7,19 +7,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Corregido
-- **`/setup desde_cero` ahora borra también los canales de comunidad**: Discord no deja borrar los
-  canales de reglas/actualizaciones/seguridad de una comunidad (error 50074). `/setup` borra todo lo
-  que puede, monta la estructura nueva, reapunta la comunidad a los canales nuevos (`📜・reglas`,
-  `🤖・bot-logs`, `📋・moderación`) y entonces sí borra los antiguos que habían quedado protegidos.
-  Antes quedaban 2 canales huérfanos arriba del todo.
-- **Canales de media con fallback a foro**: si Discord no permite crear canales de media en la guild
-  (error 50024), `/setup` crea un **foro** en su lugar (galería por publicaciones equivalente), en
-  vez de dejar el canal sin crear. Afecta a `📈・progresos` y `📸・fotos`.
+- **`/setup desde_cero` borra todo mediante canales-ancla de comunidad**: Discord no deja borrar los
+  canales de reglas/actualizaciones/seguridad de una comunidad (error 50074). Ahora `/setup` usa dos
+  **canales-ancla permanentes y ocultos** (`📜・reglas-comunidad` y `🛡️・avisos-comunidad`, en STAFF,
+  solo visibles para el bot y el Fundador): antes de vaciar, ancla a ellos los ajustes de comunidad
+  (reglas → uno; updates+seguridad → otro), lo que libera los canales de contenido para poder
+  borrarlos. Las anclas se reutilizan y **nunca se borran**. Antes quedaban 2 canales huérfanos.
+- **Canales de media más robustos**: se crean "desnudos" (el topic en la creación disparaba el error
+  50024) y se les fija topic/permisos después; si aun así media no está disponible en la guild, se
+  cae a un **foro** (galería por publicaciones). Afecta a `📈・progresos` y `📸・fotos`.
 - **AutoMod idempotente por tipo de trigger**: las reglas de mención/spam/preset están limitadas a
   1 por servidor; ahora `/setup` omite crearlas si ya existe una **de ese tipo** (aunque tenga otro
   nombre o la haya creado el staff a mano), evitando el error 50035 (máximo de reglas superado).
 
 ### Añadido
+- **Coherencia de tipos de canal + AFK**: `❓・faq` y `📥・reportes` pasan a **foro** (con etiquetas);
+  `🏆・logros` y `📊・ranking` a **solo-lectura** (los publica el bot, sin chatter); y `/setup` fija
+  `💤 AFK` como **canal AFK** del servidor (timeout 5 min).
 - **Pantalla de bienvenida (Welcome Screen) en `/setup`**: al montar, si el servidor es Comunidad,
   `/setup` configura la pantalla de bienvenida (`modifyWelcomeScreen`) con descripción de marca y 5
   canales sugeridos con emoji (empieza-aquí, reglas, roles, general, soporte). Es lo único de la

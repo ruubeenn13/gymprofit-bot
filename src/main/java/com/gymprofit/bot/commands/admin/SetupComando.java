@@ -48,6 +48,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -73,9 +74,15 @@ public final class SetupComando implements Comando {
     private static final String CANAL_EMPIEZA = "🚀・empieza-aquí";
     /** Canal (solo staff) al que AutoMod manda las alertas de contenido bloqueado. */
     private static final String CANAL_MODERACION = "📋・moderación";
-    /** Canales a los que se reapuntan los ajustes de comunidad tras montar (reglas/updates/seguridad). */
-    private static final String CANAL_REGLAS = "📜・reglas";
-    private static final String CANAL_BOTLOGS = "🤖・bot-logs";
+    /** Categoría privada de staff (para recolocar dentro las anclas de comunidad). */
+    private static final String CAT_STAFF = "▬▬ 🔒 STAFF ▬▬";
+    /**
+     * Canales-ancla permanentes y ocultos que sostienen los ajustes de comunidad (reglas y
+     * updates/seguridad). Al no ser canales de contenido, Discord permite borrar y recrear el resto
+     * libremente. Solo los ve el bot y el Fundador (Admin).
+     */
+    private static final String ANCLA_REGLAS = "📜・reglas-comunidad";
+    private static final String ANCLA_AVISOS = "🛡️・avisos-comunidad";
     /** Categoría de contadores en vivo: se fuerza arriba del todo y sus canales de voz se bloquean. */
     private static final String CAT_STATS = "▬▬ 📊 SERVER STATS ▬▬";
 
@@ -149,32 +156,48 @@ public final class SetupComando implements Comando {
         Thread hilo = new Thread(() -> {
             try {
                 // Con Comunidad activada, Discord no deja borrar los canales de reglas/updates/
-                // seguridad (error 50074). Estrategia: borrar todo lo que se pueda, montar la
-                // estructura nueva, reapuntar la comunidad a los canales nuevos y ENTONCES borrar
-                // los antiguos que quedaron protegidos (ya sin referencia de comunidad).
+                // seguridad (error 50074). Solución: dos canales-ancla permanentes y ocultos
+                // (reglas-comunidad y avisos-comunidad) sostienen esos ajustes. Se anclan ANTES de
+                // vaciar (para liberar los canales viejos) y se conservan; tras montar se recolocan
+                // en STAFF ocultos. Así el resto de canales se borra y recrea libremente.
                 List<GuildChannel> protegidos = new ArrayList<>();
-                int limpiados = desdeCero
-                        ? vaciarServidor(guild, protegidos)
-                        : purgarCanalesExistentes(guild);
+                Set<Long> conservar = new HashSet<>();
+                int limpiados;
+                if (desdeCero) {
+                    if (guild.getFeatures().contains("COMMUNITY")) {
+                        TextChannel anclaReglas = reusarOCrearAncla(guild, ANCLA_REGLAS);
+                        TextChannel anclaAvisos = reusarOCrearAncla(guild, ANCLA_AVISOS);
+                        anclarComunidad(guild, anclaReglas, anclaAvisos);
+                        conservar.add(anclaReglas.getIdLong());
+                        conservar.add(anclaAvisos.getIdLong());
+                    }
+                    limpiados = vaciarServidor(guild, protegidos, conservar);
+                } else {
+                    limpiados = purgarCanalesExistentes(guild);
+                }
                 Map<String, Role> roles = crearRoles(guild);
                 int canales = crearCategoriasYCanales(guild, roles, locale);
                 int reglasAutoMod = crearReglasAutoMod(guild);
 
-                if (desdeCero && !protegidos.isEmpty()) {
-                    restaurarComunidad(guild);
-                    for (GuildChannel viejo : protegidos) {
-                        try {
-                            viejo.delete().complete();
-                            limpiados++;
-                        } catch (RuntimeException e) {
-                            log.warn("Sigue sin poder borrarse el canal {}", viejo.getName(), e);
-                        }
+                // Recoloca las anclas en STAFF y las oculta (solo bot + Fundador).
+                if (!conservar.isEmpty()) {
+                    colocarAnclas(guild, roles);
+                }
+                // Reintento por si quedó algún protegido (no debería, ya se anclaron antes de vaciar).
+                for (GuildChannel viejo : protegidos) {
+                    try {
+                        viejo.delete().complete();
+                        limpiados++;
+                    } catch (RuntimeException e) {
+                        log.warn("Sigue sin poder borrarse el canal {}", viejo.getName());
                     }
                 }
 
                 // Pantalla de bienvenida (Welcome Screen): lo único de la incorporación que expone
                 // la API. El resto del onboarding (canales por defecto, preguntas) es manual.
                 configurarBienvenida(guild);
+                // Fija el canal AFK (Discord mueve ahí a los inactivos de voz).
+                configurarAfk(guild);
 
                 var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "setup.titulo"),
@@ -198,13 +221,16 @@ public final class SetupComando implements Comando {
      * Vacía el servidor: borra todos los canales y los roles borrables (no {@code @everyone}, no
      * gestionados, no por encima del bot). Devuelve cuántos elementos se borraron. Irreversible.
      *
-     * <p>Los canales que Discord no deja borrar (los requeridos por la comunidad: reglas, updates,
-     * seguridad) se acumulan en {@code protegidosOut} para reintentarlos tras reapuntar la comunidad
-     * a los canales nuevos.</p>
+     * <p>Los canales de {@code conservar} (las anclas de comunidad) nunca se borran. Los que Discord
+     * rechace borrar se acumulan en {@code protegidosOut} para reintentarlos al final.</p>
      */
-    private int vaciarServidor(Guild guild, List<GuildChannel> protegidosOut) {
+    private int vaciarServidor(Guild guild, List<GuildChannel> protegidosOut, Set<Long> conservar) {
         int borrados = 0;
         for (GuildChannel canal : List.copyOf(guild.getChannels())) {
+            // Las anclas de comunidad son permanentes: no se borran nunca.
+            if (conservar.contains(canal.getIdLong())) {
+                continue;
+            }
             try {
                 canal.delete().complete();
                 borrados++;
@@ -430,12 +456,18 @@ public final class SetupComando implements Comando {
      */
     private GuildChannel crearMediaOForo(Category categoria, CanalPlan chPlan) {
         try {
-            var accion = categoria.createMediaChannel(chPlan.nombre());
-            if (chPlan.topic() != null) {
-                accion = accion.setTopic(chPlan.topic());
+            // Creación "desnuda": el topic en la acción de creación parece disparar el 50024 en
+            // media; se crea el canal y luego se le pone topic y se sincronizan permisos aparte,
+            // sin tumbar el canal si esos pasos fallan.
+            MediaChannel mc = categoria.createMediaChannel(chPlan.nombre()).complete();
+            try {
+                mc.getManager().sync().complete();
+                if (chPlan.topic() != null) {
+                    mc.getManager().setTopic(chPlan.topic()).complete();
+                }
+            } catch (RuntimeException ajuste) {
+                log.warn("Canal de media {} creado, pero falló topic/sync", chPlan.nombre());
             }
-            MediaChannel mc = accion.complete();
-            mc.getManager().sync().complete();
             return mc;
         } catch (RuntimeException e) {
             log.warn("Media no disponible para {}; creo un foro en su lugar", chPlan.nombre());
@@ -545,28 +577,56 @@ public final class SetupComando implements Comando {
         return canal.getName().equals(nombre);
     }
 
+    /** Reutiliza el canal-ancla por nombre si existe, o lo crea. Nunca se borra en {@code /setup}. */
+    private TextChannel reusarOCrearAncla(Guild guild, String nombre) {
+        TextChannel existente = primerCanal(guild, nombre);
+        return existente != null ? existente : guild.createTextChannel(nombre).complete();
+    }
+
     /**
-     * Reapunta los canales de comunidad a los canales recién montados: reglas → {@code 📜・reglas},
-     * actualizaciones → {@code 🤖・bot-logs}, seguridad → {@code 📋・moderación} (los que existan).
+     * Ancla los ajustes de comunidad a los canales dedicados: reglas → ancla de reglas;
+     * actualizaciones y seguridad → ancla de avisos. Al usar canales distintos para reglas y
+     * actualizaciones se evita el rechazo de Discord al reasignar. Libera los canales de contenido
+     * viejos para poder borrarlos.
      */
-    private void restaurarComunidad(Guild guild) {
-        TextChannel reglas = primerCanal(guild, CANAL_REGLAS);
-        TextChannel botLogs = primerCanal(guild, CANAL_BOTLOGS);
-        TextChannel moderacion = primerCanal(guild, CANAL_MODERACION);
+    private void anclarComunidad(Guild guild, TextChannel reglas, TextChannel avisos) {
         try {
-            var manager = guild.getManager();
-            if (reglas != null) {
-                manager = manager.setRulesChannel(reglas);
-            }
-            if (botLogs != null) {
-                manager = manager.setCommunityUpdatesChannel(botLogs);
-            }
-            if (moderacion != null) {
-                manager = manager.setSafetyAlertsChannel(moderacion);
-            }
-            manager.complete();
+            guild.getManager()
+                    .setRulesChannel(reglas)
+                    .setCommunityUpdatesChannel(avisos)
+                    .setSafetyAlertsChannel(avisos)
+                    .complete();
         } catch (RuntimeException e) {
-            log.warn("No se pudieron reapuntar los canales de comunidad a los nuevos", e);
+            log.warn("No se pudieron anclar los canales de comunidad", e);
+        }
+    }
+
+    /**
+     * Recoloca las anclas dentro de la categoría STAFF y las oculta: solo las ven el bot y el
+     * Fundador (Admin, que ve todo). Deniega {@code VIEW_CHANNEL} a {@code @everyone} y a Staff.
+     */
+    private void colocarAnclas(Guild guild, Map<String, Role> roles) {
+        Category staff = guild.getCategoriesByName(CAT_STAFF, false).stream().findFirst().orElse(null);
+        Role everyone = guild.getPublicRole();
+        Role staffRol = roles.get(ROL_STAFF);
+        Member yo = guild.getSelfMember();
+        for (String nombre : List.of(ANCLA_REGLAS, ANCLA_AVISOS)) {
+            TextChannel ancla = primerCanal(guild, nombre);
+            if (ancla == null) {
+                continue;
+            }
+            try {
+                if (staff != null) {
+                    ancla.getManager().setParent(staff).complete();
+                }
+                ancla.upsertPermissionOverride(everyone).deny(Permission.VIEW_CHANNEL).complete();
+                if (staffRol != null) {
+                    ancla.upsertPermissionOverride(staffRol).deny(Permission.VIEW_CHANNEL).complete();
+                }
+                ancla.upsertPermissionOverride(yo).grant(Permission.VIEW_CHANNEL).complete();
+            } catch (RuntimeException e) {
+                log.warn("No se pudo colocar/ocultar el ancla {}", nombre, e);
+            }
         }
     }
 
@@ -586,7 +646,7 @@ public final class SetupComando implements Comando {
         }
         List<GuildWelcomeScreen.Channel> canales = new java.util.ArrayList<>();
         anadirBienvenida(canales, guild, CANAL_EMPIEZA, "🚀", "bienvenida.canal.empieza");
-        anadirBienvenida(canales, guild, CANAL_REGLAS, "📜", "bienvenida.canal.reglas");
+        anadirBienvenida(canales, guild, "📜・reglas", "📜", "bienvenida.canal.reglas");
         anadirBienvenida(canales, guild, "🎭・roles", "🎭", "bienvenida.canal.roles");
         anadirBienvenida(canales, guild, "💬・general", "💬", "bienvenida.canal.general");
         anadirBienvenida(canales, guild, "🎫・soporte", "🎫", "bienvenida.canal.soporte");
@@ -601,6 +661,20 @@ public final class SetupComando implements Comando {
                     .complete();
         } catch (RuntimeException e) {
             log.warn("No se pudo configurar la pantalla de bienvenida", e);
+        }
+    }
+
+    /** Fija «💤 AFK» como canal AFK del servidor con timeout de 5 min, si el canal existe. */
+    private void configurarAfk(Guild guild) {
+        VoiceChannel afk = guild.getVoiceChannelsByName("💤 AFK", false)
+                .stream().findFirst().orElse(null);
+        if (afk == null) {
+            return;
+        }
+        try {
+            guild.getManager().setAfkChannel(afk).setAfkTimeout(Guild.Timeout.SECONDS_300).complete();
+        } catch (RuntimeException e) {
+            log.warn("No se pudo fijar el canal AFK", e);
         }
     }
 

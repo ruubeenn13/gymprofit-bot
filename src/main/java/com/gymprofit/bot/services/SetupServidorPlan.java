@@ -160,8 +160,8 @@ public final class SetupServidorPlan {
                             .conTopic("Normas de la comunidad. Entrar implica aceptarlas: léelas."),
                     info("🗺️・cómo-funciona", null, "intro.como")
                             .conTopic("XP, niveles, economía y retos: cómo funciona GymProFit."),
-                    info("❓・faq", null, "intro.faq")
-                            .conTopic("Preguntas frecuentes sobre el servidor, el bot y la app."),
+                    foro("❓・faq", null, "General", "XP y niveles", "Economía", "App", "Cuenta")
+                            .conTopic("Preguntas frecuentes. Busca por etiqueta o abre un post con tu duda."),
                     anuncios("📣・anuncios", "intro.anuncios")
                             .conTopic("Novedades importantes del servidor y del equipo."),
                     anuncios("📲・novedades-app", null)
@@ -195,10 +195,10 @@ public final class SetupServidorPlan {
                     foro("❓・dudas", null, "Técnica", "Material", "Lesión", "Resuelto")
                             .conTopic("Pregunta sobre entrenamiento y técnica. Marca 'Resuelto' al cerrar."))),
             new CategoriaPlan("▬▬ 🎮 GAMIFICACIÓN ▬▬", false, false, List.of(
-                    texto("🏆・logros", TipoCanal.LOGROS)
-                            .conTopic("Logros desbloqueados por la comunidad. 🏆"),
-                    texto("📊・ranking", null)
-                            .conTopic("Clasificación de XP y niveles del servidor."),
+                    info("🏆・logros", TipoCanal.LOGROS)
+                            .conTopic("Logros desbloqueados por la comunidad (los publica el bot). 🏆"),
+                    info("📊・ranking", null)
+                            .conTopic("Clasificación de XP y niveles del servidor (la publica el bot)."),
                     texto("🪙・economía", null, "intro.proximamente")
                             .conTopic("Monedas, tienda y recompensas. (Próximamente)"),
                     texto("🧠・trivia", null, "intro.proximamente")
@@ -236,8 +236,8 @@ public final class SetupServidorPlan {
                             .conTopic("Registro de eventos del bot."),
                     texto("📋・moderación", null)
                             .conTopic("Alertas de moderación y AutoMod."),
-                    texto("📥・reportes", null)
-                            .conTopic("Reportes de miembros pendientes de revisar."),
+                    foro("📥・reportes", null, "Pendiente", "En curso", "Resuelto", "Descartado")
+                            .conTopic("Reportes de miembros. Un post por caso; etiqueta su estado."),
                     texto("🗄️・logs-tickets", null)
                             .conTopic("Histórico de tickets cerrados."),
                     voz("🔒 Voz staff", 0))),
