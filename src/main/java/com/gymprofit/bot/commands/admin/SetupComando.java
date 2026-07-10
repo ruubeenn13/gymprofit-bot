@@ -34,6 +34,8 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.requests.restaction.ForumPostAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
@@ -72,6 +74,32 @@ public final class SetupComando implements Comando {
     private static final String ROL_STAFF = "🧹 Staff";
     private static final String ROL_SILENCIADO = "🔇 Silenciado";
     private static final String CANAL_EMPIEZA = "🚀・empieza-aquí";
+    private static final String CANAL_FAQ = "❓・faq";
+    private static final String CANAL_SUGERENCIAS = "💡・sugerencias";
+
+    /** FAQ inicial que se publica en el foro (pregunta, respuesta, etiqueta). En español. */
+    private static final List<String[]> FAQ = List.of(
+            new String[]{"¿Cómo gano XP?",
+                    "Participando: cada mensaje te da XP y subes de nivel. Los detalles, en 🗺️・cómo-funciona.",
+                    "XP y niveles"},
+            new String[]{"¿Cómo veo mi nivel y el ranking?",
+                    "Usa **/nivel** para tu progreso y **/top** para la clasificación del servidor.",
+                    "XP y niveles"},
+            new String[]{"¿Cómo consigo mis roles?",
+                    "En 🎭・roles elige tu objetivo y tus notificaciones con los menús desplegables.",
+                    "General"},
+            new String[]{"¿Qué es la economía?",
+                    "Monedas, tienda y recompensas. Está en camino: lo verás en 🪙・economía.",
+                    "Economía"},
+            new String[]{"¿Cómo vinculo la app GymProFit?",
+                    "La vinculación con la app llegará pronto. Lo anunciaremos en 📣・anuncios.",
+                    "App"},
+            new String[]{"¿Cómo pido ayuda al equipo?",
+                    "En 🎫・soporte pulsa el botón para abrir un ticket privado con el staff.",
+                    "General"},
+            new String[]{"¿Dónde comparto mis progresos?",
+                    "Fotos antes/después en 📈・progresos, y tus entrenos en 📚・rutinas.",
+                    "General"});
     /** Canal (solo staff) al que AutoMod manda las alertas de contenido bloqueado. */
     private static final String CANAL_MODERACION = "📋・moderación";
     /** Categoría privada de staff (para recolocar dentro las anclas de comunidad). */
@@ -358,7 +386,7 @@ public final class SetupComando implements Comando {
                             aplicarTopic(existente, chPlan);
                             canal = existente;
                         } else {
-                            canal = crearCanal(guild, categoria, chPlan, everyone, locale);
+                            canal = crearCanal(guild, categoria, chPlan, everyone, staff, locale);
                             if (CANAL_EMPIEZA.equals(chPlan.nombre())) {
                                 empiezaNueva = true;
                             }
@@ -382,7 +410,7 @@ public final class SetupComando implements Comando {
 
     /** Crea un canal nuevo bajo su categoría, sincroniza permisos, fija intro y config. */
     private GuildChannel crearCanal(Guild guild, Category categoria, CanalPlan chPlan, Role everyone,
-                                    Locale locale) {
+                                    Role staff, Locale locale) {
         GuildChannel creado;
         if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.VOZ) {
             var accionVoz = categoria.createVoiceChannel(chPlan.nombre());
@@ -405,8 +433,16 @@ public final class SetupComando implements Comando {
                 accion = accion.setAvailableTags(
                         chPlan.etiquetas().stream().map(ForumTagData::new).toList());
             }
+            boolean esFaq = CANAL_FAQ.equals(chPlan.nombre());
+            // Reacción por defecto (voto rápido en cada post) para FAQ y sugerencias.
+            if (esFaq || CANAL_SUGERENCIAS.equals(chPlan.nombre())) {
+                accion = accion.setDefaultReaction(Emoji.fromUnicode("👍"));
+            }
             ForumChannel fc = accion.complete();
             fc.getManager().sync().complete();
+            if (esFaq) {
+                publicarFaq(fc);
+            }
             creado = fc;
         } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.MEDIA) {
             creado = crearMediaOForo(categoria, chPlan);
@@ -417,9 +453,9 @@ public final class SetupComando implements Comando {
             }
             NewsChannel nc = accion.complete();
             nc.getManager().sync().complete();
-            // Solo el staff anuncia; @everyone lee pero no escribe.
+            // El staff anuncia; @everyone lee pero no escribe.
             if (chPlan.soloLectura()) {
-                nc.upsertPermissionOverride(everyone).deny(Permission.MESSAGE_SEND).complete();
+                aplicarSoloLectura(nc, everyone, staff);
             }
             fijarIntro(nc, chPlan, locale);
             creado = nc;
@@ -435,7 +471,7 @@ public final class SetupComando implements Comando {
             // Hereda los permisos de la categoría (ocultación, staff, silenciado).
             tc.getManager().sync().complete();
             if (chPlan.soloLectura()) {
-                tc.upsertPermissionOverride(everyone).deny(Permission.MESSAGE_SEND).complete();
+                aplicarSoloLectura(tc, everyone, staff);
             }
             if ("panel.roles".equals(chPlan.introKey())) {
                 publicarPanelRoles(tc, locale);
@@ -477,6 +513,30 @@ public final class SetupComando implements Comando {
             ForumChannel fc = accion.complete();
             fc.getManager().sync().complete();
             return fc;
+        }
+    }
+
+    /** Deja un canal en solo-lectura: niega escribir a {@code @everyone} y lo permite al Staff. */
+    private void aplicarSoloLectura(StandardGuildMessageChannel canal, Role everyone, Role staff) {
+        canal.upsertPermissionOverride(everyone).deny(Permission.MESSAGE_SEND).complete();
+        if (staff != null) {
+            canal.upsertPermissionOverride(staff).grant(Permission.MESSAGE_SEND).complete();
+        }
+    }
+
+    /** Publica en el foro de FAQ las preguntas frecuentes iniciales, cada una con su etiqueta. */
+    private void publicarFaq(ForumChannel faq) {
+        for (String[] qa : FAQ) {
+            try {
+                ForumPostAction accion = faq.createForumPost(qa[0], MessageCreateData.fromContent(qa[1]));
+                faq.getAvailableTags().stream()
+                        .filter(t -> t.getName().equals(qa[2]))
+                        .findFirst()
+                        .ifPresent(tag -> accion.setTags(List.of(tag)));
+                accion.complete();
+            } catch (RuntimeException e) {
+                log.warn("No se pudo crear el post de FAQ «{}»", qa[0]);
+            }
         }
     }
 
