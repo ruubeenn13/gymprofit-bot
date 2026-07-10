@@ -7,6 +7,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Corregido
+- **`/setup` ya no borra roles (evita agotar el cupo diario de Discord)**: borrar y recrear los 25
+  roles en cada `desde_cero` agotaba el límite diario de creación de roles del servidor y lo
+  bloqueaba ~2 días (429 con retry-after enorme, que además colgaba el bot). Ahora los roles se
+  **reutilizan por nombre** (solo se crean los que falten) y un `RestAction.setDefaultTimeout(30s)`
+  hace que cualquier acción atrapada en un rate limit brutal falle en 30 s en vez de colgar.
 - **`/setup desde_cero` borra todo mediante canales-ancla de comunidad**: Discord no deja borrar los
   canales de reglas/actualizaciones/seguridad de una comunidad (error 50074). Ahora `/setup` usa dos
   **canales-ancla permanentes y ocultos** (`📜・reglas-comunidad` y `🛡️・avisos-comunidad`, en STAFF,
