@@ -18,10 +18,16 @@ import net.dv8tion.jda.api.entities.automod.AutoModRule;
 import net.dv8tion.jda.api.entities.automod.build.AutoModRuleData;
 import net.dv8tion.jda.api.entities.automod.build.TriggerConfig;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.MediaChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.NewsChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.StageChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.entities.channel.forums.ForumTagData;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.StandardGuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
@@ -328,6 +334,39 @@ public final class SetupComando implements Comando {
             StageChannel sc = categoria.createStageChannel(chPlan.nombre()).complete();
             sc.getManager().sync().complete();
             creado = sc;
+        } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.FORO) {
+            var accion = categoria.createForumChannel(chPlan.nombre());
+            if (chPlan.topic() != null) {
+                accion = accion.setTopic(chPlan.topic());
+            }
+            if (!chPlan.etiquetas().isEmpty()) {
+                accion = accion.setAvailableTags(
+                        chPlan.etiquetas().stream().map(ForumTagData::new).toList());
+            }
+            ForumChannel fc = accion.complete();
+            fc.getManager().sync().complete();
+            creado = fc;
+        } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.MEDIA) {
+            var accion = categoria.createMediaChannel(chPlan.nombre());
+            if (chPlan.topic() != null) {
+                accion = accion.setTopic(chPlan.topic());
+            }
+            MediaChannel mc = accion.complete();
+            mc.getManager().sync().complete();
+            creado = mc;
+        } else if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.ANUNCIOS) {
+            var accion = categoria.createNewsChannel(chPlan.nombre());
+            if (chPlan.topic() != null) {
+                accion = accion.setTopic(chPlan.topic());
+            }
+            NewsChannel nc = accion.complete();
+            nc.getManager().sync().complete();
+            // Solo el staff anuncia; @everyone lee pero no escribe.
+            if (chPlan.soloLectura()) {
+                nc.upsertPermissionOverride(everyone).deny(Permission.MESSAGE_SEND).complete();
+            }
+            fijarIntro(nc, chPlan, locale);
+            creado = nc;
         } else {
             var accion = categoria.createTextChannel(chPlan.nombre());
             if (chPlan.slowmodeSegundos() > 0) {
@@ -420,7 +459,7 @@ public final class SetupComando implements Comando {
     }
 
     /** Publica y fija un embed de ayuda en el canal, si el plan define un {@code introKey}. */
-    private void fijarIntro(TextChannel canal, CanalPlan chPlan, Locale locale) {
+    private void fijarIntro(GuildMessageChannel canal, CanalPlan chPlan, Locale locale) {
         if (chPlan.introKey() == null) {
             return;
         }
@@ -462,14 +501,24 @@ public final class SetupComando implements Comando {
      * cuando ya coincide, para no gastar rate limit al reejecutar {@code /setup}.
      */
     private void aplicarTopic(GuildChannel canal, CanalPlan chPlan) {
-        if (chPlan.topic() == null || !(canal instanceof TextChannel tc)) {
-            return;
-        }
-        if (chPlan.topic().equals(tc.getTopic())) {
+        if (chPlan.topic() == null) {
             return;
         }
         try {
-            tc.getManager().setTopic(chPlan.topic()).complete();
+            // Texto y anuncios comparten StandardGuildMessageChannel; foro y media van aparte.
+            if (canal instanceof StandardGuildMessageChannel smc) {
+                if (!chPlan.topic().equals(smc.getTopic())) {
+                    smc.getManager().setTopic(chPlan.topic()).complete();
+                }
+            } else if (canal instanceof ForumChannel fc) {
+                if (!chPlan.topic().equals(fc.getTopic())) {
+                    fc.getManager().setTopic(chPlan.topic()).complete();
+                }
+            } else if (canal instanceof MediaChannel mc) {
+                if (!chPlan.topic().equals(mc.getTopic())) {
+                    mc.getManager().setTopic(chPlan.topic()).complete();
+                }
+            }
         } catch (RuntimeException e) {
             log.warn("No se pudo fijar el topic de {}", canal.getName(), e);
         }

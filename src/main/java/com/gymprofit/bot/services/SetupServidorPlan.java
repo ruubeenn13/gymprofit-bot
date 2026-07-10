@@ -16,7 +16,7 @@ import java.util.List;
 public final class SetupServidorPlan {
 
     /** Tipo de canal a crear. */
-    public enum TipoCanalDiscord { TEXTO, VOZ, ESCENARIO }
+    public enum TipoCanalDiscord { TEXTO, VOZ, ESCENARIO, FORO, MEDIA, ANUNCIOS }
 
     /**
      * @param nombre           nombre del canal (con emoji y separador)
@@ -28,16 +28,17 @@ public final class SetupServidorPlan {
      * @param introKey         prefijo i18n del mensaje fijado de ayuda ({@code <key>.titulo}/
      *                         {@code <key>.desc}), o {@code null} si el canal no lleva pin
      * @param topic            descripción del canal (topic de Discord), o {@code null}. Los
-     *                         canales de voz no llevan topic.
+     *                         canales de voz y escenario no llevan topic.
+     * @param etiquetas        etiquetas del foro (solo tipo {@code FORO}); vacío en el resto
      */
     public record CanalPlan(String nombre, TipoCanalDiscord tipo, boolean soloLectura,
                             int slowmodeSegundos, TipoCanal claveConfig, int limiteVoz,
-                            String introKey, String topic) {
+                            String introKey, String topic, List<String> etiquetas) {
 
         /** Copia de este canal añadiéndole la descripción (topic). Mantiene el resto igual. */
         public CanalPlan conTopic(String topic) {
             return new CanalPlan(nombre, tipo, soloLectura, slowmodeSegundos, claveConfig,
-                    limiteVoz, introKey, topic);
+                    limiteVoz, introKey, topic, etiquetas);
         }
     }
 
@@ -94,31 +95,46 @@ public final class SetupServidorPlan {
     );
 
     private static CanalPlan texto(String nombre, TipoCanal clave) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, null, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, null, null, List.of());
     }
 
     private static CanalPlan texto(String nombre, TipoCanal clave, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, introKey, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, introKey, null, List.of());
     }
 
     private static CanalPlan info(String nombre, TipoCanal clave) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, null, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, null, null, List.of());
     }
 
     private static CanalPlan info(String nombre, TipoCanal clave, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, introKey, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, introKey, null, List.of());
     }
 
     private static CanalPlan voz(String nombre, int limite) {
-        return new CanalPlan(nombre, TipoCanalDiscord.VOZ, false, 0, null, limite, null, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.VOZ, false, 0, null, limite, null, null, List.of());
     }
 
     private static CanalPlan escenario(String nombre) {
-        return new CanalPlan(nombre, TipoCanalDiscord.ESCENARIO, false, 0, null, 0, null, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.ESCENARIO, false, 0, null, 0, null, null, List.of());
     }
 
     private static CanalPlan slow(String nombre, int segundos, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, segundos, null, 0, introKey, null);
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, segundos, null, 0, introKey, null, List.of());
+    }
+
+    /** Canal de foro (publicaciones con título/imagen/descripción). El topic se pone con conTopic. */
+    private static CanalPlan foro(String nombre, TipoCanal clave, String... etiquetas) {
+        return new CanalPlan(nombre, TipoCanalDiscord.FORO, false, 0, clave, 0, null, null, List.of(etiquetas));
+    }
+
+    /** Canal de media (galería de imágenes). */
+    private static CanalPlan media(String nombre, TipoCanal clave) {
+        return new CanalPlan(nombre, TipoCanalDiscord.MEDIA, false, 0, clave, 0, null, null, List.of());
+    }
+
+    /** Canal de anuncios (News, seguible). Admite pin de intro como un canal de texto. */
+    private static CanalPlan anuncios(String nombre, String introKey) {
+        return new CanalPlan(nombre, TipoCanalDiscord.ANUNCIOS, false, 0, null, 0, introKey, null, List.of());
     }
 
     /** Categorías y canales del servidor (F1–F4). Nombres decorados con «›» como separador. */
@@ -143,9 +159,9 @@ public final class SetupServidorPlan {
                             .conTopic("XP, niveles, economía y retos: cómo funciona GymProFit."),
                     info("❓・faq", null, "intro.faq")
                             .conTopic("Preguntas frecuentes sobre el servidor, el bot y la app."),
-                    info("📣・anuncios", null, "intro.anuncios")
+                    anuncios("📣・anuncios", "intro.anuncios")
                             .conTopic("Novedades importantes del servidor y del equipo."),
-                    info("📲・novedades-app", null)
+                    anuncios("📲・novedades-app", null)
                             .conTopic("Actualizaciones y cambios de la app GymProFit."),
                     info("📱・redes-sociales", null, "intro.redes")
                             .conTopic("Síguenos en Instagram, TikTok, YouTube y más."))),
@@ -165,16 +181,16 @@ public final class SetupServidorPlan {
             new CategoriaPlan("▬▬ 🏋️ FITNESS ▬▬", false, false, List.of(
                     texto("🗓️・ejercicio-del-día", TipoCanal.EJERCICIO_DIA)
                             .conTopic("El ejercicio o reto del día. ¡A moverse! 🗓️"),
-                    texto("📈・progresos", null, "intro.progresos")
-                            .conTopic("Comparte tus progresos y marcas. Motívate y motiva."),
-                    texto("📸・fotos", null)
+                    media("📈・progresos", null)
+                            .conTopic("Comparte tus progresos y marcas (antes/después). Una foto por publicación."),
+                    media("📸・fotos", null)
                             .conTopic("Fotos de entrenos, comidas y avances."),
-                    texto("🍎・nutrición", null, "intro.nutricion")
-                            .conTopic("Dudas, recetas y consejos de alimentación."),
-                    texto("📚・rutinas", null, "intro.rutinas")
-                            .conTopic("Rutinas, splits y programación de entrenos."),
-                    texto("❓・dudas", null, "intro.dudas")
-                            .conTopic("Pregunta lo que sea sobre entrenamiento y técnica."))),
+                    foro("🍎・nutrición", null, "Receta", "Plan", "Duda", "Suplementación")
+                            .conTopic("Recetas, planes y dudas de alimentación. Abre un post y etiquétalo."),
+                    foro("📚・rutinas", null, "Push", "Pull", "Pierna", "Full-body", "Cardio", "Movilidad")
+                            .conTopic("Comparte rutinas y splits. Un post por rutina, con su etiqueta."),
+                    foro("❓・dudas", null, "Técnica", "Material", "Lesión", "Resuelto")
+                            .conTopic("Pregunta sobre entrenamiento y técnica. Marca 'Resuelto' al cerrar."))),
             new CategoriaPlan("▬▬ 🎮 GAMIFICACIÓN ▬▬", false, false, List.of(
                     texto("🏆・logros", TipoCanal.LOGROS)
                             .conTopic("Logros desbloqueados por la comunidad. 🏆"),
@@ -191,8 +207,9 @@ public final class SetupServidorPlan {
                     slow("🤖・comandos-bot", 5, "intro.comandos")
                             .conTopic("Usa aquí los comandos de GymProBot. Slowmode activo."))),
             new CategoriaPlan("▬▬ 🛎️ AYUDA ▬▬", false, false, List.of(
-                    texto("💡・sugerencias", TipoCanal.SUGERENCIAS)
-                            .conTopic("¿Ideas para mejorar el servidor? Cuéntanoslas."),
+                    foro("💡・sugerencias", TipoCanal.SUGERENCIAS,
+                            "En estudio", "Aprobada", "Rechazada", "Implementada")
+                            .conTopic("Propón mejoras: título, imagen y descripción. Vota con reacciones."),
                     texto("🎫・soporte", TipoCanal.SOPORTE, "intro.soporte")
                             .conTopic("¿Necesitas ayuda? Abre un ticket con el equipo."))),
             new CategoriaPlan("▬▬ 🔊 VOZ ▬▬", false, false, List.of(

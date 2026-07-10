@@ -53,17 +53,36 @@ class SetupServidorPlanTest {
     }
 
     @Test
-    void todosLosCanalesDeTextoTienenTopicValido() {
+    void losCanalesDeMensajesLlevanTopicYLosDeVozNo() {
         for (CategoriaPlan cat : SetupServidorPlan.CATEGORIAS) {
             for (CanalPlan ch : cat.canales()) {
-                if (ch.tipo() == SetupServidorPlan.TipoCanalDiscord.TEXTO) {
+                boolean sinTopic = ch.tipo() == SetupServidorPlan.TipoCanalDiscord.VOZ
+                        || ch.tipo() == SetupServidorPlan.TipoCanalDiscord.ESCENARIO;
+                if (sinTopic) {
+                    assertTrue(ch.topic() == null,
+                            "canal de voz/escenario no debe llevar topic: " + ch.nombre());
+                } else {
                     assertTrue(ch.topic() != null && !ch.topic().isBlank(),
-                            "canal de texto sin topic: " + ch.nombre());
+                            "canal de mensajes sin topic: " + ch.nombre());
                     assertTrue(ch.topic().length() <= 1024,
                             "topic demasiado largo (>1024): " + ch.nombre());
+                }
+            }
+        }
+    }
+
+    @Test
+    void soloLosForosLlevanEtiquetas() {
+        for (CategoriaPlan cat : SetupServidorPlan.CATEGORIAS) {
+            for (CanalPlan ch : cat.canales()) {
+                if (ch.tipo() == SetupServidorPlan.TipoCanalDiscord.FORO) {
+                    assertTrue(!ch.etiquetas().isEmpty(),
+                            "foro sin etiquetas: " + ch.nombre());
+                    ch.etiquetas().forEach(t -> assertTrue(t.length() <= 20,
+                            "etiqueta de foro >20 chars: " + t));
                 } else {
-                    assertTrue(ch.topic() == null,
-                            "canal de voz no debe llevar topic: " + ch.nombre());
+                    assertTrue(ch.etiquetas().isEmpty(),
+                            "solo los foros llevan etiquetas: " + ch.nombre());
                 }
             }
         }

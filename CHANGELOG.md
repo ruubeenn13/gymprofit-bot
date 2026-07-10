@@ -7,6 +7,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Tipos de canal coherentes en `/setup` (foros, media, anuncios)**: `TipoCanalDiscord` amplía a
+  `FORO`, `MEDIA` y `ANUNCIOS` y `/setup` los crea con su rama propia:
+  - **Foros** (publicaciones título+imagen+descripción con etiquetas): `💡 sugerencias`
+    (En estudio/Aprobada/Rechazada/Implementada), `📚 rutinas` (Push/Pull/Pierna/Full-body/Cardio/
+    Movilidad), `🍎 nutrición` (Receta/Plan/Duda/Suplementación), `❓ dudas` (Técnica/Material/
+    Lesión/Resuelto).
+  - **Media** (galería): `📈 progresos` y `📸 fotos` (separados).
+  - **Anuncios** (News, seguibles y solo-staff): `📣 anuncios` y `📲 novedades-app`.
+  - Cada canal lleva su descripción (topic) con las instrucciones de uso; los foros, sus etiquetas.
+    Tests `SetupServidorPlanTest` (topics de todos los canales de mensajes, etiquetas solo en foros).
+  - **Para aplicar los tipos nuevos a un server ya montado hay que reejecutar con
+    `/setup desde_cero:true`**: reutilizar por nombre no cambia el tipo de un canal existente.
+    Creación en vivo pendiente de smoke test manual.
 - **Estadísticas en vivo + AutoMod + más canales en `/setup`**:
   - Categoría **`📊 SERVER STATS`** (arriba del todo, de solo lectura) con 3 contadores en canales
     de voz bloqueados: **Miembros**, **En línea** y **Bots**. Los mantiene al día el nuevo
