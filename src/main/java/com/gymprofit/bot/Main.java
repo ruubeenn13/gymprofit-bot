@@ -14,7 +14,11 @@ import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
+import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
+import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
+import com.gymprofit.bot.commands.economia.TrabajosComando;
+import com.gymprofit.bot.commands.economia.WorkComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
@@ -61,6 +65,7 @@ import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
 import com.gymprofit.bot.services.SugerenciaService;
 import com.gymprofit.bot.services.TicketService;
+import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
@@ -69,6 +74,7 @@ import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.TicketListener;
 import com.gymprofit.bot.events.XpMensajeListener;
+import com.gymprofit.bot.jobs.EnergiaJob;
 import com.gymprofit.bot.jobs.RetencionJob;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.EstadisticasService;
@@ -272,13 +278,21 @@ public final class Main {
             comandos.add(new SugerenciaComando(sugerenciaService));
             comandos.add(new SugerenciaResolverComando(sugerenciaService));
 
-            // Economía / RPG (cimientos): monedero seguro, daily y perfil.
-            EconomiaService economiaService = new EconomiaService(
-                    new EconomiaRepositorio(db.dataSource()),
-                    new PersonajeRepositorio(db.dataSource()), usuarios);
+            // Economía / RPG: monedero, daily, perfil, trabajos y energía.
+            PersonajeRepositorio personajeRepo = new PersonajeRepositorio(db.dataSource());
+            EconomiaRepositorio economiaRepo = new EconomiaRepositorio(db.dataSource());
+            EconomiaService economiaService =
+                    new EconomiaService(economiaRepo, personajeRepo, usuarios);
             comandos.add(new BalanceComando(economiaService));
             comandos.add(new DailyComando(economiaService));
             comandos.add(new PerfilComando(economiaService));
+
+            TrabajoService trabajoService = new TrabajoService(personajeRepo, economiaRepo, usuarios);
+            comandos.add(new TrabajosComando());
+            comandos.add(new ElegirTrabajoComando(trabajoService));
+            comandos.add(new WorkComando(trabajoService));
+            comandos.add(new EntrenarComando(trabajoService));
+            new EnergiaJob(personajeRepo).iniciar();
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

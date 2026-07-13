@@ -35,8 +35,8 @@ public final class PersonajeRepositorio {
 
     /** Personaje por id, si existe. */
     public Optional<Personaje> buscar(long discordId) {
-        String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud "
-                + "FROM personajes WHERE discord_id = ?";
+        String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud, trabajo, "
+                + "ultimo_work FROM personajes WHERE discord_id = ?";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, discordId);
@@ -48,8 +48,84 @@ public final class PersonajeRepositorio {
         }
     }
 
+    /** Fija el trabajo actual del personaje ({@code null} = en paro). */
+    public void fijarTrabajo(long discordId, String trabajo) {
+        ejecutar("UPDATE personajes SET trabajo = ? WHERE discord_id = ?", ps -> {
+            ps.setString(1, trabajo);
+            ps.setLong(2, discordId);
+        });
+    }
+
+    /**
+     * Aplica un turno de trabajo: descuenta {@code energia} y marca {@code ultimo_work = NOW()}, solo
+     * si hay energía suficiente. Devuelve {@code true} si se aplicó.
+     */
+    public boolean trabajar(long discordId, int energiaCoste) {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "UPDATE personajes SET energia = energia - ?, ultimo_work = NOW() "
+                             + "WHERE discord_id = ? AND energia >= ?")) {
+            ps.setInt(1, energiaCoste);
+            ps.setLong(2, discordId);
+            ps.setInt(3, energiaCoste);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error aplicando trabajo a " + discordId, e);
+        }
+    }
+
+    /**
+     * Entrena un atributo: gasta {@code energiaCoste} y sube el atributo en 1, solo si hay energía.
+     * {@code atributo} debe ser una columna válida (fuerza/resistencia/carisma). Devuelve si se aplicó.
+     */
+    public boolean entrenar(long discordId, String atributo, int energiaCoste) {
+        if (!atributo.equals("fuerza") && !atributo.equals("resistencia")
+                && !atributo.equals("carisma")) {
+            throw new IllegalArgumentException("Atributo no válido: " + atributo);
+        }
+        String sql = "UPDATE personajes SET " + atributo + " = " + atributo + " + 1, "
+                + "energia = energia - ? WHERE discord_id = ? AND energia >= ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, energiaCoste);
+            ps.setLong(2, discordId);
+            ps.setInt(3, energiaCoste);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error entrenando a " + discordId, e);
+        }
+    }
+
+    /** Regenera energía a todos los personajes (job periódico): {@code +cantidad}, tope 100. */
+    public int regenerarEnergia(int cantidad) {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "UPDATE personajes SET energia = LEAST(100, energia + ?) WHERE energia < 100")) {
+            ps.setInt(1, cantidad);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error regenerando energía", e);
+        }
+    }
+
+    private interface Param {
+        void set(PreparedStatement ps) throws SQLException;
+    }
+
+    private void ejecutar(String sql, Param param) {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            param.set(ps);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error en la operación de personaje", e);
+        }
+    }
+
     private static Personaje mapear(ResultSet rs) throws SQLException {
+        java.sql.Timestamp uw = rs.getTimestamp("ultimo_work");
         return new Personaje(rs.getLong("discord_id"), rs.getInt("fuerza"), rs.getInt("resistencia"),
-                rs.getInt("carisma"), rs.getInt("energia"), rs.getInt("salud"));
+                rs.getInt("carisma"), rs.getInt("energia"), rs.getInt("salud"),
+                rs.getString("trabajo"), uw == null ? null : uw.toInstant());
     }
 }

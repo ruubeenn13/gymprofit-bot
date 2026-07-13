@@ -7,6 +7,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Economía / RPG — trabajo y energía**: migración **V7** (personajes con trabajo + cooldown);
+  catálogo **amplio de ~32 trabajos** de muchos sectores (transporte, hostelería, tecnología,
+  sanidad, oficios, derecho, ciencia…) con tiers y requisito de nivel. `/trabajos` (lista),
+  `/elegir-trabajo`, `/work` (gana coins, gasta energía, cooldown 1 h), `/entrenar` (sube atributos)
+  y `EnergiaJob` (regenera energía). (F-ECO-1.)
 - **Economía / RPG — cimientos**: migración **V6** (`personajes` con atributos/energía/salud +
   `transacciones` como ledger de coins); monedero **seguro** (operaciones atómicas, nunca saldo
   negativo, todo registrado); `/balance`, `/perfil` (personaje + saldo) y `/daily` (recompensa

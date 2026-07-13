@@ -87,6 +87,21 @@ gremios.
 `/coinflip`, `/dado`, `/ruleta`, `/duelo @usuario` (minijuego por coins). Límites de apuesta y
 cooldown para no romper la economía.
 
+## Presentación (embeds bonitos — decisión del usuario)
+
+Todo se muestra **lo más bonito posible** dentro de lo que permite Discord:
+- **Árbol de mejora visual** (`/mejoras`): las mejoras forman un **árbol con ramas** (no lista
+  plana); se renderiza con arte ASCII/emoji dentro del embed (líneas `├─ └─`, iconos de rama,
+  candados 🔒 en lo bloqueado, ✅ en lo comprado, precio en cada nodo) para que el usuario vea de un
+  vistazo por dónde puede tirar.
+- **Inventario** (`/inventario`): agrupado por categoría, con emoji, cantidad y efecto de cada ítem;
+  paginado si es largo.
+- **Perfil / tienda / rankings**: barras de progreso (util `Barras`), emojis temáticos, campos
+  ordenados, miniatura del avatar. Consistencia visual con `EmbedFactory`.
+
+Implicación de diseño: el sistema de **mejoras es un árbol** (nodos con prerrequisitos y coste
+creciente por rama), no compras sueltas.
+
 ## Convenciones
 
 - Cada fase: migración(es) Flyway, entidad→repo→service→comando, i18n ES+EN, tests de la lógica

@@ -45,9 +45,9 @@ class MigracionesTest {
                     .load()
                     .migrate();
 
-            // V1..V6 al menos (esquema, seeds, eventos, sanciones, sorteos, economía); sin errores.
-            assertTrue(resultado.migrationsExecuted >= 6,
-                    "Deben aplicarse al menos V1..V6");
+            // V1..V7 al menos; sin errores.
+            assertTrue(resultado.migrationsExecuted >= 7,
+                    "Deben aplicarse al menos V1..V7");
             assertTrue(resultado.success, "La migración debe terminar con éxito");
 
             try (Connection con = DriverManager.getConnection(
@@ -72,6 +72,10 @@ class MigracionesTest {
                         "personajes debe existir y arrancar vacía");
                 assertEquals(0, contar(st, "SELECT COUNT(*) FROM transacciones"),
                         "transacciones debe existir y arrancar vacía");
+                // V7 aplicada: personajes tiene la columna trabajo.
+                assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
+                                + "WHERE table_name = 'personajes' AND column_name = 'trabajo'"),
+                        "personajes.trabajo debe existir tras V7");
                 // warns.motivo debe ser TEXT (aloja el texto cifrado en base64).
                 assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_name = 'warns' AND column_name = 'motivo' "
