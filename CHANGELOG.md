@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Moderación — avisos con escalado**: `/warn`, `/warns`, `/unwarn`, `/clearwarns` (solo altos
+  cargos: 🧹 Staff / 🛡️ Admin / 👑 Fundador). Los avisos se guardan con el **motivo cifrado** y toda
+  acción queda en el historial `sanciones` y se publica en `🤖・bot-logs`. **Escalado automático**:
+  3 avisos → timeout 1 h, 5 → timeout 24 h, 7 → ban (`ModeracionService`). (Fase B.)
 - **Protección de datos (RGPD) — base**: cifrado de campo **AES-256-GCM** (`util/Cifrador`) para el
   texto libre con posible dato personal (motivos de sanción, apodos previos); clave por env var
   `BOT_CRYPTO_KEY`. Migración **V4** con la tabla `sanciones` (auditoría de moderación) y

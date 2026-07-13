@@ -9,13 +9,21 @@ import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
+import com.gymprofit.bot.commands.moderacion.ClearwarnsComando;
 import com.gymprofit.bot.commands.moderacion.LimpiarComando;
+import com.gymprofit.bot.commands.moderacion.UnwarnComando;
+import com.gymprofit.bot.commands.moderacion.WarnComando;
+import com.gymprofit.bot.commands.moderacion.WarnsComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
+import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
+import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.services.EventoService;
+import com.gymprofit.bot.services.ModeracionService;
+import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.PanelRolesListener;
@@ -161,6 +169,20 @@ public final class Main {
                     new EventoService(new EventoServidorRepositorio(db.dataSource()));
             comandos.add(new RetoComando(eventoService));
             comandos.add(new EventoComando(eventoService));
+
+            // Moderación: avisos con escalado + auditoría cifrada (BOT_CRYPTO_KEY).
+            Cifrador cifrador = new Cifrador(BotConfig.cryptoKey());
+            if (!cifrador.habilitado()) {
+                log.warn("BOT_CRYPTO_KEY no configurada: los motivos de moderación no se guardarán.");
+            }
+            ModeracionService moderacion = new ModeracionService(
+                    new WarnRepositorio(db.dataSource()),
+                    new SancionRepositorio(db.dataSource()),
+                    usuarios, cifrador);
+            comandos.add(new WarnComando(moderacion, configService));
+            comandos.add(new WarnsComando(moderacion));
+            comandos.add(new UnwarnComando(moderacion));
+            comandos.add(new ClearwarnsComando(moderacion, configService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
