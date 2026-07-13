@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Sugerencias**: `/sugerencia` crea un post en el foro `💡・sugerencias` con votación 👍/👎 y
+  etiqueta «En estudio», y lo guarda; `/sugerencia-resolver <id> aceptada|rechazada` (staff) cambia
+  el estado en BD y la etiqueta del foro (Aprobada/Rechazada). (Bloque D2.)
 - **Tickets de soporte**: panel por botón (`/panel tipo:ticket` en `🎫・soporte`) → abre un **canal
   privado** (autor + staff) en la categoría TICKETS; botón **Cerrar** → guarda la **transcripción**
   en la BD y la publica en `🗄️・logs-tickets`, y borra el canal. Uno abierto por usuario.

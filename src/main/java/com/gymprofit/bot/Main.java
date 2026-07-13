@@ -5,6 +5,8 @@ import com.gymprofit.bot.commands.RouterComandos;
 import com.gymprofit.bot.commands.admin.SetupComando;
 import com.gymprofit.bot.commands.comunidad.EventoComando;
 import com.gymprofit.bot.commands.comunidad.RetoComando;
+import com.gymprofit.bot.commands.comunidad.SugerenciaComando;
+import com.gymprofit.bot.commands.comunidad.SugerenciaResolverComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.config.PanelComando;
 import com.gymprofit.bot.commands.contenido.AnuncioComando;
@@ -42,6 +44,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.SorteoRepositorio;
+import com.gymprofit.bot.db.SugerenciaRepositorio;
 import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
@@ -50,6 +53,7 @@ import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
+import com.gymprofit.bot.services.SugerenciaService;
 import com.gymprofit.bot.services.TicketService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
@@ -255,6 +259,12 @@ public final class Main {
             // Tickets: panel por botón + canal privado + transcript al cerrar.
             listeners.add(new TicketListener(
                     new TicketService(new TicketRepositorio(db.dataSource()), usuarios)));
+
+            // Sugerencias: post en el foro con votación + resolución por staff.
+            SugerenciaService sugerenciaService =
+                    new SugerenciaService(new SugerenciaRepositorio(db.dataSource()), usuarios);
+            comandos.add(new SugerenciaComando(sugerenciaService));
+            comandos.add(new SugerenciaResolverComando(sugerenciaService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
