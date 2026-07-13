@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Moderación — sanciones directas**: `/mute` `/unmute` (rol 🔇 Silenciado), `/timeout` `/untimeout`
+  (aislamiento nativo, duraciones tipo `30m`/`2h`/`1d`), `/kick`, `/ban` (con borrado de mensajes
+  0-7 días), `/unban` (por id), `/nick` (guarda el apodo anterior cifrado). Solo altos cargos; todo
+  se registra en `sanciones` y se publica en `🤖・bot-logs`. Nuevo `util/Duraciones`. (Fase C1.)
 - **Moderación — avisos con escalado**: `/warn`, `/warns`, `/unwarn`, `/clearwarns` (solo altos
   cargos: 🧹 Staff / 🛡️ Admin / 👑 Fundador). Los avisos se guardan con el **motivo cifrado** y toda
   acción queda en el historial `sanciones` y se publica en `🤖・bot-logs`. **Escalado automático**:

@@ -9,8 +9,16 @@ import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
+import com.gymprofit.bot.commands.moderacion.BanComando;
 import com.gymprofit.bot.commands.moderacion.ClearwarnsComando;
+import com.gymprofit.bot.commands.moderacion.KickComando;
 import com.gymprofit.bot.commands.moderacion.LimpiarComando;
+import com.gymprofit.bot.commands.moderacion.MuteComando;
+import com.gymprofit.bot.commands.moderacion.NickComando;
+import com.gymprofit.bot.commands.moderacion.TimeoutComando;
+import com.gymprofit.bot.commands.moderacion.UnbanComando;
+import com.gymprofit.bot.commands.moderacion.UnmuteComando;
+import com.gymprofit.bot.commands.moderacion.UntimeoutComando;
 import com.gymprofit.bot.commands.moderacion.UnwarnComando;
 import com.gymprofit.bot.commands.moderacion.WarnComando;
 import com.gymprofit.bot.commands.moderacion.WarnsComando;
@@ -183,6 +191,14 @@ public final class Main {
             comandos.add(new WarnsComando(moderacion));
             comandos.add(new UnwarnComando(moderacion));
             comandos.add(new ClearwarnsComando(moderacion, configService));
+            comandos.add(new MuteComando(moderacion, configService));
+            comandos.add(new UnmuteComando(moderacion, configService));
+            comandos.add(new TimeoutComando(moderacion, configService));
+            comandos.add(new UntimeoutComando(moderacion, configService));
+            comandos.add(new KickComando(moderacion, configService));
+            comandos.add(new BanComando(moderacion, configService));
+            comandos.add(new UnbanComando(moderacion, configService));
+            comandos.add(new NickComando(moderacion, configService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

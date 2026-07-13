@@ -1,11 +1,14 @@
 package com.gymprofit.bot.commands.moderacion;
 
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.services.ConfigServidorService;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -39,6 +42,19 @@ public final class ModHelper {
             return false;
         }
         return actor.canInteract(objetivo);
+    }
+
+    /** Nombre del rol de silencio que crea {@code /setup}. */
+    public static final String ROL_SILENCIADO = "🔇 Silenciado";
+
+    /** Construye un embed de moderación (tono serio). */
+    public static MessageEmbed embed(Locale locale, String titulo, String descripcion) {
+        return EmbedFactory.base(EmbedFactory.Tipo.MODERACION, locale, titulo, descripcion).build();
+    }
+
+    /** Rol {@code 🔇 Silenciado} del servidor, o {@code null} si no existe (falta ejecutar /setup). */
+    public static Role rolSilenciado(Guild guild) {
+        return guild.getRolesByName(ROL_SILENCIADO, false).stream().findFirst().orElse(null);
     }
 
     /** Publica el embed de la acción en el canal {@code bot-logs} del servidor si está configurado. */
