@@ -1,14 +1,19 @@
 package com.gymprofit.bot.commands.moderacion;
 
+import com.gymprofit.bot.db.Sancion;
 import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
+import com.gymprofit.bot.util.Duraciones;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,6 +51,29 @@ public final class ModHelper {
 
     /** Nombre del rol de silencio que crea {@code /setup}. */
     public static final String ROL_SILENCIADO = "🔇 Silenciado";
+
+    /** Sanciones por página en {@code /modlogs}. */
+    public static final int SANCIONES_POR_PAGINA = 10;
+
+    /** Emoji por tipo de sanción (para el historial). */
+    private static final Map<String, String> EMOJI_TIPO = Map.of(
+            "WARN", "⚠️", "MUTE", "🔇", "UNMUTE", "🔊", "TIMEOUT", "⏳",
+            "UNTIMEOUT", "✅", "KICK", "👢", "BAN", "🔨", "UNBAN", "✅", "NICK", "✏️");
+
+    /** Formatea una página de sanciones como líneas para la descripción del embed. */
+    public static String formatearSanciones(Locale locale, List<Sancion> sanciones) {
+        StringBuilder sb = new StringBuilder();
+        for (Sancion s : sanciones) {
+            String emoji = EMOJI_TIPO.getOrDefault(s.tipo(), "•");
+            String extra = s.duracionSeg() != null ? " · " + Duraciones.formatear(s.duracionSeg()) : "";
+            String motivo = s.motivo() != null ? " · " + s.motivo() : "";
+            sb.append(Messages.get(locale, "modlogs.linea",
+                    s.id(), emoji, s.tipo(), motivo + extra,
+                    "<@" + s.moderadorId() + ">",
+                    "<t:" + s.creadoEn().getEpochSecond() + ":R>")).append('\n');
+        }
+        return sb.toString();
+    }
 
     /** Construye un embed de moderación (tono serio). */
     public static MessageEmbed embed(Locale locale, String titulo, String descripcion) {

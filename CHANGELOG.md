@@ -7,6 +7,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Moderación — historial**: `/modlogs` (historial completo de un miembro, **paginado con botones**
+  ◀ ▶) y `/motivo` (edita el motivo de un caso; se re-cifra). (Fase C2.)
 - **Moderación — sanciones directas**: `/mute` `/unmute` (rol 🔇 Silenciado), `/timeout` `/untimeout`
   (aislamiento nativo, duraciones tipo `30m`/`2h`/`1d`), `/kick`, `/ban` (con borrado de mensajes
   0-7 días), `/unban` (por id), `/nick` (guarda el apodo anterior cifrado). Solo altos cargos; todo

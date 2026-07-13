@@ -13,6 +13,8 @@ import com.gymprofit.bot.commands.moderacion.BanComando;
 import com.gymprofit.bot.commands.moderacion.ClearwarnsComando;
 import com.gymprofit.bot.commands.moderacion.KickComando;
 import com.gymprofit.bot.commands.moderacion.LimpiarComando;
+import com.gymprofit.bot.commands.moderacion.ModlogsComando;
+import com.gymprofit.bot.commands.moderacion.MotivoComando;
 import com.gymprofit.bot.commands.moderacion.MuteComando;
 import com.gymprofit.bot.commands.moderacion.NickComando;
 import com.gymprofit.bot.commands.moderacion.TimeoutComando;
@@ -34,6 +36,7 @@ import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
+import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.services.ConfigServidorService;
@@ -199,6 +202,9 @@ public final class Main {
             comandos.add(new BanComando(moderacion, configService));
             comandos.add(new UnbanComando(moderacion, configService));
             comandos.add(new NickComando(moderacion, configService));
+            comandos.add(new ModlogsComando(moderacion));
+            comandos.add(new MotivoComando(moderacion));
+            listeners.add(new ModlogsPaginadorListener(moderacion));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
