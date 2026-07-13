@@ -48,7 +48,7 @@ public final class MejorarComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         String nodoId = evento.getOption("nodo").getAsString();
 
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoMejora r = mejoras.comprar(evento.getUser().getIdLong(), nodoId);
         String nombre = r.nodo().map(m -> MejorasComando.nombreNodo(locale, m)).orElse(nodoId);
         String mensaje = switch (r.estado()) {

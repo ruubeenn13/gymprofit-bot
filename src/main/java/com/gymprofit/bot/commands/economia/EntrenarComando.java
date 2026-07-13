@@ -50,7 +50,7 @@ public final class EntrenarComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         String atributo = evento.getOption("atributo").getAsString();
 
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoEntrenar r = trabajos.entrenar(evento.getUser().getIdLong(), atributo);
         String mensaje = r == ResultadoEntrenar.OK
                 ? Messages.get(locale, "entrenar.ok", Messages.get(locale, "atributo." + atributo),

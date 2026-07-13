@@ -56,7 +56,7 @@ public final class ComprarComando implements Comando {
         int cantidad = evento.getOption("cantidad") != null
                 ? evento.getOption("cantidad").getAsInt() : 1;
 
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoCompra r = items.comprar(evento.getUser().getIdLong(), itemId, cantidad);
         String nombre = Items.porId(itemId)
                 .map(i -> Messages.get(locale, "item." + i.id())).orElse(itemId);

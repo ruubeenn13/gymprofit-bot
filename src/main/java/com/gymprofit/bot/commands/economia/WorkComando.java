@@ -39,7 +39,7 @@ public final class WorkComando implements Comando {
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoWork r = trabajos.trabajar(evento.getUser().getIdLong(), Instant.now());
         String desc = switch (r.estado()) {
             case OK -> Messages.get(locale, "work.ok", r.pago(), r.energiaRestante());

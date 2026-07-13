@@ -48,7 +48,7 @@ public final class UsarComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         String itemId = evento.getOption("item").getAsString();
 
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoUso r = items.usar(evento.getUser().getIdLong(), itemId);
         String nombre = Items.porId(itemId)
                 .map(i -> Messages.get(locale, "item." + i.id())).orElse(itemId);

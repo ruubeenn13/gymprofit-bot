@@ -37,7 +37,7 @@ public final class DailyComando implements Comando {
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoDaily r = economia.daily(evento.getUser().getIdLong());
         String desc = r.cobrado()
                 ? Messages.get(locale, "daily.cobrado", r.recompensa(), r.racha())

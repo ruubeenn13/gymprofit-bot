@@ -55,7 +55,7 @@ public final class ElegirTrabajoComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         String id = evento.getOption("trabajo").getAsString();
 
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoElegir r = trabajos.elegir(evento.getUser().getIdLong(), id);
         if (r == ResultadoElegir.OK && evento.getMember() != null) {
             asignarRolTrabajo(evento.getGuild(), evento.getMember(), id);
