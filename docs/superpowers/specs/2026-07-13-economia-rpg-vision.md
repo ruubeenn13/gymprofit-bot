@@ -9,11 +9,14 @@
 
 ## Visión
 
-Un **simulador de vida con temática fitness** dentro del Discord: cada miembro tiene un
-**personaje** con atributos y energía, **elige una carrera** (con ascensos y requisitos), **trabaja**
-para ganar coins, **compra ítems** (con efecto) en tiendas ramificadas por su trabajo, **mejora su
-personaje**, comercia con otros (mercado, trueques, banco), y participa en estructuras sociales
-(gremios, alianzas) y minijuegos de riesgo (gambling de ficción).
+Un **simulador de vida real completo** dentro del Discord (la comunidad GymProFit es solo el lugar
+donde vive; el juego **no se limita al gym**): cada miembro tiene un **personaje** con atributos y
+energía, **elige una carrera de cualquier sector** (tecnología, hostelería, sanidad, arte,
+transporte, deporte…) con ascensos y requisitos, **trabaja** para ganar coins, **compra ítems** (con
+efecto) en tiendas ramificadas por su trabajo/sector, **mejora su personaje**, adquiere **bienes**
+(casa, coche, negocios), comercia con otros (mercado, trueques, banco) y participa en estructuras
+sociales (gremios/empresas, alianzas) y minijuegos de riesgo (gambling de ficción). Se puede
+**hacer de todo**, como en la vida.
 
 ## Principio rector: economía equilibrada
 
@@ -53,7 +56,8 @@ Tabla `personajes` + `transacciones`; monedero seguro (operaciones atómicas, si
 `/balance`, `/perfil`, `/daily` (+ racha). Base sobre la que todo se apoya.
 
 **F-ECO-1 · Trabajo y energía**
-Catálogo de trabajos (carreras temáticas fitness); `/trabajos` (ver), `/elegir-trabajo`, `/work`
+Catálogo de trabajos (carreras de **cualquier sector**: tecnología, hostelería, sanidad, arte,
+transporte, deporte, oficios…); `/trabajos` (ver), `/elegir-trabajo`, `/work`
 (gana coins, gasta energía, eventos aleatorios), regeneración de energía (job), `/entrenar`
 (gasta energía → sube stats). Aquí también `/trivia` y `/frase` (fuentes de coins/diversión).
 
