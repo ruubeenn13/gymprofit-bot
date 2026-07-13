@@ -113,3 +113,35 @@ local: exponer el daemon en `tcp://localhost:2375` (Docker Desktop → Settings)
 `DOCKER_HOST`.
 
 **Estado:** aceptada.
+
+## ADR-007 — Onboarding de Discord por REST cruda (JDA no lo envuelve)
+
+**Contexto.** El onboarding de comunidad (canales predeterminados + preguntas de personalización
+con roles/canales por respuesta) es lo último que quedaba manual al montar el servidor. JDA 5.6.1
+no expone un manager para `PUT /guilds/{id}/onboarding`.
+
+**Decisión.** Aplicarlo desde `/setup` por **REST cruda** con `Route.custom(Method.PUT,
+"guilds/{guild_id}/onboarding")` + `RestActionImpl` (API interna de JDA), reutilizando la
+autenticación y el control de rate limit de la librería. El cuerpo JSON se arma con `DataObject`/
+`DataArray` en `OnboardingPlan` (datos puros, testeables sin red). El PUT reemplaza toda la
+configuración, así que es idempotente; si falla, se avisa y `/setup` no se rompe. **No se añade
+ninguna dependencia** (todo es JDA + su okhttp/json ya presentes).
+
+**Riesgo.** `RestActionImpl` es paquete interno de JDA: podría cambiar entre versiones. Se acota a
+un único punto (`configurarOnboarding`) fácil de adaptar. El texto del onboarding es un set único
+(Discord no lo localiza por usuario), por eso los títulos/descripciones van bilingües ES+EN.
+
+**Estado:** aceptada.
+
+## ADR-008 — Matriz de permisos por rol declarativa en el plan de setup
+
+**Contexto.** El modelo de permisos de `/setup` era grueso: cada canal se reducía a
+`@everyone` / Staff / Silenciado; roles funcionales (Coach, Nutricionista, Ponente…) no influían.
+
+**Decisión.** `CanalPlan` gana una lista de `PermisoRol(rolNombre, allow, deny)` y builders
+fluidos (`.permite(rol, Permission…)`, `.niega(…)`, `.conSoloLectura()`). `/setup` los aplica al
+crear **y** al reutilizar el canal (`aplicarPermisos`), resolviendo el rol por nombre desde el mapa
+de roles; los inexistentes se omiten con aviso. Los canales de anuncios pasan a solo-lectura (bug:
+antes `@everyone` podía escribir en ellos).
+
+**Estado:** aceptada.

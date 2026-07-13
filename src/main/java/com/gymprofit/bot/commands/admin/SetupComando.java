@@ -4,6 +4,7 @@ import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
+import com.gymprofit.bot.services.OnboardingPlan;
 import com.gymprofit.bot.services.SetupServidorPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CanalPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CategoriaPlan;
@@ -25,6 +26,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.NewsChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.StageChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.attribute.IPostContainer;
 import net.dv8tion.jda.api.entities.channel.forums.ForumTagData;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
@@ -34,7 +36,11 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.requests.Method;
+import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.requests.restaction.ForumPostAction;
+import net.dv8tion.jda.api.utils.data.DataObject;
+import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -55,13 +61,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * {@code /setup}: monta la estructura del servidor (roles, categorías, canales, permisos y
- * mensajes fijados según {@link SetupServidorPlan}), purga los mensajes recientes de los canales
- * existentes y autorrellena {@code config_servidor}. Idempotente (reutiliza por nombre). Solo
- * admin.
+ * {@code /setup}: monta la estructura del servidor (roles, categorías, canales, permisos por rol y
+ * mensajes fijados según {@link SetupServidorPlan}), configura el onboarding de Discord y
+ * autorrellena {@code config_servidor}. No borra mensajes (salvo {@code desde_cero}, que vacía el
+ * servidor). Idempotente (reutiliza por nombre). Solo admin.
  *
  * <p>El trabajo pesado corre en un hilo aparte ({@link CompletableFuture#runAsync}) para <b>no
  * bloquear el hilo del gateway</b> con las llamadas {@code complete()}. Comprueba los permisos
@@ -436,9 +443,10 @@ public final class SetupComando implements Comando {
                         if (existente != null) {
                             aplicarConfig(guild, existente, chPlan);
                             aplicarTopic(existente, chPlan);
+                            aplicarPermisos(guild, existente, chPlan, roles);
                             canal = existente;
                         } else {
-                            canal = crearCanal(guild, categoria, chPlan, everyone, staff, locale);
+                            canal = crearCanal(guild, categoria, chPlan, roles, locale);
                             if (CANAL_EMPIEZA.equals(chPlan.nombre())) {
                                 empiezaNueva = true;
                             }
@@ -457,12 +465,41 @@ public final class SetupComando implements Comando {
         if (empiezaNueva) {
             publicarNavegacion(guild, idsPorNombre, locale);
         }
+        // Onboarding de Discord (canales por defecto + preguntas): ya se tienen todos los IDs.
+        configurarOnboarding(guild, roles, idsPorNombre);
         return canales;
     }
 
+    /**
+     * Configura el <b>onboarding</b> del servidor (canales predeterminados + preguntas con roles/
+     * canales por respuesta) según {@link OnboardingPlan}. Requiere Comunidad activada. JDA no
+     * envuelve este endpoint, así que se hace {@code PUT /guilds/{id}/onboarding} por REST cruda con
+     * {@code Route.custom} + {@code RestActionImpl} (reutiliza auth y rate-limit de JDA). El PUT
+     * reemplaza toda la config → idempotente. Si falla, se avisa y {@code /setup} no se rompe.
+     */
+    private void configurarOnboarding(Guild guild, Map<String, Role> roles,
+                                      Map<String, Long> idsPorNombre) {
+        if (!guild.getFeatures().contains("COMMUNITY")) {
+            log.info("Comunidad no activada; se omite el onboarding");
+            return;
+        }
+        try {
+            Map<String, Long> rolesIds = new HashMap<>();
+            roles.forEach((nombre, rol) -> rolesIds.put(nombre, rol.getIdLong()));
+            DataObject body = OnboardingPlan.construirBody(rolesIds, idsPorNombre);
+            Route.CompiledRoute ruta = Route.custom(Method.PUT, "guilds/{guild_id}/onboarding")
+                    .compile(guild.getId());
+            new RestActionImpl<Void>(guild.getJDA(), ruta, body).complete();
+            log.info("Onboarding configurado: {} preguntas, {} canales por defecto",
+                    OnboardingPlan.PROMPTS.size(), OnboardingPlan.CANALES_DEFECTO.size());
+        } catch (RuntimeException e) {
+            log.warn("No se pudo configurar el onboarding", e);
+        }
+    }
+
     /** Crea un canal nuevo bajo su categoría, sincroniza permisos, fija intro y config. */
-    private GuildChannel crearCanal(Guild guild, Category categoria, CanalPlan chPlan, Role everyone,
-                                    Role staff, Locale locale) {
+    private GuildChannel crearCanal(Guild guild, Category categoria, CanalPlan chPlan,
+                                    Map<String, Role> roles, Locale locale) {
         GuildChannel creado;
         if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.VOZ) {
             var accionVoz = categoria.createVoiceChannel(chPlan.nombre());
@@ -500,10 +537,6 @@ public final class SetupComando implements Comando {
             }
             NewsChannel nc = accion.complete();
             nc.getManager().sync().complete();
-            // El staff anuncia; @everyone lee pero no escribe.
-            if (chPlan.soloLectura()) {
-                aplicarSoloLectura(nc, everyone, staff);
-            }
             fijarIntro(nc, chPlan, locale);
             creado = nc;
         } else {
@@ -517,9 +550,6 @@ public final class SetupComando implements Comando {
             TextChannel tc = accion.complete();
             // Hereda los permisos de la categoría (ocultación, staff, silenciado).
             tc.getManager().sync().complete();
-            if (chPlan.soloLectura()) {
-                aplicarSoloLectura(tc, everyone, staff);
-            }
             if ("panel.roles".equals(chPlan.introKey())) {
                 publicarPanelRoles(tc, locale);
             } else {
@@ -528,6 +558,7 @@ public final class SetupComando implements Comando {
             creado = tc;
         }
         aplicarConfig(guild, creado, chPlan);
+        aplicarPermisos(guild, creado, chPlan, roles);
         return creado;
     }
 
@@ -587,6 +618,38 @@ public final class SetupComando implements Comando {
         canal.upsertPermissionOverride(everyone).deny(Permission.MESSAGE_SEND).complete();
         if (staff != null) {
             canal.upsertPermissionOverride(staff).grant(Permission.MESSAGE_SEND).complete();
+        }
+    }
+
+    /**
+     * Aplica al canal los permisos declarados en el plan: solo-lectura (si procede) y los
+     * {@link SetupServidorPlan.PermisoRol} por rol. Idempotente (se llama al crear y al reutilizar);
+     * los roles del plan que no existan en el servidor se ignoran con un aviso.
+     */
+    private void aplicarPermisos(Guild guild, GuildChannel canal, CanalPlan chPlan,
+                                 Map<String, Role> roles) {
+        Role everyone = guild.getPublicRole();
+        Role staff = roles.get(ROL_STAFF);
+        try {
+            if (chPlan.soloLectura() && canal instanceof StandardGuildMessageChannel smc) {
+                aplicarSoloLectura(smc, everyone, staff);
+            }
+            if (!(canal instanceof IPermissionContainer contenedor)) {
+                return;
+            }
+            for (SetupServidorPlan.PermisoRol permiso : chPlan.permisos()) {
+                Role rol = SetupServidorPlan.EVERYONE.equals(permiso.rolNombre())
+                        ? everyone : roles.get(permiso.rolNombre());
+                if (rol == null) {
+                    log.warn("Rol '{}' del plan de permisos de {} no existe; se omite el override",
+                            permiso.rolNombre(), chPlan.nombre());
+                    continue;
+                }
+                contenedor.upsertPermissionOverride(rol)
+                        .grant(permiso.allow()).deny(permiso.deny()).complete();
+            }
+        } catch (RuntimeException e) {
+            log.warn("No se pudieron aplicar permisos a {}", chPlan.nombre(), e);
         }
     }
 

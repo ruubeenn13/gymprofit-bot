@@ -98,4 +98,43 @@ class SetupServidorPlanTest {
                 .forEach(r -> objetivos.add(r.objetivo()));
         assertEquals(EnumSet.allOf(Objetivo.class), objetivos);
     }
+
+    @Test
+    void existenLosRolesNuevosDeExperienciaIdiomaYNotificaciones() {
+        Set<String> nombres = new HashSet<>();
+        SetupServidorPlan.ROLES.forEach(r -> nombres.add(r.nombre()));
+        for (String esperado : new String[]{"🌱 Principiante", "💪 Intermedio", "🔥 Avanzado",
+                "🇪🇸 Español", "🇬🇧 English", "📅 Eventos", "🎁 Sorteos"}) {
+            assertTrue(nombres.contains(esperado), "falta el rol " + esperado);
+        }
+    }
+
+    @Test
+    void losCanalesDeAnunciosSonSoloLectura() {
+        for (String nombre : new String[]{"📣・anuncios", "📲・novedades-app",
+                "📅・eventos", "🎁・sorteos"}) {
+            CanalPlan canal = buscarCanal(nombre);
+            assertTrue(canal.soloLectura(), nombre + " debe ser solo-lectura");
+        }
+    }
+
+    @Test
+    void losForosFitnessDanPermisoAlStaffTecnico() {
+        // rutinas y dudas: Coach; nutrición: Nutricionista. Cada uno con al menos un override.
+        assertTrue(tienePermisoDe(buscarCanal("📚・rutinas"), "🧑‍🏫 Coach"), "Coach en rutinas");
+        assertTrue(tienePermisoDe(buscarCanal("❓・dudas"), "🧑‍🏫 Coach"), "Coach en dudas");
+        assertTrue(tienePermisoDe(buscarCanal("🍎・nutrición"), "🍎 Nutricionista"), "Nutri en nutrición");
+    }
+
+    private static CanalPlan buscarCanal(String nombre) {
+        return SetupServidorPlan.CATEGORIAS.stream()
+                .flatMap(c -> c.canales().stream())
+                .filter(c -> c.nombre().equals(nombre))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no existe el canal " + nombre));
+    }
+
+    private static boolean tienePermisoDe(CanalPlan canal, String rol) {
+        return canal.permisos().stream().anyMatch(p -> p.rolNombre().equals(rol) && p.allow() != 0);
+    }
 }

@@ -2,7 +2,9 @@ package com.gymprofit.bot.services;
 
 import com.gymprofit.bot.services.ConfigServidorService.Objetivo;
 import com.gymprofit.bot.services.ConfigServidorService.TipoCanal;
+import net.dv8tion.jda.api.Permission;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -19,6 +21,21 @@ public final class SetupServidorPlan {
     public enum TipoCanalDiscord { TEXTO, VOZ, ESCENARIO, FORO, MEDIA, ANUNCIOS }
 
     /**
+     * Override de permisos de un rol en un canal, declarado en el plan. El rol se referencia por
+     * <b>nombre</b> (se resuelve a ID en {@code /setup}); {@code allow}/{@code deny} son máscaras
+     * de permisos de JDA.
+     *
+     * @param rolNombre nombre exacto del rol (o {@link #EVERYONE} para @everyone)
+     * @param allow     permisos concedidos
+     * @param deny      permisos denegados
+     */
+    public record PermisoRol(String rolNombre, long allow, long deny) {
+    }
+
+    /** Nombre reservado que, en un {@link PermisoRol}, representa al rol público {@code @everyone}. */
+    public static final String EVERYONE = "@everyone";
+
+    /**
      * @param nombre           nombre del canal (con emoji y separador)
      * @param tipo             texto o voz
      * @param soloLectura      si {@code @everyone} no puede escribir (canales informativos)
@@ -33,12 +50,36 @@ public final class SetupServidorPlan {
      */
     public record CanalPlan(String nombre, TipoCanalDiscord tipo, boolean soloLectura,
                             int slowmodeSegundos, TipoCanal claveConfig, int limiteVoz,
-                            String introKey, String topic, List<String> etiquetas) {
+                            String introKey, String topic, List<String> etiquetas,
+                            List<PermisoRol> permisos) {
 
         /** Copia de este canal añadiéndole la descripción (topic). Mantiene el resto igual. */
         public CanalPlan conTopic(String topic) {
             return new CanalPlan(nombre, tipo, soloLectura, slowmodeSegundos, claveConfig,
-                    limiteVoz, introKey, topic, etiquetas);
+                    limiteVoz, introKey, topic, etiquetas, permisos);
+        }
+
+        /** Copia marcando el canal como solo-lectura: {@code @everyone} no escribe, Staff sí. */
+        public CanalPlan conSoloLectura() {
+            return new CanalPlan(nombre, tipo, true, slowmodeSegundos, claveConfig,
+                    limiteVoz, introKey, topic, etiquetas, permisos);
+        }
+
+        /** Copia añadiendo un override que <b>concede</b> {@code perms} al rol {@code rol}. */
+        public CanalPlan permite(String rol, Permission... perms) {
+            return conPermiso(new PermisoRol(rol, Permission.getRaw(perms), 0L));
+        }
+
+        /** Copia añadiendo un override que <b>niega</b> {@code perms} al rol {@code rol}. */
+        public CanalPlan niega(String rol, Permission... perms) {
+            return conPermiso(new PermisoRol(rol, 0L, Permission.getRaw(perms)));
+        }
+
+        private CanalPlan conPermiso(PermisoRol permiso) {
+            List<PermisoRol> lista = new ArrayList<>(permisos);
+            lista.add(permiso);
+            return new CanalPlan(nombre, tipo, soloLectura, slowmodeSegundos, claveConfig,
+                    limiteVoz, introKey, topic, etiquetas, List.copyOf(lista));
         }
     }
 
@@ -87,54 +128,66 @@ public final class SetupServidorPlan {
             new RolPlan("🏃 Cardio", Objetivo.CARDIO, 0x3498DB),
             new RolPlan("⚖️ Pérdida de peso", Objetivo.PERDIDA_PESO, 0x1E8E4A),
             new RolPlan("🌟 General", Objetivo.GENERAL, 0xFF6A00),
+            new RolPlan("▬▬ EXPERIENCIA ▬▬", null, 0x2B2D31),
+            new RolPlan("🌱 Principiante", null, 0x82C91E),
+            new RolPlan("💪 Intermedio", null, 0xF59F00),
+            new RolPlan("🔥 Avanzado", null, 0xD9480F),
+            new RolPlan("▬▬ IDIOMA ▬▬", null, 0x2B2D31),
+            new RolPlan("🇪🇸 Español", null, 0xE03131),
+            new RolPlan("🇬🇧 English", null, 0x1971C2),
             new RolPlan("▬▬ NOTIFICACIONES ▬▬", null, 0x2B2D31),
             new RolPlan("📣 Avisos", null, 0xE67E22),
             new RolPlan("🎯 Retos", null, 0x9B59B6),
+            new RolPlan("📅 Eventos", null, 0x5865F2),
+            new RolPlan("🎁 Sorteos", null, 0xEB459E),
             new RolPlan("🤝 Miembro", null, 0x2ECC71),
             new RolPlan("🔇 Silenciado", null, 0x607D8B)
     );
 
     private static CanalPlan texto(String nombre, TipoCanal clave) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, null, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, null, null, List.of(), List.of());
     }
 
     private static CanalPlan texto(String nombre, TipoCanal clave, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, introKey, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, 0, clave, 0, introKey, null, List.of(), List.of());
     }
 
     private static CanalPlan info(String nombre, TipoCanal clave) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, null, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, null, null, List.of(), List.of());
     }
 
     private static CanalPlan info(String nombre, TipoCanal clave, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, introKey, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, true, 0, clave, 0, introKey, null, List.of(), List.of());
     }
 
     private static CanalPlan voz(String nombre, int limite) {
-        return new CanalPlan(nombre, TipoCanalDiscord.VOZ, false, 0, null, limite, null, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.VOZ, false, 0, null, limite, null, null, List.of(), List.of());
     }
 
     private static CanalPlan escenario(String nombre) {
-        return new CanalPlan(nombre, TipoCanalDiscord.ESCENARIO, false, 0, null, 0, null, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.ESCENARIO, false, 0, null, 0, null, null, List.of(), List.of());
     }
 
     private static CanalPlan slow(String nombre, int segundos, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, segundos, null, 0, introKey, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.TEXTO, false, segundos, null, 0, introKey, null, List.of(), List.of());
     }
 
     /** Canal de foro (publicaciones con título/imagen/descripción). El topic se pone con conTopic. */
     private static CanalPlan foro(String nombre, TipoCanal clave, String... etiquetas) {
-        return new CanalPlan(nombre, TipoCanalDiscord.FORO, false, 0, clave, 0, null, null, List.of(etiquetas));
+        return new CanalPlan(nombre, TipoCanalDiscord.FORO, false, 0, clave, 0, null, null, List.of(etiquetas), List.of());
     }
 
     /** Canal de media (galería de imágenes) con sus etiquetas. */
     private static CanalPlan media(String nombre, TipoCanal clave, String... etiquetas) {
-        return new CanalPlan(nombre, TipoCanalDiscord.MEDIA, false, 0, clave, 0, null, null, List.of(etiquetas));
+        return new CanalPlan(nombre, TipoCanalDiscord.MEDIA, false, 0, clave, 0, null, null, List.of(etiquetas), List.of());
     }
 
-    /** Canal de anuncios (News, seguible). Admite pin de intro como un canal de texto. */
+    /**
+     * Canal de anuncios (News, seguible). Admite pin de intro como un canal de texto. Se crea
+     * <b>solo-lectura</b>: publica el staff y {@code @everyone} solo lee.
+     */
     private static CanalPlan anuncios(String nombre, String introKey) {
-        return new CanalPlan(nombre, TipoCanalDiscord.ANUNCIOS, false, 0, null, 0, introKey, null, List.of());
+        return new CanalPlan(nombre, TipoCanalDiscord.ANUNCIOS, true, 0, null, 0, introKey, null, List.of(), List.of());
     }
 
     /** Categorías y canales del servidor (F1–F4). Nombres decorados con «›» como separador. */
@@ -189,22 +242,28 @@ public final class SetupServidorPlan {
                     media("📸・fotos", null, "Entreno", "Comida", "Material", "Gym")
                             .conTopic("Fotos de entrenos, comidas y avances."),
                     foro("🍎・nutrición", null, "Receta", "Plan", "Duda", "Suplementación")
-                            .conTopic("Recetas, planes y dudas de alimentación. Abre un post y etiquétalo."),
+                            .conTopic("Recetas, planes y dudas de alimentación. Abre un post y etiquétalo.")
+                            .permite("🍎 Nutricionista", Permission.MESSAGE_MANAGE, Permission.MANAGE_THREADS),
                     foro("📚・rutinas", null, "Push", "Pull", "Pierna", "Full-body", "Cardio", "Movilidad")
-                            .conTopic("Comparte rutinas y splits. Un post por rutina, con su etiqueta."),
+                            .conTopic("Comparte rutinas y splits. Un post por rutina, con su etiqueta.")
+                            .permite("🧑‍🏫 Coach", Permission.MESSAGE_MANAGE, Permission.MANAGE_THREADS),
                     foro("❓・dudas", null, "Técnica", "Material", "Lesión", "Resuelto")
-                            .conTopic("Pregunta sobre entrenamiento y técnica. Marca 'Resuelto' al cerrar."))),
+                            .conTopic("Pregunta sobre entrenamiento y técnica. Marca 'Resuelto' al cerrar.")
+                            .permite("🧑‍🏫 Coach", Permission.MESSAGE_MANAGE, Permission.MANAGE_THREADS))),
             new CategoriaPlan("▬▬ 🎮 GAMIFICACIÓN ▬▬", false, false, List.of(
                     info("🏆・logros", TipoCanal.LOGROS)
                             .conTopic("Logros desbloqueados por la comunidad (los publica el bot). 🏆"),
                     info("📊・ranking", null)
                             .conTopic("Clasificación de XP y niveles del servidor (la publica el bot)."),
                     texto("🪙・economía", null, "intro.proximamente")
-                            .conTopic("Monedas, tienda y recompensas. (Próximamente)"),
+                            .conTopic("Monedas, tienda y recompensas. (Próximamente)")
+                            .conSoloLectura(),
                     texto("🧠・trivia", null, "intro.proximamente")
-                            .conTopic("Preguntas de fitness para ganar XP. (Próximamente)"),
+                            .conTopic("Preguntas de fitness para ganar XP. (Próximamente)")
+                            .conSoloLectura(),
                     texto("⚔️・duelos", null, "intro.proximamente")
-                            .conTopic("Rétate con otros miembros. (Próximamente)"),
+                            .conTopic("Rétate con otros miembros. (Próximamente)")
+                            .conSoloLectura(),
                     texto("🎯・retos", null, "intro.proximamente")
                             .conTopic("Retos semanales para subir de nivel. (Próximamente)"),
                     slow("🤖・comandos-bot", 5, "intro.comandos")
@@ -227,8 +286,15 @@ public final class SetupServidorPlan {
                     voz("🎥 Directo", 0),
                     voz("💤 AFK", 0))),
             new CategoriaPlan("▬▬ 🎤 EVENTOS ▬▬", false, false, List.of(
+                    // Canales News: el staff anuncia y hace @mención al rol opt-in (📅 Eventos /
+                    // 🎁 Sorteos). Todos ven los posts; solo se menciona a quien tenga el rol.
+                    anuncios("📅・eventos", "intro.eventos")
+                            .conTopic("Quedadas, directos y eventos en vivo. Ping al rol 📅 Eventos."),
+                    anuncios("🎁・sorteos", "intro.sorteos")
+                            .conTopic("Sorteos y premios de la comunidad. Ping al rol 🎁 Sorteos."),
                     // Canal de escenario (Stage): ponentes hablan, oyentes levantan la mano.
-                    escenario("🎤 Escenario"))),
+                    escenario("🎤 Escenario")
+                            .permite("🎙️ Ponente", Permission.VOICE_SPEAK))),
             new CategoriaPlan("▬▬ 🔒 STAFF ▬▬", true, true, List.of(
                     texto("🛠️・staff-chat", null)
                             .conTopic("Coordinación interna del equipo."),

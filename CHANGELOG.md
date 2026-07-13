@@ -6,7 +6,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin publicar]
 
+### Añadido
+- **Onboarding de Discord automatizado en `/setup`**: canales predeterminados + 5 preguntas de
+  personalización (idioma, objetivo, experiencia, notificaciones, intereses), cada opción con su
+  descripción y sus roles/canales. Se aplica por REST cruda (`PUT /guilds/{id}/onboarding`, que JDA
+  no envuelve) desde `OnboardingPlan`; idempotente. Requiere Comunidad activada. Ver ADR-007.
+- **Integración bilingüe (ES/EN) sin fragmentar**: pregunta de idioma en el onboarding → rol con
+  bandera (`🇪🇸 Español` / `🇬🇧 English`), cosmético y para pings segmentados; canales compartidos
+  (el bot ya responde en el idioma de cada usuario). Textos del onboarding bilingües.
+- **Matriz de permisos por rol declarativa**: `CanalPlan` admite overrides por rol
+  (`.permite(...)`, `.niega(...)`, `.conSoloLectura()`) que `/setup` aplica al crear y al reutilizar.
+  Coach/Nutricionista gestionan los foros de fitness; Ponente habla en el Escenario. Ver ADR-008.
+- **Roles y canales nuevos**: roles `🌱 Principiante`, `💪 Intermedio`, `🔥 Avanzado`,
+  `🇪🇸 Español`, `🇬🇧 English`, `📅 Eventos`, `🎁 Sorteos`; canales News (solo-lectura)
+  `📅・eventos` y `🎁・sorteos` en la categoría EVENTOS, con su intro ES/EN.
+
 ### Corregido
+- **Canales de anuncios en solo-lectura**: `📣・anuncios`, `📲・novedades-app`, `📅・eventos` y
+  `🎁・sorteos` eran escribibles por `@everyone` (la factoría los creaba sin restricción). Ahora
+  publica solo el staff y `@everyone` lee.
 - **`/setup` ya no borra mensajes (sobrescribe, no elimina)**: la ruta normal purgaba los mensajes
   recientes de **todos** los canales de texto en cada ejecución. Eliminado: `/setup` ahora solo
   crea/reutiliza estructura y no toca los mensajes. El borrado total (canales incluidos) queda
