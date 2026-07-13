@@ -6,6 +6,7 @@ import com.gymprofit.bot.commands.admin.SetupComando;
 import com.gymprofit.bot.commands.comunidad.EventoComando;
 import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
+import com.gymprofit.bot.commands.config.PanelComando;
 import com.gymprofit.bot.commands.contenido.AnuncioComando;
 import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
@@ -246,6 +247,7 @@ public final class Main {
             comandos.add(new AnuncioComando());
             comandos.add(new RedesComando());
             comandos.add(new SorteoComando(new SorteoService(new SorteoRepositorio(db.dataSource()))));
+            comandos.add(new PanelComando());
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

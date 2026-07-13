@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Contenido — panel de roles**: `/panel` republica el panel de auto-roles (menús de objetivo y
+  notificaciones) en `🎭・roles` (o el canal indicado) y lo fija. Panel extraído a `PanelRolesFactory`
+  reutilizada por `/setup`. (Bloque A3.)
 - **Contenido — sorteos**: `/sorteo` (premio + duración + nº ganadores) publica un sorteo en
   `🎁・sorteos` con reacción 🎉 y ping a `@🎁 Sorteos`; migración **V5** (`sorteos`) + `SorteoJob` que
   al vencer elige ganadores al azar entre los participantes y los anuncia. (Bloque A2.)
