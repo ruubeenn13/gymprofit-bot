@@ -202,6 +202,17 @@ public final class SetupServidorPlan {
                     voz("🔊 En voz: …", 0),
                     voz("🎯 Reto: …", 0),
                     voz("⏳ Evento: …", 0))),
+            // EVENTOS va arriba (encima de INFORMACIÓN), por decisión del usuario.
+            new CategoriaPlan("▬▬ 🎤 EVENTOS ▬▬", false, false, List.of(
+                    // Canales News: el staff anuncia y hace @mención al rol opt-in (📅 Eventos /
+                    // 🎁 Sorteos). Todos ven los posts; solo se menciona a quien tenga el rol.
+                    anuncios("📅・eventos", "intro.eventos")
+                            .conTopic("Quedadas, directos y eventos en vivo. Ping al rol 📅 Eventos."),
+                    anuncios("🎁・sorteos", "intro.sorteos")
+                            .conTopic("Sorteos y premios de la comunidad. Ping al rol 🎁 Sorteos."),
+                    // Canal de escenario (Stage): ponentes hablan, oyentes levantan la mano.
+                    escenario("🎤 Escenario")
+                            .permite("🎙️ Ponente", Permission.VOICE_SPEAK))),
             new CategoriaPlan("▬▬ 📢 INFORMACIÓN ▬▬", false, false, List.of(
                     info("👋・bienvenidas", TipoCanal.BIENVENIDA)
                             .conTopic("Damos la bienvenida a cada nuevo miembro de la comunidad. 👋"),
@@ -267,7 +278,7 @@ public final class SetupServidorPlan {
                             .conTopic("Usa aquí los comandos de GymProBot. Slowmode activo."))),
             // Simulador de vida (RPG de ficción). Empieza con la guía y el canal de economía;
             // se irán añadiendo canales (tienda, mercado, banco, casino, gremios) por fases.
-            new CategoriaPlan("▬▬ 🎮 SIMULADOR DE VIDA ▬▬", false, false, List.of(
+            new CategoriaPlan("▬▬ 🎮 VIDA ▬▬", false, false, List.of(
                     info("📖・cómo-jugar", null, "intro.simulador")
                             .conTopic("Cómo funciona el simulador de vida: personaje, dinero y trabajos."),
                     texto("💰・economía", null, "intro.economia")
@@ -289,16 +300,6 @@ public final class SetupServidorPlan {
                     voz("🛋️ Chill", 0),
                     voz("🎥 Directo", 0),
                     voz("💤 AFK", 0))),
-            new CategoriaPlan("▬▬ 🎤 EVENTOS ▬▬", false, false, List.of(
-                    // Canales News: el staff anuncia y hace @mención al rol opt-in (📅 Eventos /
-                    // 🎁 Sorteos). Todos ven los posts; solo se menciona a quien tenga el rol.
-                    anuncios("📅・eventos", "intro.eventos")
-                            .conTopic("Quedadas, directos y eventos en vivo. Ping al rol 📅 Eventos."),
-                    anuncios("🎁・sorteos", "intro.sorteos")
-                            .conTopic("Sorteos y premios de la comunidad. Ping al rol 🎁 Sorteos."),
-                    // Canal de escenario (Stage): ponentes hablan, oyentes levantan la mano.
-                    escenario("🎤 Escenario")
-                            .permite("🎙️ Ponente", Permission.VOICE_SPEAK))),
             new CategoriaPlan("▬▬ 🔒 STAFF ▬▬", true, true, List.of(
                     texto("🛠️・staff-chat", null)
                             .conTopic("Coordinación interna del equipo."),

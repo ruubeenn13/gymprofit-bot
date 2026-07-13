@@ -390,6 +390,7 @@ public final class SetupComando implements Comando {
         Role silenciado = roles.get(ROL_SILENCIADO);
         Map<String, Long> idsPorNombre = new HashMap<>();
         boolean empiezaNueva = false;
+        int indiceCategoria = 0;
 
         for (CategoriaPlan catPlan : SetupServidorPlan.CATEGORIAS) {
             try {
@@ -419,13 +420,12 @@ public final class SetupComando implements Comando {
                     categoria = accion.complete();
                 }
 
-                // La categoría de stats va arriba del todo (nuevo o reutilizado).
-                if (CAT_STATS.equals(catPlan.nombre())) {
-                    try {
-                        categoria.getManager().setPosition(0).complete();
-                    } catch (RuntimeException e) {
-                        log.warn("No se pudo colocar la categoría de stats arriba", e);
-                    }
+                // Fija el orden de las categorías según el plan (en cada /setup, nuevo o reutilizado),
+                // para que la barra lateral respete siempre el orden diseñado.
+                try {
+                    categoria.getManager().setPosition(indiceCategoria).complete();
+                } catch (RuntimeException e) {
+                    log.warn("No se pudo colocar la categoría {}", catPlan.nombre(), e);
                 }
 
                 for (CanalPlan chPlan : catPlan.canales()) {
@@ -454,6 +454,7 @@ public final class SetupComando implements Comando {
             } catch (RuntimeException e) {
                 log.warn("No se pudo crear la categoría {}", catPlan.nombre(), e);
             }
+            indiceCategoria++;
         }
 
         // Panel de accesos rápidos (botones que llevan a los canales clave) en 🚀 empieza-aquí.
