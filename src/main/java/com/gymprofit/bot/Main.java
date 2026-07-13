@@ -18,6 +18,8 @@ import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
 import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
+import com.gymprofit.bot.commands.economia.MejorarComando;
+import com.gymprofit.bot.commands.economia.MejorasComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
@@ -54,6 +56,7 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
+import com.gymprofit.bot.db.MejoraRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
@@ -66,6 +69,7 @@ import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ItemService;
+import com.gymprofit.bot.services.MejoraService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
@@ -307,6 +311,12 @@ public final class Main {
             comandos.add(new ComprarComando(itemService));
             comandos.add(new InventarioComando(itemService));
             comandos.add(new UsarComando(itemService));
+
+            // Árbol de mejoras (sube atributos permanentemente).
+            MejoraService mejoraService = new MejoraService(
+                    new MejoraRepositorio(db.dataSource()), economiaRepo, personajeRepo, usuarios);
+            comandos.add(new MejorasComando(mejoraService));
+            comandos.add(new MejorarComando(mejoraService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

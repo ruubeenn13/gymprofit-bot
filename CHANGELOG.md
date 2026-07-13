@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Economía / RPG — árbol de mejoras**: migración **V9** (`mejoras`); `/mejoras` dibuja un **árbol
+  visual** (ASCII/emoji) con ramas de fuerza/resistencia/carisma, nodos ✅ comprado / 🔓 disponible /
+  🔒 bloqueado y su precio; `/mejorar <nodo>` compra (valida prerrequisito y saldo, sube el atributo
+  permanentemente). Progresión lenta (coste creciente). (F-ECO-2b.)
 - **Economía / RPG — tienda e inventario**: migración **V8** (`inventario`); catálogo amplio de ítems
   (`Items`, ~24: consumibles, equipo, bienes). `/tienda` (por categoría), `/comprar` (pago atómico
   con el monedero), `/inventario` (agrupado) y `/usar` (los consumibles aplican energía/salud). Rol

@@ -96,6 +96,19 @@ public final class PersonajeRepositorio {
         }
     }
 
+    /** Suma {@code cantidad} a un atributo (fuerza/resistencia/carisma). Para el árbol de mejoras. */
+    public void sumarAtributo(long discordId, String atributo, int cantidad) {
+        if (!atributo.equals("fuerza") && !atributo.equals("resistencia")
+                && !atributo.equals("carisma")) {
+            throw new IllegalArgumentException("Atributo no válido: " + atributo);
+        }
+        ejecutar("UPDATE personajes SET " + atributo + " = " + atributo + " + ? WHERE discord_id = ?",
+                ps -> {
+                    ps.setInt(1, cantidad);
+                    ps.setLong(2, discordId);
+                });
+    }
+
     /** Suma energía a un personaje (tope 100). Para consumibles. */
     public void sumarEnergia(long discordId, int cantidad) {
         ejecutar("UPDATE personajes SET energia = LEAST(100, energia + ?) WHERE discord_id = ?",
