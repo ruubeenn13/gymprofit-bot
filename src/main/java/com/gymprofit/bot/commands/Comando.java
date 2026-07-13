@@ -12,10 +12,22 @@ import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 public interface Comando {
 
     /**
+     * Visibilidad de un comando, para el directorio autogenerado: {@link #PUBLICO} (todos) o
+     * {@link #MODERACION} (solo administración). Por defecto {@link #PUBLICO}; los comandos de staff
+     * lo sobreescriben.
+     */
+    enum Categoria { PUBLICO, MODERACION }
+
+    /**
      * Definición del comando (nombre, descripción y localizaciones ES/EN, opciones, permisos).
      * La usa {@link RouterComandos} para registrarlo en cada servidor.
      */
     SlashCommandData definicion();
+
+    /** Categoría del comando en el directorio (público por defecto). */
+    default Categoria categoria() {
+        return Categoria.PUBLICO;
+    }
 
     /**
      * Ejecuta el comando ante una interacción de Discord.

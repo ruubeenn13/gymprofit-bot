@@ -6,6 +6,8 @@ import com.gymprofit.bot.commands.admin.SetupComando;
 import com.gymprofit.bot.commands.comunidad.EventoComando;
 import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
+import com.gymprofit.bot.commands.contenido.AnuncioComando;
+import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
@@ -230,6 +232,10 @@ public final class Main {
             comandos.add(new BorrarMisDatosComando());
             listeners.add(new BorrarDatosListener(privacidad));
             new RetencionJob(warnRepo, sancionRepo).iniciar();
+
+            // Contenido (staff): anuncios y redes.
+            comandos.add(new AnuncioComando());
+            comandos.add(new RedesComando());
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

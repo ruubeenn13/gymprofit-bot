@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Contenido (staff)**: `/anuncio` (publica un anuncio con marca en `📣・anuncios`, imagen y ping
+  opcional a `@📣 Avisos`) y `/redes` (publica las redes oficiales en `📱・redes-sociales`). Se añade
+  `Comando.Categoria` (PUBLICO/MODERACION) como base del futuro directorio de comandos autogenerado.
+  (Bloque A1.)
 - **Privacidad (RGPD) — derechos del usuario**: `/privacidad` (qué se guarda y para qué),
   `/mis-datos` (export JSON efímero, acceso/portabilidad) y `/borrar-mis-datos` (olvido, con
   confirmación por botón). Nuevo `PrivacidadService` y **job de retención** (`RetencionJob`): purga
