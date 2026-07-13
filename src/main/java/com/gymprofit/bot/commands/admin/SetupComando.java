@@ -4,7 +4,6 @@ import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
-import com.gymprofit.bot.services.LimpiezaService;
 import com.gymprofit.bot.services.SetupServidorPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CanalPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CategoriaPlan;
@@ -215,11 +214,9 @@ public final class SetupComando implements Comando {
                     Permission.VIEW_AUDIT_LOGS, Permission.MESSAGE_MENTION_EVERYONE));
 
     private final ConfigServidorService config;
-    private final LimpiezaService limpieza;
 
-    public SetupComando(ConfigServidorService config, LimpiezaService limpieza) {
+    public SetupComando(ConfigServidorService config) {
         this.config = config;
-        this.limpieza = limpieza;
     }
 
     @Override
@@ -275,9 +272,11 @@ public final class SetupComando implements Comando {
                 }
 
                 List<GuildChannel> protegidos = new ArrayList<>();
+                // /setup NO borra mensajes: solo crea/reutiliza estructura (sobrescribe, no elimina).
+                // El borrado total (canales incluidos) solo ocurre con la opción desde_cero.
                 int limpiados = desdeCero
                         ? vaciarServidor(guild, protegidos, conservar)
-                        : purgarCanalesExistentes(guild);
+                        : 0;
                 Map<String, Role> roles = crearRoles(guild);
                 int canales = crearCategoriasYCanales(guild, roles, locale);
                 int reglasAutoMod = crearReglasAutoMod(guild);
@@ -349,19 +348,6 @@ public final class SetupComando implements Comando {
             }
         }
         return borrados;
-    }
-
-    /** Purga mensajes recientes de todos los canales de texto existentes; devuelve cuántos. */
-    private int purgarCanalesExistentes(Guild guild) {
-        int total = 0;
-        for (TextChannel canal : guild.getTextChannels()) {
-            try {
-                total += limpieza.purgarReciente(canal, LimpiezaService.MAX).join();
-            } catch (RuntimeException e) {
-                log.warn("No se pudo limpiar el canal {}", canal.getId(), e);
-            }
-        }
-        return total;
     }
 
     /** Crea (o reutiliza) los roles con sus permisos; devuelve un mapa nombre → rol. */

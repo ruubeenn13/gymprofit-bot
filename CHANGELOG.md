@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Corregido
+- **`/setup` ya no borra mensajes (sobrescribe, no elimina)**: la ruta normal purgaba los mensajes
+  recientes de **todos** los canales de texto en cada ejecución. Eliminado: `/setup` ahora solo
+  crea/reutiliza estructura y no toca los mensajes. El borrado total (canales incluidos) queda
+  **solo** en `/setup desde_cero:true`. Se elimina la dependencia de `LimpiezaService` en el comando.
 - **`/setup` ya no borra roles (evita agotar el cupo diario de Discord)**: borrar y recrear los 25
   roles en cada `desde_cero` agotaba el límite diario de creación de roles del servidor y lo
   bloqueaba ~2 días (429 con retry-after enorme, que además colgaba el bot). Ahora los roles se

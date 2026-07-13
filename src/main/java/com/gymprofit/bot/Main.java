@@ -155,7 +155,7 @@ public final class Main {
 
             LimpiezaService limpieza = new LimpiezaService();
             comandos.add(new LimpiarComando(limpieza));
-            comandos.add(new SetupComando(configService, limpieza));
+            comandos.add(new SetupComando(configService));
 
             EventoService eventoService =
                     new EventoService(new EventoServidorRepositorio(db.dataSource()));
