@@ -4,6 +4,7 @@ import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.Items;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -12,6 +13,8 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /** {@code /tienda}: muestra el catálogo de ítems (opcionalmente filtrado por categoría). */
@@ -44,24 +47,27 @@ public final class TiendaComando implements Comando {
         String filtro = evento.getOption("categoria") != null
                 ? evento.getOption("categoria").getAsString() : null;
 
-        StringBuilder sb = new StringBuilder();
-        Items.Categoria catActual = null;
-        for (Items item : Items.CATALOGO) {
-            if (filtro != null && !item.categoria().name().equals(filtro)) {
+        // Un embed por categoría: el catálogo completo excede el límite de 4096 caracteres de la
+        // descripción de un embed, así que se reparte (Discord admite varios embeds por mensaje).
+        List<MessageEmbed> embeds = new ArrayList<>();
+        for (Items.Categoria cat : Items.Categoria.values()) {
+            if (filtro != null && !cat.name().equals(filtro)) {
                 continue;
             }
-            if (item.categoria() != catActual) {
-                catActual = item.categoria();
-                sb.append("\n**").append(Messages.get(locale,
-                        "tienda.cat." + catActual.name().toLowerCase())).append("**\n");
+            StringBuilder sb = new StringBuilder();
+            for (Items item : Items.CATALOGO) {
+                if (item.categoria() != cat) {
+                    continue;
+                }
+                sb.append(Messages.get(locale, "tienda.linea", item.emoji(), item.id(),
+                        Messages.get(locale, "item." + item.id()), item.precio())).append('\n');
             }
-            sb.append(Messages.get(locale, "tienda.linea",
-                    item.emoji(), item.id(), Messages.get(locale, "item." + item.id()),
-                    item.precio())).append('\n');
+            String titulo = Messages.get(locale, "tienda.titulo") + " — "
+                    + Messages.get(locale, "tienda.cat." + cat.name().toLowerCase());
+            String desc = (embeds.isEmpty() ? Messages.get(locale, "tienda.intro") + "\n\n" : "")
+                    + sb;
+            embeds.add(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale, titulo, desc).build());
         }
-        var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
-                Messages.get(locale, "tienda.titulo"),
-                Messages.get(locale, "tienda.intro") + "\n" + sb).build();
-        evento.replyEmbeds(embed).setEphemeral(true).queue();
+        evento.replyEmbeds(embeds).setEphemeral(true).queue();
     }
 }
