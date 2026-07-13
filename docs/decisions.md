@@ -114,24 +114,26 @@ local: exponer el daemon en `tcp://localhost:2375` (Docker Desktop → Settings)
 
 **Estado:** aceptada.
 
-## ADR-007 — Onboarding de Discord por REST cruda (JDA no lo envuelve)
+## ADR-007 — Onboarding de Discord: configuración manual (no automatizada)
 
 **Contexto.** El onboarding de comunidad (canales predeterminados + preguntas de personalización
-con roles/canales por respuesta) es lo último que quedaba manual al montar el servidor. JDA 5.6.1
-no expone un manager para `PUT /guilds/{id}/onboarding`.
+con roles/canales por respuesta) era lo último manual al montar el servidor. Se probó a
+automatizarlo por **REST cruda** (`PUT /guilds/{id}/onboarding`, que JDA 5.6.1 no envuelve) con
+`Route.custom` + `RestActionImpl`, armando el body con `DataObject` en una clase `OnboardingPlan`.
 
-**Decisión.** Aplicarlo desde `/setup` por **REST cruda** con `Route.custom(Method.PUT,
-"guilds/{guild_id}/onboarding")` + `RestActionImpl` (API interna de JDA), reutilizando la
-autenticación y el control de rate limit de la librería. El cuerpo JSON se arma con `DataObject`/
-`DataArray` en `OnboardingPlan` (datos puros, testeables sin red). El PUT reemplaza toda la
-configuración, así que es idempotente; si falla, se avisa y `/setup` no se rompe. **No se añade
-ninguna dependencia** (todo es JDA + su okhttp/json ya presentes).
+**Decisión.** **Revertida:** se configura **a mano** en el editor de Discord. El editor impone
+límites que hacen el resultado por API poco fiable/mantenible: máximo de preguntas en el flujo de
+unión (~4), y en modo avanzado exige cubrir casi todos los canales públicos en preguntas/canales
+predeterminados. La estrategia práctica (modo habitual, preguntas esenciales en el flujo y el resto
+como "posteriores") se hace mejor desde la UI. Se eliminó `OnboardingPlan` y la llamada
+`configurarOnboarding`; el **diseño** de las preguntas se conserva en el spec del 2026-07-13 como
+guía para configurarlo a mano.
 
-**Riesgo.** `RestActionImpl` es paquete interno de JDA: podría cambiar entre versiones. Se acota a
-un único punto (`configurarOnboarding`) fácil de adaptar. El texto del onboarding es un set único
-(Discord no lo localiza por usuario), por eso los títulos/descripciones van bilingües ES+EN.
+**Consecuencia.** Sigue siendo un **paso manual** tras `/setup`. El texto del onboarding es un set
+único (Discord no lo localiza por usuario), por eso los títulos/descripciones se escriben bilingües
+ES+EN.
 
-**Estado:** aceptada.
+**Estado:** revertida (onboarding manual).
 
 ## ADR-008 — Matriz de permisos por rol declarativa en el plan de setup
 

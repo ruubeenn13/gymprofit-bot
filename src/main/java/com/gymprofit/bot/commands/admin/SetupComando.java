@@ -4,7 +4,6 @@ import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
-import com.gymprofit.bot.services.OnboardingPlan;
 import com.gymprofit.bot.services.SetupServidorPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CanalPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CategoriaPlan;
@@ -36,11 +35,7 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
-import net.dv8tion.jda.api.requests.Method;
-import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.requests.restaction.ForumPostAction;
-import net.dv8tion.jda.api.utils.data.DataObject;
-import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -66,9 +61,9 @@ import java.util.stream.Collectors;
 
 /**
  * {@code /setup}: monta la estructura del servidor (roles, categorías, canales, permisos por rol y
- * mensajes fijados según {@link SetupServidorPlan}), configura el onboarding de Discord y
- * autorrellena {@code config_servidor}. No borra mensajes (salvo {@code desde_cero}, que vacía el
- * servidor). Idempotente (reutiliza por nombre). Solo admin.
+ * mensajes fijados según {@link SetupServidorPlan}) y autorrellena {@code config_servidor}. No borra
+ * mensajes (salvo {@code desde_cero}, que vacía el servidor). Idempotente (reutiliza por nombre).
+ * Solo admin. El <b>onboarding</b> de Discord se configura a mano (limitaciones de su editor).
  *
  * <p>El trabajo pesado corre en un hilo aparte ({@link CompletableFuture#runAsync}) para <b>no
  * bloquear el hilo del gateway</b> con las llamadas {@code complete()}. Comprueba los permisos
@@ -465,36 +460,7 @@ public final class SetupComando implements Comando {
         if (empiezaNueva) {
             publicarNavegacion(guild, idsPorNombre, locale);
         }
-        // Onboarding de Discord (canales por defecto + preguntas): ya se tienen todos los IDs.
-        configurarOnboarding(guild, roles, idsPorNombre);
         return canales;
-    }
-
-    /**
-     * Configura el <b>onboarding</b> del servidor (canales predeterminados + preguntas con roles/
-     * canales por respuesta) según {@link OnboardingPlan}. Requiere Comunidad activada. JDA no
-     * envuelve este endpoint, así que se hace {@code PUT /guilds/{id}/onboarding} por REST cruda con
-     * {@code Route.custom} + {@code RestActionImpl} (reutiliza auth y rate-limit de JDA). El PUT
-     * reemplaza toda la config → idempotente. Si falla, se avisa y {@code /setup} no se rompe.
-     */
-    private void configurarOnboarding(Guild guild, Map<String, Role> roles,
-                                      Map<String, Long> idsPorNombre) {
-        if (!guild.getFeatures().contains("COMMUNITY")) {
-            log.info("Comunidad no activada; se omite el onboarding");
-            return;
-        }
-        try {
-            Map<String, Long> rolesIds = new HashMap<>();
-            roles.forEach((nombre, rol) -> rolesIds.put(nombre, rol.getIdLong()));
-            DataObject body = OnboardingPlan.construirBody(rolesIds, idsPorNombre);
-            Route.CompiledRoute ruta = Route.custom(Method.PUT, "guilds/{guild_id}/onboarding")
-                    .compile(guild.getId());
-            new RestActionImpl<Void>(guild.getJDA(), ruta, body).complete();
-            log.info("Onboarding configurado: {} preguntas, {} canales por defecto",
-                    OnboardingPlan.PROMPTS.size(), OnboardingPlan.CANALES_DEFECTO.size());
-        } catch (RuntimeException e) {
-            log.warn("No se pudo configurar el onboarding", e);
-        }
     }
 
     /** Crea un canal nuevo bajo su categoría, sincroniza permisos, fija intro y config. */

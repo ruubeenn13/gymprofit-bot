@@ -7,13 +7,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
-- **Onboarding de Discord automatizado en `/setup`**: canales predeterminados + 5 preguntas de
-  personalización (idioma, objetivo, experiencia, notificaciones, intereses), cada opción con su
-  descripción y sus roles/canales. Se aplica por REST cruda (`PUT /guilds/{id}/onboarding`, que JDA
-  no envuelve) desde `OnboardingPlan`; idempotente. Requiere Comunidad activada. Ver ADR-007.
-- **Integración bilingüe (ES/EN) sin fragmentar**: pregunta de idioma en el onboarding → rol con
-  bandera (`🇪🇸 Español` / `🇬🇧 English`), cosmético y para pings segmentados; canales compartidos
-  (el bot ya responde en el idioma de cada usuario). Textos del onboarding bilingües.
+- **Onboarding de Discord (configuración manual)**: diseñadas las 5 preguntas de personalización
+  (idioma, objetivo, experiencia, notificaciones, intereses) con roles/canales por opción y los
+  canales predeterminados. Se configura **a mano** en el editor de Discord (su API/editor impone
+  límites de nº de preguntas y de cobertura de canales que hacían inviable automatizarlo). El diseño
+  vive en el spec `docs/superpowers/specs/2026-07-13-onboarding-permisos-idiomas-design.md`. Ver ADR-007.
+- **Integración bilingüe (ES/EN) sin fragmentar**: pregunta de idioma → rol con bandera
+  (`🇪🇸 Español` / `🇬🇧 English`), cosmético y para pings segmentados; canales compartidos (el bot ya
+  responde en el idioma de cada usuario).
 - **Matriz de permisos por rol declarativa**: `CanalPlan` admite overrides por rol
   (`.permite(...)`, `.niega(...)`, `.conSoloLectura()`) que `/setup` aplica al crear y al reutilizar.
   Coach/Nutricionista gestionan los foros de fitness; Ponente habla en el Escenario. Ver ADR-008.
