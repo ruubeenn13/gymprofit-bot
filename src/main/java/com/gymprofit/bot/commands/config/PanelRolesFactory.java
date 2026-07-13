@@ -25,7 +25,6 @@ public final class PanelRolesFactory {
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, "panel.roles.titulo"),
                 Messages.get(locale, "panel.roles.desc"))
-                .setThumbnail(EmbedFactory.iconoUrl())
                 .build();
 
         StringSelectMenu objetivo = StringSelectMenu.create("roles:objetivo")

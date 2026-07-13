@@ -666,7 +666,6 @@ public final class SetupComando implements Comando {
         }
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                         Messages.get(locale, "nav.titulo"), Messages.get(locale, "nav.desc"))
-                .setThumbnail(EmbedFactory.iconoUrl())
                 .build();
         empieza.sendMessageEmbeds(embed).addActionRow(botones).queue(
                 mensaje -> mensaje.pin().queue(),
@@ -699,7 +698,6 @@ public final class SetupComando implements Comando {
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, chPlan.introKey() + ".titulo"),
                 Messages.get(locale, chPlan.introKey() + ".desc"))
-                .setThumbnail(EmbedFactory.iconoUrl())
                 .build();
         canal.sendMessageEmbeds(embed).queue(
                 mensaje -> mensaje.pin().queue(),

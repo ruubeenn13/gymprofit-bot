@@ -120,9 +120,11 @@ public final class EmbedFactory {
      * @return el {@link EmbedBuilder} listo para añadir descripción/fields
      */
     public static EmbedBuilder base(Tipo tipo, Locale locale, String titulo) {
+        // Un solo logo por embed: el del footer (sutil). El autor va sin icono y el thumbnail queda
+        // libre para imágenes con contexto (avatar del usuario, ítem, monstruo…).
         return new EmbedBuilder()
                 .setColor(tipo.categoria().color())
-                .setAuthor(Messages.get(locale, "embed.autor"), null, iconoFooterUrl)
+                .setAuthor(Messages.get(locale, "embed.autor"), null, null)
                 .setTitle(tipo.emoji() + "  " + titulo)
                 .setFooter(Messages.get(locale, "embed.footer"), iconoFooterUrl)
                 .setTimestamp(Instant.now());
@@ -167,7 +169,7 @@ public final class EmbedFactory {
     public static MessageEmbed aviso(Tipo tipo, Locale locale, String texto) {
         return new EmbedBuilder()
                 .setColor(tipo.categoria().color())
-                .setAuthor(Messages.get(locale, "embed.autor"), null, iconoFooterUrl)
+                .setAuthor(Messages.get(locale, "embed.autor"), null, null)
                 .setDescription(texto)
                 .setFooter(Messages.get(locale, "embed.footer"), iconoFooterUrl)
                 .setTimestamp(Instant.now())

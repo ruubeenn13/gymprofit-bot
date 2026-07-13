@@ -157,7 +157,6 @@ public final class ConfigComando implements Comando {
 
         var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "config.ver.titulo"), d.toString().strip())
-                .setThumbnail(EmbedFactory.iconoUrl())
                 .build();
         evento.replyEmbeds(embed).setEphemeral(true).queue();
     }
