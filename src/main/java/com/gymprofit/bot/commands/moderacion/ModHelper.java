@@ -5,10 +5,12 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.util.Duraciones;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 
 import java.util.List;
@@ -83,6 +85,20 @@ public final class ModHelper {
     /** Rol {@code 🔇 Silenciado} del servidor, o {@code null} si no existe (falta ejecutar /setup). */
     public static Role rolSilenciado(Guild guild) {
         return guild.getRolesByName(ROL_SILENCIADO, false).stream().findFirst().orElse(null);
+    }
+
+    /**
+     * Bloquea o desbloquea un canal para {@code @everyone}: al bloquear niega MESSAGE_SEND; al
+     * desbloquear limpia el override (restaura la herencia de la categoría). Idempotente.
+     */
+    public static void aplicarBloqueo(IPermissionContainer canal, boolean bloquear, String razon) {
+        Role everyone = canal.getGuild().getPublicRole();
+        var accion = canal.upsertPermissionOverride(everyone);
+        if (bloquear) {
+            accion.deny(Permission.MESSAGE_SEND).reason(razon).queue();
+        } else {
+            accion.clear(Permission.MESSAGE_SEND).reason(razon).queue();
+        }
     }
 
     /** Publica el embed de la acción en el canal {@code bot-logs} del servidor si está configurado. */

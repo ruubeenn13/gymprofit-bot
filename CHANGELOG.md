@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Moderación — canales**: `/lock` `/unlock` (bloquear/reabrir un canal), `/lockdown` `/unlockdown`
+  (todos los canales de texto, anti-raid) y `/slowmode` (modo lento). Solo altos cargos; log en
+  `🤖・bot-logs`. (Fase D.)
 - **Moderación — historial**: `/modlogs` (historial completo de un miembro, **paginado con botones**
   ◀ ▶) y `/motivo` (edita el motivo de un caso; se re-cifra). (Fase C2.)
 - **Moderación — sanciones directas**: `/mute` `/unmute` (rol 🔇 Silenciado), `/timeout` `/untimeout`
