@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Economía / RPG — tienda e inventario**: migración **V8** (`inventario`); catálogo amplio de ítems
+  (`Items`, ~24: consumibles, equipo, bienes). `/tienda` (por categoría), `/comprar` (pago atómico
+  con el monedero), `/inventario` (agrupado) y `/usar` (los consumibles aplican energía/salud). Rol
+  cosmético de trabajo al `/elegir-trabajo` (lazy, reutiliza, sin agotar cupo). (F-ECO-2a.)
 - **Economía / RPG — trabajo y energía**: migración **V7** (personajes con trabajo + cooldown);
   catálogo **amplio de ~32 trabajos** de muchos sectores (transporte, hostelería, tecnología,
   sanidad, oficios, derecho, ciencia…) con tiers y requisito de nivel. `/trabajos` (lista),

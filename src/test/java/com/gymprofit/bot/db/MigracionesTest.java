@@ -45,9 +45,9 @@ class MigracionesTest {
                     .load()
                     .migrate();
 
-            // V1..V7 al menos; sin errores.
-            assertTrue(resultado.migrationsExecuted >= 7,
-                    "Deben aplicarse al menos V1..V7");
+            // V1..V8 al menos; sin errores.
+            assertTrue(resultado.migrationsExecuted >= 8,
+                    "Deben aplicarse al menos V1..V8");
             assertTrue(resultado.success, "La migración debe terminar con éxito");
 
             try (Connection con = DriverManager.getConnection(
@@ -76,6 +76,9 @@ class MigracionesTest {
                 assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_name = 'personajes' AND column_name = 'trabajo'"),
                         "personajes.trabajo debe existir tras V7");
+                // V8 aplicada: inventario existe y arranca vacío.
+                assertEquals(0, contar(st, "SELECT COUNT(*) FROM inventario"),
+                        "inventario debe existir y arrancar vacío");
                 // warns.motivo debe ser TEXT (aloja el texto cifrado en base64).
                 assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_name = 'warns' AND column_name = 'motivo' "

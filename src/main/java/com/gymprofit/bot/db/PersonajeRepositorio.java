@@ -96,6 +96,24 @@ public final class PersonajeRepositorio {
         }
     }
 
+    /** Suma energía a un personaje (tope 100). Para consumibles. */
+    public void sumarEnergia(long discordId, int cantidad) {
+        ejecutar("UPDATE personajes SET energia = LEAST(100, energia + ?) WHERE discord_id = ?",
+                ps -> {
+                    ps.setInt(1, cantidad);
+                    ps.setLong(2, discordId);
+                });
+    }
+
+    /** Suma salud a un personaje (tope 100). Para consumibles. */
+    public void sumarSalud(long discordId, int cantidad) {
+        ejecutar("UPDATE personajes SET salud = LEAST(100, salud + ?) WHERE discord_id = ?",
+                ps -> {
+                    ps.setInt(1, cantidad);
+                    ps.setLong(2, discordId);
+                });
+    }
+
     /** Regenera energía a todos los personajes (job periódico): {@code +cantidad}, tope 100. */
     public int regenerarEnergia(int cantidad) {
         try (Connection con = dataSource.getConnection();

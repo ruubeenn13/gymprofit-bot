@@ -13,11 +13,15 @@ import com.gymprofit.bot.commands.contenido.AnuncioComando;
 import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
+import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
 import com.gymprofit.bot.commands.economia.EntrenarComando;
+import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
+import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
+import com.gymprofit.bot.commands.economia.UsarComando;
 import com.gymprofit.bot.commands.economia.WorkComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
@@ -49,6 +53,7 @@ import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
@@ -60,6 +65,7 @@ import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EventoService;
+import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
@@ -293,6 +299,14 @@ public final class Main {
             comandos.add(new WorkComando(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();
+
+            // Tienda e inventario.
+            ItemService itemService = new ItemService(economiaRepo,
+                    new InventarioRepositorio(db.dataSource()), personajeRepo, usuarios);
+            comandos.add(new TiendaComando());
+            comandos.add(new ComprarComando(itemService));
+            comandos.add(new InventarioComando(itemService));
+            comandos.add(new UsarComando(itemService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
