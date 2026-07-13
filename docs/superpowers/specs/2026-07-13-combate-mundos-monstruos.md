@@ -76,9 +76,13 @@
 
 ## Componentes por fase
 
-**COMBAT-1 · Armas, armaduras y equipar** *(cimiento del combate)*
+**COMBAT-1 · Armas, armaduras y equipar** *(cimiento del combate)* — ✅ **HECHO**
 Extiende `Items` con ARMA/ARMADURA (ataque/defensa); columnas `personajes.arma`/`armadura`;
 `/equipar <item>`, `/desequipar`, y el **poder de combate** en `/perfil`. La tienda ya los vende.
+> Implementado: **V10** (`arma`/`armadura`), 16 armas + 12 armaduras en `Items`, `CombateService`
+> (`equipar`/`desequipar`/`poderCombate`), `EquiparComando`/`DesequiparComando`, `/perfil` con poder
+> de combate + equipo, `/tienda` con secciones Armas/Armaduras y su stat. `CombateServiceTest` (11).
+> El **HP de combate** se difiere a COMBAT-3 (cuando haya pelea). Sin canales nuevos aún.
 
 **COMBAT-2 · Mundos y monstruos**
 Catálogos `Mundos` y `Monstruos` (amplios); tabla `progreso_mundos`; `/mundos` (lista con

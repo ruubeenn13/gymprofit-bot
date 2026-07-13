@@ -36,7 +36,7 @@ public final class PersonajeRepositorio {
     /** Personaje por id, si existe. */
     public Optional<Personaje> buscar(long discordId) {
         String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud, trabajo, "
-                + "ultimo_work FROM personajes WHERE discord_id = ?";
+                + "ultimo_work, arma, armadura FROM personajes WHERE discord_id = ?";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, discordId);
@@ -153,10 +153,26 @@ public final class PersonajeRepositorio {
         }
     }
 
+    /**
+     * Equipa (o desequipa) un ítem en una ranura de combate. {@code ranura} debe ser
+     * {@code arma} o {@code armadura}; {@code itemId} = {@code null} desequipa. No valida posesión
+     * (eso lo hace el service antes de llamar).
+     */
+    public void fijarEquipo(long discordId, String ranura, String itemId) {
+        if (!ranura.equals("arma") && !ranura.equals("armadura")) {
+            throw new IllegalArgumentException("Ranura no válida: " + ranura);
+        }
+        ejecutar("UPDATE personajes SET " + ranura + " = ? WHERE discord_id = ?", ps -> {
+            ps.setString(1, itemId);
+            ps.setLong(2, discordId);
+        });
+    }
+
     private static Personaje mapear(ResultSet rs) throws SQLException {
         java.sql.Timestamp uw = rs.getTimestamp("ultimo_work");
         return new Personaje(rs.getLong("discord_id"), rs.getInt("fuerza"), rs.getInt("resistencia"),
                 rs.getInt("carisma"), rs.getInt("energia"), rs.getInt("salud"),
-                rs.getString("trabajo"), uw == null ? null : uw.toInstant());
+                rs.getString("trabajo"), uw == null ? null : uw.toInstant(),
+                rs.getString("arma"), rs.getString("armadura"));
     }
 }

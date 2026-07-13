@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -45,10 +46,11 @@ class EmbedFactoryTest {
     }
 
     @Test
-    void poneLineaDeAutorDeMarca() {
+    void noPoneLineaDeAutor() {
+        // La línea de autor (nombre+logo al inicio) se retiró: repetía la cabecera del mensaje y
+        // el logo ya vive solo en el footer. Ningún embed debe llevar autor.
         MessageEmbed embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, Messages.ES, "Stats").build();
-        assertNotNull(embed.getAuthor(), "Todo embed lleva línea de autor (cabecera de marca)");
-        assertEquals("GymProBot", embed.getAuthor().getName());
+        assertNull(embed.getAuthor(), "Los embeds ya no llevan línea de autor (solo footer)");
     }
 
     @Test

@@ -7,6 +7,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — armas, armaduras y poder de combate** (COMBAT-1): migración **V10** (columnas
+  `personajes.arma`/`armadura`); catálogo ampliado (`Items`) con **16 armas** (puños→espada
+  legendaria, +ataque) y **12 armaduras** (ropa→armadura divina, +defensa), temática aventura
+  (no-gym), precios anclados a la escala lenta. `CombateService` con `/equipar <item>` (exige
+  poseerlo, no lo consume) y `/desequipar <ranura>`; `/perfil` muestra el **poder de combate**
+  (fuerza + resistencia + ataque + defensa) y el equipo. `/tienda` añade las secciones ⚔️ Armas y
+  🛡️ Armaduras con su stat. Base para los mundos/monstruos/batalla (COMBAT-2+). Spec
+  `docs/superpowers/specs/2026-07-13-combate-mundos-monstruos.md`.
+
+### Corregido
+- **Embeds — test de la línea de autor**: `EmbedFactoryTest` seguía exigiendo la línea de autor que
+  se retiró en `693f268` (solo footer); actualizado para verificar que **ya no** hay autor. (CI en
+  verde de nuevo.)
+
 - **Economía / RPG — árbol de mejoras**: migración **V9** (`mejoras`); `/mejoras` dibuja un **árbol
   visual** (ASCII/emoji) con ramas de fuerza/resistencia/carisma, nodos ✅ comprado / 🔓 disponible /
   🔒 bloqueado y su precio; `/mejorar <nodo>` compra (valida prerrequisito y saldo, sube el atributo

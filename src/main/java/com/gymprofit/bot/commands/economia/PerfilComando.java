@@ -3,8 +3,10 @@ package com.gymprofit.bot.commands.economia;
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
+import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EconomiaService.Perfil;
+import com.gymprofit.bot.services.Items;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
@@ -51,12 +53,25 @@ public final class PerfilComando implements Comando {
 
         evento.deferReply(true).queue();
         Perfil p = economia.perfil(objetivo.getIdLong());
+        String arma = nombreEquipo(locale, p.personaje().arma());
+        String armadura = nombreEquipo(locale, p.personaje().armadura());
         String desc = Messages.get(locale, "perfil.cuerpo",
                 p.coins(), p.personaje().energia(), p.personaje().salud(),
-                p.personaje().fuerza(), p.personaje().resistencia(), p.personaje().carisma());
+                p.personaje().fuerza(), p.personaje().resistencia(), p.personaje().carisma(),
+                CombateService.poderCombate(p.personaje()), arma, armadura);
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                         Messages.get(locale, "perfil.titulo", objetivo.getName()), desc)
                 .setThumbnail(objetivo.getEffectiveAvatarUrl()).build();
         evento.getHook().sendMessageEmbeds(embed).queue();
+    }
+
+    /** Nombre localizado del ítem equipado (con emoji), o «—» si la ranura está vacía. */
+    private static String nombreEquipo(Locale locale, String itemId) {
+        if (itemId == null) {
+            return Messages.get(locale, "perfil.sinequipo");
+        }
+        return Items.porId(itemId)
+                .map(i -> i.emoji() + " " + Messages.get(locale, "item." + i.id()))
+                .orElse(itemId);
     }
 }

@@ -29,6 +29,8 @@ public final class TiendaComando implements Comando {
                 .addChoice("consumibles", "CONSUMIBLE")
                 .addChoice("equipo", "EQUIPO")
                 .addChoice("bienes", "BIEN")
+                .addChoice("armas", "ARMA")
+                .addChoice("armaduras", "ARMADURA")
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.tienda.opcion.categoria"));
 
@@ -60,7 +62,14 @@ public final class TiendaComando implements Comando {
                     continue;
                 }
                 sb.append(Messages.get(locale, "tienda.linea", item.emoji(), item.id(),
-                        Messages.get(locale, "item." + item.id()), item.precio())).append('\n');
+                        Messages.get(locale, "item." + item.id()), item.precio()));
+                // Las armas/armaduras muestran su stat de combate junto al precio.
+                if (item.categoria() == Items.Categoria.ARMA) {
+                    sb.append(Messages.get(locale, "tienda.stat.ataque", item.ataque()));
+                } else if (item.categoria() == Items.Categoria.ARMADURA) {
+                    sb.append(Messages.get(locale, "tienda.stat.defensa", item.defensa()));
+                }
+                sb.append('\n');
             }
             String titulo = Messages.get(locale, "tienda.titulo") + " — "
                     + Messages.get(locale, "tienda.cat." + cat.name().toLowerCase());

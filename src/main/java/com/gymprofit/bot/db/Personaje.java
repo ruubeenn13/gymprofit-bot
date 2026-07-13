@@ -15,7 +15,10 @@ import java.time.Instant;
  * @param salud       salud 0-100
  * @param trabajo     id del trabajo actual (catálogo en código), o {@code null} si está en paro
  * @param ultimoWork  última vez que usó {@code /work}, o {@code null} si nunca
+ * @param arma        id del arma equipada (catálogo Items), o {@code null} si combate a puño
+ * @param armadura    id de la armadura equipada (catálogo Items), o {@code null} si sin armadura
  */
 public record Personaje(long discordId, int fuerza, int resistencia, int carisma,
-                        int energia, int salud, String trabajo, Instant ultimoWork) {
+                        int energia, int salud, String trabajo, Instant ultimoWork,
+                        String arma, String armadura) {
 }

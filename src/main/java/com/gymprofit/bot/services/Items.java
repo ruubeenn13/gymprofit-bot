@@ -15,12 +15,29 @@ import java.util.Optional;
  * @param precio    precio de compra en coins
  * @param efecto    efecto al usarlo (solo consumibles)
  * @param valor     magnitud del efecto (p. ej. +energía)
+ * @param ataque    puntos de ataque (solo {@link Categoria#ARMA}; suma al poder de combate)
+ * @param defensa   puntos de defensa (solo {@link Categoria#ARMADURA}; suma al poder de combate)
  */
-public record Items(String id, Categoria categoria, String emoji, long precio, Efecto efecto, int valor) {
+public record Items(String id, Categoria categoria, String emoji, long precio, Efecto efecto,
+                    int valor, int ataque, int defensa) {
 
-    public enum Categoria { CONSUMIBLE, EQUIPO, BIEN }
+    /**
+     * Categorías del catálogo. {@code ARMA}/{@code ARMADURA} son equipables (COMBAT-1) y aportan
+     * ataque/defensa al poder de combate; el resto no se equipa.
+     */
+    public enum Categoria { CONSUMIBLE, EQUIPO, BIEN, ARMA, ARMADURA }
 
     public enum Efecto { NINGUNO, ENERGIA, SALUD }
+
+    /** Constructor de compatibilidad para los ítems no combativos (sin ataque/defensa). */
+    public Items(String id, Categoria categoria, String emoji, long precio, Efecto efecto, int valor) {
+        this(id, categoria, emoji, precio, efecto, valor, 0, 0);
+    }
+
+    /** ¿Es un ítem equipable (arma o armadura)? */
+    public boolean esEquipable() {
+        return categoria == Categoria.ARMA || categoria == Categoria.ARMADURA;
+    }
 
     /** Catálogo completo, agrupado por categoría. */
     public static final List<Items> CATALOGO = List.of(
@@ -86,7 +103,37 @@ public record Items(String id, Categoria categoria, String emoji, long precio, E
             new Items("isla", Categoria.BIEN, "🏝️", 800000, Efecto.NINGUNO, 0),
             new Items("rascacielos", Categoria.BIEN, "🏙️", 1500000, Efecto.NINGUNO, 0),
             new Items("castillo", Categoria.BIEN, "🏯", 1200000, Efecto.NINGUNO, 0),
-            new Items("cohete", Categoria.BIEN, "🚀", 3000000, Efecto.NINGUNO, 0));
+            new Items("cohete", Categoria.BIEN, "🚀", 3000000, Efecto.NINGUNO, 0),
+            // --- Armas (equipables; +ataque al poder de combate). Temática aventura, no-gym. ---
+            new Items("puno", Categoria.ARMA, "🥊", 50, Efecto.NINGUNO, 0, 2, 0),
+            new Items("palo", Categoria.ARMA, "🪵", 120, Efecto.NINGUNO, 0, 4, 0),
+            new Items("daga", Categoria.ARMA, "🗡️", 300, Efecto.NINGUNO, 0, 7, 0),
+            new Items("espada_corta", Categoria.ARMA, "🔪", 600, Efecto.NINGUNO, 0, 10, 0),
+            new Items("maza", Categoria.ARMA, "🔨", 1000, Efecto.NINGUNO, 0, 13, 0),
+            new Items("hacha", Categoria.ARMA, "🪓", 1600, Efecto.NINGUNO, 0, 16, 0),
+            new Items("lanza", Categoria.ARMA, "🔱", 2400, Efecto.NINGUNO, 0, 19, 0),
+            new Items("espada", Categoria.ARMA, "⚔️", 3500, Efecto.NINGUNO, 0, 23, 0),
+            new Items("arco", Categoria.ARMA, "🏹", 5000, Efecto.NINGUNO, 0, 27, 0),
+            new Items("ballesta", Categoria.ARMA, "🎯", 7000, Efecto.NINGUNO, 0, 31, 0),
+            new Items("katana", Categoria.ARMA, "🎏", 10000, Efecto.NINGUNO, 0, 36, 0),
+            new Items("martillo_guerra", Categoria.ARMA, "🛠️", 15000, Efecto.NINGUNO, 0, 42, 0),
+            new Items("alabarda", Categoria.ARMA, "⚜️", 22000, Efecto.NINGUNO, 0, 48, 0),
+            new Items("guadana", Categoria.ARMA, "🌾", 32000, Efecto.NINGUNO, 0, 54, 0),
+            new Items("baston_arcano", Categoria.ARMA, "🪄", 45000, Efecto.NINGUNO, 0, 60, 0),
+            new Items("espada_legendaria", Categoria.ARMA, "🌟", 80000, Efecto.NINGUNO, 0, 75, 0),
+            // --- Armaduras (equipables; +defensa al poder de combate). ---
+            new Items("ropa", Categoria.ARMADURA, "👕", 40, Efecto.NINGUNO, 0, 0, 1),
+            new Items("cuero", Categoria.ARMADURA, "🧥", 250, Efecto.NINGUNO, 0, 0, 3),
+            new Items("acolchada", Categoria.ARMADURA, "🥋", 500, Efecto.NINGUNO, 0, 0, 5),
+            new Items("escudo_madera", Categoria.ARMADURA, "🪵", 900, Efecto.NINGUNO, 0, 0, 8),
+            new Items("cota_malla", Categoria.ARMADURA, "🔗", 1200, Efecto.NINGUNO, 0, 0, 10),
+            new Items("placas", Categoria.ARMADURA, "🛡️", 3000, Efecto.NINGUNO, 0, 0, 14),
+            new Items("armadura_hierro", Categoria.ARMADURA, "⚙️", 5000, Efecto.NINGUNO, 0, 0, 18),
+            new Items("escudo_acero", Categoria.ARMADURA, "🔰", 6500, Efecto.NINGUNO, 0, 0, 20),
+            new Items("armadura_elfica", Categoria.ARMADURA, "🍃", 12000, Efecto.NINGUNO, 0, 0, 25),
+            new Items("armadura_dorada", Categoria.ARMADURA, "🥇", 25000, Efecto.NINGUNO, 0, 0, 30),
+            new Items("armadura_draconica", Categoria.ARMADURA, "🐉", 60000, Efecto.NINGUNO, 0, 0, 40),
+            new Items("armadura_divina", Categoria.ARMADURA, "✨", 120000, Efecto.NINGUNO, 0, 0, 55));
 
     /** Busca un ítem por id. */
     public static Optional<Items> porId(String id) {

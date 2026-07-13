@@ -15,6 +15,8 @@ import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
+import com.gymprofit.bot.commands.economia.DesequiparComando;
+import com.gymprofit.bot.commands.economia.EquiparComando;
 import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
 import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
@@ -66,6 +68,7 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
+import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ItemService;
@@ -305,12 +308,19 @@ public final class Main {
             new EnergiaJob(personajeRepo).iniciar();
 
             // Tienda e inventario.
-            ItemService itemService = new ItemService(economiaRepo,
-                    new InventarioRepositorio(db.dataSource()), personajeRepo, usuarios);
+            InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
+            ItemService itemService =
+                    new ItemService(economiaRepo, inventarioRepo, personajeRepo, usuarios);
             comandos.add(new TiendaComando());
             comandos.add(new ComprarComando(itemService));
             comandos.add(new InventarioComando(itemService));
             comandos.add(new UsarComando(itemService));
+
+            // Combate (COMBAT-1): equipar arma/armadura y poder de combate.
+            CombateService combateService =
+                    new CombateService(personajeRepo, inventarioRepo, usuarios);
+            comandos.add(new EquiparComando(combateService));
+            comandos.add(new DesequiparComando(combateService));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(
