@@ -25,6 +25,12 @@ El mayor riesgo es la **inflación** (todos ricos → nada vale). Todo el diseñ
 - **Sumideros** (sale dinero): tienda, mejoras, mantenimiento/impuestos, comisiones del mercado,
   pérdidas de gambling, cuotas de gremio.
 
+**Progresión lenta (grind) — decisión del usuario.** Crecer tiene que **costar**; no se avanza
+rápido. Recompensas modestas, cooldowns amplios, energía limitada por día, subidas de stats/nivel
+pequeñas, mejoras y ascensos **caros** y con requisitos exigentes. Es un "slow burn": el valor está
+en el largo plazo, no en farmear en una tarde. Todas las constantes de balance nacen conservadoras
+y se ajustan al alza solo si hace falta.
+
 Reglas invariables:
 - **Nunca saldo negativo.** Toda operación de dinero es atómica y validada.
 - **Ledger de transacciones** (`transacciones`): toda variación de coins se registra (anti-trampa,

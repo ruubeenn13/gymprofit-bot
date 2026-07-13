@@ -7,6 +7,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Economía / RPG — cimientos**: migración **V6** (`personajes` con atributos/energía/salud +
+  `transacciones` como ledger de coins); monedero **seguro** (operaciones atómicas, nunca saldo
+  negativo, todo registrado); `/balance`, `/perfil` (personaje + saldo) y `/daily` (recompensa
+  diaria con racha, **progresión lenta a propósito**). Primer paso del simulador de vida de ficción
+  (spec `docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`). (F-ECO-0.)
 - **Sugerencias**: `/sugerencia` crea un post en el foro `💡・sugerencias` con votación 👍/👎 y
   etiqueta «En estudio», y lo guarda; `/sugerencia-resolver <id> aceptada|rechazada` (staff) cambia
   el estado en BD y la etiqueta del foro (Aprobada/Rechazada). (Bloque D2.)

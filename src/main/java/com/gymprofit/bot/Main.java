@@ -12,6 +12,9 @@ import com.gymprofit.bot.commands.config.PanelComando;
 import com.gymprofit.bot.commands.contenido.AnuncioComando;
 import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
+import com.gymprofit.bot.commands.economia.BalanceComando;
+import com.gymprofit.bot.commands.economia.DailyComando;
+import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
@@ -41,6 +44,8 @@ import com.gymprofit.bot.commands.privacidad.PrivacidadComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
+import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.SorteoRepositorio;
@@ -49,6 +54,7 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
+import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.PrivacidadService;
@@ -265,6 +271,14 @@ public final class Main {
                     new SugerenciaService(new SugerenciaRepositorio(db.dataSource()), usuarios);
             comandos.add(new SugerenciaComando(sugerenciaService));
             comandos.add(new SugerenciaResolverComando(sugerenciaService));
+
+            // Economía / RPG (cimientos): monedero seguro, daily y perfil.
+            EconomiaService economiaService = new EconomiaService(
+                    new EconomiaRepositorio(db.dataSource()),
+                    new PersonajeRepositorio(db.dataSource()), usuarios);
+            comandos.add(new BalanceComando(economiaService));
+            comandos.add(new DailyComando(economiaService));
+            comandos.add(new PerfilComando(economiaService));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
