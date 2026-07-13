@@ -42,6 +42,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.SorteoRepositorio;
+import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
@@ -49,12 +50,14 @@ import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
+import com.gymprofit.bot.services.TicketService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
+import com.gymprofit.bot.events.TicketListener;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.jobs.RetencionJob;
 import com.gymprofit.bot.services.ConfigServidorService;
@@ -248,6 +251,10 @@ public final class Main {
             comandos.add(new RedesComando());
             comandos.add(new SorteoComando(new SorteoService(new SorteoRepositorio(db.dataSource()))));
             comandos.add(new PanelComando());
+
+            // Tickets: panel por botón + canal privado + transcript al cerrar.
+            listeners.add(new TicketListener(
+                    new TicketService(new TicketRepositorio(db.dataSource()), usuarios)));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

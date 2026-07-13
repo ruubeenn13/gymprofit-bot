@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Tickets de soporte**: panel por botón (`/panel tipo:ticket` en `🎫・soporte`) → abre un **canal
+  privado** (autor + staff) en la categoría TICKETS; botón **Cerrar** → guarda la **transcripción**
+  en la BD y la publica en `🗄️・logs-tickets`, y borra el canal. Uno abierto por usuario.
+  (`TicketService`, `TicketListener`. Bloque D1.)
 - **Contenido — panel de roles**: `/panel` republica el panel de auto-roles (menús de objetivo y
   notificaciones) en `🎭・roles` (o el canal indicado) y lo fija. Panel extraído a `PanelRolesFactory`
   reutilizada por `/setup`. (Bloque A3.)

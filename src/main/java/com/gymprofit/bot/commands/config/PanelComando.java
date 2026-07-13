@@ -2,6 +2,8 @@ package com.gymprofit.bot.commands.config;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.commands.moderacion.ModHelper;
+import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.events.TicketListener;
 import com.gymprofit.bot.i18n.Messages;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
@@ -12,6 +14,7 @@ import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
@@ -27,9 +30,16 @@ public final class PanelComando implements Comando {
 
     private static final String NOMBRE = "panel";
     private static final String CANAL_ROLES = "🎭・roles";
+    private static final String CANAL_SOPORTE = "🎫・soporte";
 
     @Override
     public SlashCommandData definicion() {
+        OptionData tipo = new OptionData(OptionType.STRING, "tipo",
+                Messages.get(Messages.ES, "comando.panel.opcion.tipo"), false)
+                .addChoice("roles", "roles")
+                .addChoice("ticket", "ticket")
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.panel.opcion.tipo"));
         OptionData canal = new OptionData(OptionType.CHANNEL, "canal",
                 Messages.get(Messages.ES, "comando.panel.opcion.canal"), false)
                 .setChannelTypes(ChannelType.TEXT)
@@ -43,7 +53,7 @@ public final class PanelComando implements Comando {
                         Messages.get(Messages.EN, "comando.panel.descripcion"))
                 .setContexts(InteractionContextType.GUILD)
                 .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER))
-                .addOptions(canal);
+                .addOptions(tipo, canal);
     }
 
     @Override
@@ -58,26 +68,36 @@ public final class PanelComando implements Comando {
             evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
             return;
         }
+        boolean ticket = evento.getOption("tipo") != null
+                && "ticket".equals(evento.getOption("tipo").getAsString());
+        String canalDefecto = ticket ? CANAL_SOPORTE : CANAL_ROLES;
+
         TextChannel canal;
         if (evento.getOption("canal") != null) {
             GuildChannel elegido = evento.getOption("canal").getAsChannel();
             canal = elegido instanceof TextChannel tc ? tc : null;
         } else {
-            canal = evento.getGuild().getTextChannelsByName(CANAL_ROLES, false)
+            canal = evento.getGuild().getTextChannelsByName(canalDefecto, false)
                     .stream().findFirst().orElse(evento.getChannel().asTextChannel());
         }
         if (canal == null) {
-            evento.reply(Messages.get(locale, "contenido.sincanal", CANAL_ROLES))
+            evento.reply(Messages.get(locale, "contenido.sincanal", canalDefecto))
                     .setEphemeral(true).queue();
             return;
         }
 
         evento.deferReply(true).queue();
-        canal.sendMessage(PanelRolesFactory.mensaje(locale)).queue(
-                mensaje -> {
-                    mensaje.pin().queue();
-                    evento.getHook().sendMessage(Messages.get(locale, "panel.publicado")).queue();
-                },
-                error -> evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue());
+        if (ticket) {
+            var embed = EmbedFactory.base(EmbedFactory.Tipo.TICKET, locale,
+                    Messages.get(locale, "panel.ticket.titulo"),
+                    Messages.get(locale, "panel.ticket.desc")).build();
+            canal.sendMessageEmbeds(embed)
+                    .addActionRow(Button.primary(TicketListener.BOTON_ABRIR,
+                            Messages.get(locale, "panel.ticket.boton")))
+                    .queue(m -> m.pin().queue());
+        } else {
+            canal.sendMessage(PanelRolesFactory.mensaje(locale)).queue(m -> m.pin().queue());
+        }
+        evento.getHook().sendMessage(Messages.get(locale, "panel.publicado")).queue();
     }
 }
