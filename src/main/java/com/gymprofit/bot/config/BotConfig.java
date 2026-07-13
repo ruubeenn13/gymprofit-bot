@@ -7,7 +7,7 @@ package com.gymprofit.bot.config;
  *
  * <p>Variables reconocidas: {@code DISCORD_TOKEN}, {@code DB_URL}, {@code DB_USER},
  * {@code DB_PASSWORD}, {@code GYMPROFIT_API_URL}, {@code BOT_SERVICE_USER},
- * {@code BOT_SERVICE_PASSWORD}, {@code PORT}, {@code TZ}.</p>
+ * {@code BOT_SERVICE_PASSWORD}, {@code BOT_CRYPTO_KEY}, {@code PORT}, {@code TZ}.</p>
  *
  * <p>Prohibido loggear el valor de los secretos.</p>
  */
@@ -55,6 +55,16 @@ public final class BotConfig {
 
     public static String botServicePassword() {
         return env("BOT_SERVICE_PASSWORD", "");
+    }
+
+    /**
+     * Clave AES-256 (32 bytes en base64) para cifrar el texto libre con posible dato personal
+     * (motivos de sanción, apodos previos). Vacío = cifrado deshabilitado (arranque degradado).
+     * Generar una con {@code Cifrador.generarClaveBase64()} y guardarla a buen recaudo: perderla
+     * impide descifrar lo ya guardado.
+     */
+    public static String cryptoKey() {
+        return env("BOT_CRYPTO_KEY", "");
     }
 
     public static String version() {

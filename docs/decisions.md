@@ -53,6 +53,31 @@ con verificación y se distinguen en el ranking.
 
 ---
 
+## ADR-009 — Protección de datos del bot (RGPD)
+
+**Contexto.** El bot persiste datos de miembros (IDs de Discord, XP/economía, warns, sanciones,
+tickets). Hay que minimizar el riesgo legal sin romper consultas ni paginación.
+
+**Decisión.**
+- **Minimización:** solo se guardan IDs (snowflakes, pseudónimos) + números + poco texto libre.
+  Nunca nombres reales, emails ni avatares.
+- **Cifrado en reposo:** ya lo da Aiven (disco AES) + TLS en tránsito (`sslMode=REQUIRED`).
+- **Cifrado de campo (AES-256-GCM, `util/Cifrador`):** solo el texto libre con posible dato
+  personal (`warns.motivo`, `sanciones.motivo`, `sanciones.nick_anterior`, futuros transcripts).
+  Los IDs y numéricos van **en claro** para poder indexar, unir y paginar. **No se cifra todo**:
+  cifrar las PK/FK rompería índices y son datos ya públicos en Discord.
+- **Clave** en env var `BOT_CRYPTO_KEY` (32 bytes base64). Sin clave, el bot arranca pero el cifrado
+  se deshabilita y los comandos que cifran degradan sin persistir el texto. Perder la clave impide
+  descifrar lo guardado.
+- **Base legal:** interés legítimo (moderar y gamificar la comunidad).
+- **Derechos:** `/mis-datos` (acceso/portabilidad), `/borrar-mis-datos` (olvido, FK CASCADE),
+  `/privacidad` + nota en README (transparencia).
+- **Retención:** job diario que purga datos viejos por ventanas.
+
+**Estado:** aceptada (F-A implementada: `Cifrador` + esquema; resto por fases).
+
+---
+
 ## ADR-004 — Hosting del bot
 
 **Contexto (SPEC §14, restricción crítica).** Render regala 750 h de instancia free **por

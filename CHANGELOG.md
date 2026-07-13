@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Protección de datos (RGPD) — base**: cifrado de campo **AES-256-GCM** (`util/Cifrador`) para el
+  texto libre con posible dato personal (motivos de sanción, apodos previos); clave por env var
+  `BOT_CRYPTO_KEY`. Migración **V4** con la tabla `sanciones` (auditoría de moderación) y
+  `warns.motivo` ampliado a TEXT para el cifrado. Ver ADR-009. (Fase A del módulo de moderación.)
 - **Onboarding de Discord (configuración manual)**: diseñadas las 5 preguntas de personalización
   (idioma, objetivo, experiencia, notificaciones, intereses) con roles/canales por opción y los
   canales predeterminados. Se configura **a mano** en el editor de Discord (su API/editor impone
