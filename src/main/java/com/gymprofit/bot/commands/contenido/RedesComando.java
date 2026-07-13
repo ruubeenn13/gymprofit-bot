@@ -68,7 +68,7 @@ public final class RedesComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         StringBuilder desc = new StringBuilder();
@@ -81,13 +81,13 @@ public final class RedesComando implements Comando {
             }
         }
         if (desc.isEmpty()) {
-            evento.reply(Messages.get(locale, "redes.vacio")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "redes.vacio"))).setEphemeral(true).queue();
             return;
         }
         TextChannel canal = evento.getGuild().getTextChannelsByName(CANAL, false)
                 .stream().findFirst().orElse(null);
         if (canal == null) {
-            evento.reply(Messages.get(locale, "contenido.sincanal", CANAL)).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "contenido.sincanal", CANAL))).setEphemeral(true).queue();
             return;
         }
 
@@ -95,8 +95,8 @@ public final class RedesComando implements Comando {
         MessageEmbed embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, "redes.titulo"), desc.toString().trim()).build();
         canal.sendMessageEmbeds(embed).queue(
-                ok -> evento.getHook().sendMessage(Messages.get(locale, "redes.publicado")).queue(),
-                err -> evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue());
+                ok -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "redes.publicado"))).queue(),
+                err -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "comando.error.generico"))).queue());
     }
 
     private static String capitalizar(String s) {

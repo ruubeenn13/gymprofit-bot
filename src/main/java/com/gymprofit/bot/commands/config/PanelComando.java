@@ -65,7 +65,7 @@ public final class PanelComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         boolean ticket = evento.getOption("tipo") != null
@@ -81,8 +81,7 @@ public final class PanelComando implements Comando {
                     .stream().findFirst().orElse(evento.getChannel().asTextChannel());
         }
         if (canal == null) {
-            evento.reply(Messages.get(locale, "contenido.sincanal", canalDefecto))
-                    .setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "contenido.sincanal", canalDefecto))).setEphemeral(true).queue();
             return;
         }
 
@@ -98,6 +97,6 @@ public final class PanelComando implements Comando {
         } else {
             canal.sendMessage(PanelRolesFactory.mensaje(locale)).queue(m -> m.pin().queue());
         }
-        evento.getHook().sendMessage(Messages.get(locale, "panel.publicado")).queue();
+        evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "panel.publicado"))).queue();
     }
 }

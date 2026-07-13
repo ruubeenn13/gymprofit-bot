@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.moderacion;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.ModeracionService;
@@ -54,14 +55,14 @@ public final class UnbanComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         Member actor = evento.getMember();
         if (!ModHelper.esAltoCargo(actor)) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         long usuarioId;
         try {
             usuarioId = Long.parseUnsignedLong(evento.getOption("usuario_id").getAsString().trim());
         } catch (NumberFormatException e) {
-            evento.reply(Messages.get(locale, "unban.idinvalido")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "unban.idinvalido"))).setEphemeral(true).queue();
             return;
         }
 
@@ -75,6 +76,6 @@ public final class UnbanComando implements Comando {
                     evento.getHook().sendMessageEmbeds(embed).queue();
                     ModHelper.registrarEnLogs(evento.getGuild(), config, embed);
                 },
-                error -> evento.getHook().sendMessage(Messages.get(locale, "unban.noestaba")).queue());
+                error -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "unban.noestaba"))).queue());
     }
 }

@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.services.TrabajoService.ResultadoEntrenar;
@@ -55,6 +56,7 @@ public final class EntrenarComando implements Comando {
                 ? Messages.get(locale, "entrenar.ok", Messages.get(locale, "atributo." + atributo),
                         TrabajoService.ENERGIA_ENTRENAR)
                 : Messages.get(locale, "entrenar.sinenergia", TrabajoService.ENERGIA_ENTRENAR);
-        evento.getHook().sendMessage(mensaje).queue();
+        evento.getHook().sendMessageEmbeds(
+                EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje)).queue();
     }
 }

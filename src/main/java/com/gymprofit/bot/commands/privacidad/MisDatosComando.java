@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.privacidad;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.PrivacidadService;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -44,7 +45,7 @@ public final class MisDatosComando implements Comando {
         evento.deferReply(true).queue();
         DataObject datos = privacidad.exportar(evento.getUser().getIdLong());
         byte[] json = datos.toString().getBytes(StandardCharsets.UTF_8);
-        evento.getHook().sendMessage(Messages.get(locale, "misdatos.texto"))
+        evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "misdatos.texto")))
                 .addFiles(FileUpload.fromData(json, "mis-datos.json"))
                 .queue();
     }

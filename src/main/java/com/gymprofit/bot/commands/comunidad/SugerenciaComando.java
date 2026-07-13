@@ -60,7 +60,7 @@ public final class SugerenciaComando implements Comando {
         ForumChannel foro = evento.getGuild().getForumChannelsByName(FORO, false)
                 .stream().findFirst().orElse(null);
         if (foro == null) {
-            evento.reply(Messages.get(locale, "contenido.sincanal", FORO)).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "contenido.sincanal", FORO))).setEphemeral(true).queue();
             return;
         }
         String texto = evento.getOption("texto").getAsString();
@@ -81,7 +81,7 @@ public final class SugerenciaComando implements Comando {
             post.getMessage().addReaction(Emoji.fromUnicode("👎")).queue();
             long id = sugerencias.crear(evento.getUser().getIdLong(),
                     post.getThreadChannel().getIdLong(), texto);
-            evento.getHook().sendMessage(Messages.get(locale, "sugerencia.creada", id)).queue();
-        }, err -> evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue());
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "sugerencia.creada", id))).queue();
+        }, err -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "comando.error.generico"))).queue());
     }
 }

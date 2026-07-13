@@ -2,6 +2,7 @@ package com.gymprofit.bot.embeds;
 
 import com.gymprofit.bot.i18n.Messages;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -152,5 +153,24 @@ public final class EmbedFactory {
      */
     public static EmbedBuilder base(Tipo tipo, Locale locale, String titulo, String descripcion) {
         return base(tipo, locale, titulo).setDescription(descripcion);
+    }
+
+    /**
+     * Embed mínimo para respuestas breves (avisos, confirmaciones, errores): sin título, solo el
+     * texto, pero con la marca y el color del bot. Se usa para que <b>ningún</b> mensaje del bot sea
+     * texto plano y siempre se distinga que es él.
+     *
+     * @param tipo   tipo (define color); usa el de la categoría del comando
+     * @param locale idioma del footer/autor
+     * @param texto  texto ya localizado
+     */
+    public static MessageEmbed aviso(Tipo tipo, Locale locale, String texto) {
+        return new EmbedBuilder()
+                .setColor(tipo.categoria().color())
+                .setAuthor(Messages.get(locale, "embed.autor"), null, iconoFooterUrl)
+                .setDescription(texto)
+                .setFooter(Messages.get(locale, "embed.footer"), iconoFooterUrl)
+                .setTimestamp(Instant.now())
+                .build();
     }
 }

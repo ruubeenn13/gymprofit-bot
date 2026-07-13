@@ -1,5 +1,6 @@
 package com.gymprofit.bot.commands;
 
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -67,10 +68,11 @@ public final class RouterComandos extends ListenerAdapter {
             log.error("Error ejecutando /{}", evento.getName(), e);
             Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
             String mensaje = Messages.get(locale, "comando.error.generico");
+            var embed = EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, mensaje);
             if (evento.isAcknowledged()) {
-                evento.getHook().sendMessage(mensaje).setEphemeral(true).queue();
+                evento.getHook().sendMessageEmbeds(embed).setEphemeral(true).queue();
             } else {
-                evento.reply(mensaje).setEphemeral(true).queue();
+                evento.replyEmbeds(embed).setEphemeral(true).queue();
             }
         }
     }

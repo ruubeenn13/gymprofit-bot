@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.moderacion;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ModeracionService;
 import net.dv8tion.jda.api.Permission;
@@ -54,7 +55,7 @@ public final class MotivoComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         long casoId = evento.getOption("caso_id").getAsLong();
@@ -63,6 +64,6 @@ public final class MotivoComando implements Comando {
         evento.deferReply(true).queue();
         boolean editado = moderacion.editarMotivo(casoId, texto);
         String clave = editado ? "motivo.hecho" : "motivo.noexiste";
-        evento.getHook().sendMessage(Messages.get(locale, clave, casoId)).queue();
+        evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, clave, casoId))).queue();
     }
 }

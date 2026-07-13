@@ -56,7 +56,7 @@ public final class ClearwarnsComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         User objetivo = evento.getOption("usuario").getAsUser();

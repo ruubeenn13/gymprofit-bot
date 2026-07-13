@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.services.TrabajoService.ResultadoElegir;
@@ -55,6 +56,7 @@ public final class ElegirTrabajoComando implements Comando {
             case REQUISITO -> Messages.get(locale, "elegirtrabajo.requisito",
                     Trabajos.porId(id).map(Trabajos::requisitoNivel).orElse(0));
         };
-        evento.getHook().sendMessage(mensaje).queue();
+        evento.getHook().sendMessageEmbeds(
+                EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje)).queue();
     }
 }

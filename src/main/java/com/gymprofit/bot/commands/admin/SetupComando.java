@@ -250,7 +250,7 @@ public final class SetupComando implements Comando {
         // Chequeo de permisos ANTES de tocar nada: si faltan, se avisa y no se rompe el servidor.
         Member yo = guild.getSelfMember();
         if (!yo.hasPermission(Permission.MANAGE_CHANNEL) || !yo.hasPermission(Permission.MANAGE_ROLES)) {
-            evento.getHook().sendMessage(Messages.get(locale, "setup.faltan_permisos")).queue();
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "setup.faltan_permisos"))).queue();
             return;
         }
 
@@ -313,7 +313,7 @@ public final class SetupComando implements Comando {
                                 err.toString()));
             } catch (RuntimeException e) {
                 log.error("Error en /setup en el servidor {}", guild.getId(), e);
-                evento.getHook().sendMessage(Messages.get(locale, "setup.error"))
+                evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "setup.error")))
                         .queue(null, ignorado -> { });
             }
         }, "gymprobot-setup");

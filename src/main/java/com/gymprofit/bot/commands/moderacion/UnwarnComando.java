@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.moderacion;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ModeracionService;
 import net.dv8tion.jda.api.Permission;
@@ -51,12 +52,12 @@ public final class UnwarnComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         long id = evento.getOption("id").getAsLong();
         boolean revocado = moderacion.revocarWarn(id);
         String clave = revocado ? "unwarn.hecho" : "unwarn.noexiste";
-        evento.reply(Messages.get(locale, clave, id)).setEphemeral(true).queue();
+        evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, clave, id))).setEphemeral(true).queue();
     }
 }

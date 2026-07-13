@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.moderacion;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.ModeracionService;
@@ -68,13 +69,13 @@ public final class BanComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         Member actor = evento.getMember();
         if (!ModHelper.esAltoCargo(actor)) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         User objetivo = evento.getOption("usuario").getAsUser();
         Member objetivoMiembro = evento.getOption("usuario").getAsMember();
         if (!ModHelper.puedeModerar(actor, objetivoMiembro)) {
-            evento.reply(Messages.get(locale, "mod.nopuedes")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.nopuedes"))).setEphemeral(true).queue();
             return;
         }
         String motivo = evento.getOption("motivo") != null

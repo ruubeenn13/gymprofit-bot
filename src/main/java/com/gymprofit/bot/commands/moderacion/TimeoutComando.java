@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.moderacion;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.ModeracionService;
@@ -69,22 +70,22 @@ public final class TimeoutComando implements Comando {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         Member actor = evento.getMember();
         if (!ModHelper.esAltoCargo(actor)) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         Member objetivo = evento.getOption("usuario").getAsMember();
         User objetivoUser = evento.getOption("usuario").getAsUser();
         if (objetivo == null) {
-            evento.reply(Messages.get(locale, "mod.noenservidor")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noenservidor"))).setEphemeral(true).queue();
             return;
         }
         if (!ModHelper.puedeModerar(actor, objetivo)) {
-            evento.reply(Messages.get(locale, "mod.nopuedes")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.nopuedes"))).setEphemeral(true).queue();
             return;
         }
         OptionalLong segundos = Duraciones.parsear(evento.getOption("duracion").getAsString());
         if (segundos.isEmpty() || segundos.getAsLong() > Duraciones.MAX_TIMEOUT_SEG) {
-            evento.reply(Messages.get(locale, "timeout.duracioninvalida")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "timeout.duracioninvalida"))).setEphemeral(true).queue();
             return;
         }
         String motivo = evento.getOption("motivo") != null

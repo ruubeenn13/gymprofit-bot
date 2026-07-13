@@ -69,14 +69,13 @@ public final class AnuncioComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         TextChannel canal = evento.getGuild().getTextChannelsByName(CANAL, false)
                 .stream().findFirst().orElse(null);
         if (canal == null) {
-            evento.reply(Messages.get(locale, "contenido.sincanal", CANAL))
-                    .setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "contenido.sincanal", CANAL))).setEphemeral(true).queue();
             return;
         }
         String titulo = evento.getOption("titulo").getAsString();
@@ -97,7 +96,7 @@ public final class AnuncioComando implements Comando {
                     .setAllowedMentions(EnumSet.of(MentionType.ROLE));
         }
         accion.queue(
-                ok -> evento.getHook().sendMessage(Messages.get(locale, "anuncio.publicado")).queue(),
-                err -> evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue());
+                ok -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "anuncio.publicado"))).queue(),
+                err -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "comando.error.generico"))).queue());
     }
 }

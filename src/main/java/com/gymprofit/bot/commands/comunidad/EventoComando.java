@@ -62,7 +62,7 @@ public final class EventoComando implements Comando {
 
         Optional<LocalDateTime> fecha = EventoService.parsearFecha(fechaTexto);
         if (fecha.isEmpty()) {
-            evento.reply(Messages.get(locale, "evento.fecha_invalida")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "evento.fecha_invalida"))).setEphemeral(true).queue();
             return;
         }
 

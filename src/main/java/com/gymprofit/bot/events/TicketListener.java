@@ -62,13 +62,13 @@ public final class TicketListener extends ListenerAdapter {
         Guild guild = evento.getGuild();
         Member autor = evento.getMember();
         if (tickets.tieneAbierto(autor.getIdLong())) {
-            evento.reply(Messages.get(locale, "ticket.yaabierto")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "ticket.yaabierto"))).setEphemeral(true).queue();
             return;
         }
         Category categoria = guild.getCategoriesByName(CATEGORIA_TICKETS, false)
                 .stream().findFirst().orElse(null);
         if (categoria == null) {
-            evento.reply(Messages.get(locale, "ticket.sincategoria")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "ticket.sincategoria"))).setEphemeral(true).queue();
             return;
         }
         evento.deferReply(true).queue();
@@ -92,9 +92,9 @@ public final class TicketListener extends ListenerAdapter {
             canal.sendMessageEmbeds(embed)
                     .addActionRow(Button.danger(BOTON_CERRAR, Messages.get(locale, "ticket.boton.cerrar")))
                     .queue();
-            evento.getHook().sendMessage(Messages.get(locale, "ticket.creado", canal.getAsMention()))
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "ticket.creado", canal.getAsMention())))
                     .queue();
-        }, err -> evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue());
+        }, err -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "comando.error.generico"))).queue());
     }
 
     private void cerrar(ButtonInteractionEvent evento) {
@@ -102,17 +102,17 @@ public final class TicketListener extends ListenerAdapter {
         TextChannel canal = evento.getChannel().asTextChannel();
         Optional<Ticket> ticket = tickets.porCanal(canal.getIdLong());
         if (ticket.isEmpty()) {
-            evento.reply(Messages.get(locale, "ticket.nocanal")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "ticket.nocanal"))).setEphemeral(true).queue();
             return;
         }
         // Solo el autor o el staff pueden cerrar.
         boolean autorizado = ModHelper.esAltoCargo(evento.getMember())
                 || evento.getUser().getIdLong() == ticket.get().discordId();
         if (!autorizado) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
-        evento.reply(Messages.get(locale, "ticket.cerrando")).queue();
+        evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "ticket.cerrando"))).queue();
 
         canal.getIterableHistory().takeAsync(MAX_MENSAJES_TRANSCRIPT).thenAccept(mensajes -> {
             List<String[]> lineas = new ArrayList<>();

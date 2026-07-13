@@ -2,6 +2,7 @@ package com.gymprofit.bot.events;
 
 import com.gymprofit.bot.commands.moderacion.ModHelper;
 import com.gymprofit.bot.commands.moderacion.ModlogsComando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ModeracionService;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -31,7 +32,7 @@ public final class ModlogsPaginadorListener extends ListenerAdapter {
         }
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         String[] partes = id.split(":");

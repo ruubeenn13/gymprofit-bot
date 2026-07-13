@@ -2,6 +2,7 @@ package com.gymprofit.bot.commands.comunidad;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.commands.moderacion.ModHelper;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.SugerenciaService;
 import net.dv8tion.jda.api.Permission;
@@ -66,7 +67,7 @@ public final class SugerenciaResolverComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         long id = evento.getOption("id").getAsLong();
@@ -74,18 +75,18 @@ public final class SugerenciaResolverComando implements Comando {
 
         var sugerencia = sugerencias.buscar(id);
         if (sugerencia.isEmpty()) {
-            evento.reply(Messages.get(locale, "sugres.noexiste", id)).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "sugres.noexiste", id))).setEphemeral(true).queue();
             return;
         }
         boolean resuelta = sugerencias.resolver(id, estado, evento.getUser().getIdLong());
         if (!resuelta) {
-            evento.reply(Messages.get(locale, "sugres.yaresuelta", id)).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "sugres.yaresuelta", id))).setEphemeral(true).queue();
             return;
         }
         aplicarEtiqueta(evento, sugerencia.get().mensajeId(), estado);
 
         String clave = "ACEPTADA".equals(estado) ? "sugres.aceptada" : "sugres.rechazada";
-        evento.reply(Messages.get(locale, clave, id)).setEphemeral(true).queue();
+        evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, clave, id))).setEphemeral(true).queue();
     }
 
     /** Aplica la etiqueta del foro (Aprobada/Rechazada) al post, si el hilo sigue accesible. */

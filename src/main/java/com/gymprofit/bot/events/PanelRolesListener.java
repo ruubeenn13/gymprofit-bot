@@ -1,6 +1,7 @@
 package com.gymprofit.bot.events;
 
 import com.gymprofit.bot.db.ConfigServidor;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.ConfigServidorService.Objetivo;
@@ -59,7 +60,7 @@ public final class PanelRolesListener extends ListenerAdapter {
         Long rolId = ConfigServidorService.rolDe(cfg, seleccionado);
         Role rol = (rolId == null) ? null : evento.getGuild().getRoleById(rolId);
         if (rol == null) {
-            evento.reply(Messages.get(locale, "roles.objetivo.noconfig")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "roles.objetivo.noconfig"))).setEphemeral(true).queue();
             return;
         }
 
@@ -78,11 +79,10 @@ public final class PanelRolesListener extends ListenerAdapter {
 
         evento.deferReply(true).queue();
         evento.getGuild().modifyMemberRoles(evento.getMember(), List.of(rol), quitar).queue(
-                ok -> evento.getHook()
-                        .sendMessage(Messages.get(locale, "roles.objetivo.ok", rol.getName())).queue(),
+                ok -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "roles.objetivo.ok", rol.getName()))).queue(),
                 error -> {
                     log.error("No se pudo asignar el objetivo en {}", evento.getGuild().getId(), error);
-                    evento.getHook().sendMessage(Messages.get(locale, "roles.error")).queue();
+                    evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "roles.error"))).queue();
                 });
     }
 
@@ -97,10 +97,10 @@ public final class PanelRolesListener extends ListenerAdapter {
 
         evento.deferReply(true).queue();
         evento.getGuild().modifyMemberRoles(evento.getMember(), anadir, quitar).queue(
-                ok -> evento.getHook().sendMessage(Messages.get(locale, "roles.notif.ok")).queue(),
+                ok -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "roles.notif.ok"))).queue(),
                 error -> {
                     log.error("No se pudo actualizar notificaciones en {}", evento.getGuild().getId(), error);
-                    evento.getHook().sendMessage(Messages.get(locale, "roles.error")).queue();
+                    evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "roles.error"))).queue();
                 });
     }
 

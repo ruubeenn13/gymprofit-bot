@@ -1,6 +1,7 @@
 package com.gymprofit.bot.commands.moderacion;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.util.Duraciones;
@@ -61,14 +62,14 @@ public final class SlowmodeComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         int segundos = evento.getOption("segundos").getAsInt();
         GuildChannel base = evento.getOption("canal") != null
                 ? evento.getOption("canal").getAsChannel() : evento.getGuildChannel();
         if (!(base instanceof TextChannel canal)) {
-            evento.reply(Messages.get(locale, "slowmode.solotexto")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "slowmode.solotexto"))).setEphemeral(true).queue();
             return;
         }
 

@@ -72,19 +72,18 @@ public final class BienvenidaListener extends ListenerAdapter {
         Long rolId = ConfigServidorService.rolDe(cfg, objetivo);
         Role rol = (rolId == null) ? null : evento.getGuild().getRoleById(rolId);
         if (rol == null) {
-            evento.reply(Messages.get(locale, "bienvenida.rol.noconfig")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "bienvenida.rol.noconfig"))).setEphemeral(true).queue();
             return;
         }
 
         // La asignación es asíncrona; se difiere la respuesta para no agotar los 3 s del ack.
         evento.deferReply(true).queue();
         evento.getGuild().addRoleToMember(evento.getMember(), rol).queue(
-                ok -> evento.getHook()
-                        .sendMessage(Messages.get(locale, "bienvenida.rol.asignado", rol.getName()))
+                ok -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "bienvenida.rol.asignado", rol.getName())))
                         .queue(),
                 error -> {
                     log.error("No se pudo asignar el rol {} en {}", rolId, evento.getGuild().getId(), error);
-                    evento.getHook().sendMessage(Messages.get(locale, "bienvenida.rol.error")).queue();
+                    evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "bienvenida.rol.error"))).queue();
                 });
     }
 

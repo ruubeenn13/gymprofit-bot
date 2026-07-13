@@ -82,18 +82,18 @@ public final class SorteoComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         if (!ModHelper.esAltoCargo(evento.getMember())) {
-            evento.reply(Messages.get(locale, "mod.noautorizado")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "mod.noautorizado"))).setEphemeral(true).queue();
             return;
         }
         OptionalLong segundos = Duraciones.parsear(evento.getOption("duracion").getAsString());
         if (segundos.isEmpty()) {
-            evento.reply(Messages.get(locale, "timeout.duracioninvalida")).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "timeout.duracioninvalida"))).setEphemeral(true).queue();
             return;
         }
         TextChannel canal = evento.getGuild().getTextChannelsByName(CANAL, false)
                 .stream().findFirst().orElse(null);
         if (canal == null) {
-            evento.reply(Messages.get(locale, "contenido.sincanal", CANAL)).setEphemeral(true).queue();
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "contenido.sincanal", CANAL))).setEphemeral(true).queue();
             return;
         }
         String premio = evento.getOption("premio").getAsString();
@@ -117,7 +117,7 @@ public final class SorteoComando implements Comando {
             msg.addReaction(Emoji.fromUnicode(EMOJI)).queue();
             sorteos.crear(evento.getGuild().getIdLong(), canal.getIdLong(), msg.getIdLong(),
                     premio, ganadores, evento.getUser().getIdLong(), finalFin);
-            evento.getHook().sendMessage(Messages.get(locale, "sorteo.creado")).queue();
-        }, err -> evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue());
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "sorteo.creado"))).queue();
+        }, err -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "comando.error.generico"))).queue());
     }
 }

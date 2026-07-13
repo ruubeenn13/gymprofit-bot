@@ -61,7 +61,7 @@ public final class LimpiarComando implements Comando {
         limpieza.purgarReciente(evento.getChannel(), cantidad).whenComplete((borrados, error) -> {
             if (error != null) {
                 log.error("Error limpiando el canal {}", evento.getChannel().getId(), error);
-                evento.getHook().sendMessage(Messages.get(locale, "comando.error.generico")).queue();
+                evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale, Messages.get(locale, "comando.error.generico"))).queue();
                 return;
             }
             var embed = EmbedFactory.base(EmbedFactory.Tipo.MODERACION, locale,
