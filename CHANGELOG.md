@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Contenido — sorteos**: `/sorteo` (premio + duración + nº ganadores) publica un sorteo en
+  `🎁・sorteos` con reacción 🎉 y ping a `@🎁 Sorteos`; migración **V5** (`sorteos`) + `SorteoJob` que
+  al vencer elige ganadores al azar entre los participantes y los anuncia. (Bloque A2.)
 - **Contenido (staff)**: `/anuncio` (publica un anuncio con marca en `📣・anuncios`, imagen y ping
   opcional a `@📣 Avisos`) y `/redes` (publica las redes oficiales en `📱・redes-sociales`). Se añade
   `Comando.Categoria` (PUBLICO/MODERACION) como base del futuro directorio de comandos autogenerado.

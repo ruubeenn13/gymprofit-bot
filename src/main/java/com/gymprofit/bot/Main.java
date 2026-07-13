@@ -8,6 +8,7 @@ import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.contenido.AnuncioComando;
 import com.gymprofit.bot.commands.contenido.RedesComando;
+import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
@@ -39,11 +40,14 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
+import com.gymprofit.bot.db.SorteoRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
+import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.PrivacidadService;
+import com.gymprofit.bot.services.SorteoService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
@@ -109,6 +113,11 @@ public final class Main {
                 (jda == null) ? null : new EstadisticasService(jda, usuariosStats, eventosStats);
         if (stats != null) {
             stats.iniciar();
+        }
+
+        // Job que resuelve los sorteos vencidos (elige ganadores por reacción). Requiere BD + JDA.
+        if (db != null && jda != null) {
+            new SorteoJob(jda, new SorteoService(new SorteoRepositorio(db.dataSource()))).iniciar();
         }
 
         // Cierre ordenado ante SIGTERM (Render lo envía en cada deploy): stats → JDA → BD → health.
@@ -233,9 +242,10 @@ public final class Main {
             listeners.add(new BorrarDatosListener(privacidad));
             new RetencionJob(warnRepo, sancionRepo).iniciar();
 
-            // Contenido (staff): anuncios y redes.
+            // Contenido (staff): anuncios, redes y sorteos (el job de sorteos arranca en main()).
             comandos.add(new AnuncioComando());
             comandos.add(new RedesComando());
+            comandos.add(new SorteoComando(new SorteoService(new SorteoRepositorio(db.dataSource()))));
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }
