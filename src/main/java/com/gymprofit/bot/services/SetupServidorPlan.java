@@ -255,9 +255,6 @@ public final class SetupServidorPlan {
                             .conTopic("Logros desbloqueados por la comunidad (los publica el bot). 🏆"),
                     info("📊・ranking", null)
                             .conTopic("Clasificación de XP y niveles del servidor (la publica el bot)."),
-                    texto("🪙・economía", null, "intro.proximamente")
-                            .conTopic("Monedas, tienda y recompensas. (Próximamente)")
-                            .conSoloLectura(),
                     texto("🧠・trivia", null, "intro.proximamente")
                             .conTopic("Preguntas de fitness para ganar XP. (Próximamente)")
                             .conSoloLectura(),
@@ -268,6 +265,13 @@ public final class SetupServidorPlan {
                             .conTopic("Retos semanales para subir de nivel. (Próximamente)"),
                     slow("🤖・comandos-bot", 5, "intro.comandos")
                             .conTopic("Usa aquí los comandos de GymProBot. Slowmode activo."))),
+            // Simulador de vida (RPG de ficción). Empieza con la guía y el canal de economía;
+            // se irán añadiendo canales (tienda, mercado, banco, casino, gremios) por fases.
+            new CategoriaPlan("▬▬ 🎮 SIMULADOR DE VIDA ▬▬", false, false, List.of(
+                    info("📖・cómo-jugar", null, "intro.simulador")
+                            .conTopic("Cómo funciona el simulador de vida: personaje, dinero y trabajos."),
+                    texto("💰・economía", null, "intro.economia")
+                            .conTopic("Tu vida en el servidor: /perfil, /daily, /balance y más. 🪙"))),
             new CategoriaPlan("▬▬ 🛎️ AYUDA ▬▬", false, false, List.of(
                     foro("💡・sugerencias", TipoCanal.SUGERENCIAS,
                             "En estudio", "Aprobada", "Rechazada", "Implementada")
