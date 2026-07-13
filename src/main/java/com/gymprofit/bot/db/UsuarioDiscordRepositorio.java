@@ -63,6 +63,21 @@ public final class UsuarioDiscordRepositorio {
     }
 
     /**
+     * Borra la fila del usuario (derecho al olvido, RGPD). El {@code ON DELETE CASCADE} de
+     * {@code warns} elimina también sus avisos. Devuelve {@code true} si existía.
+     */
+    public boolean borrar(long discordId) {
+        String sql = "DELETE FROM usuarios_discord WHERE discord_id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, discordId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error borrando el usuario " + discordId, e);
+        }
+    }
+
+    /**
      * Inserta o actualiza (upsert) todos los campos mutables del usuario.
      */
     public void guardar(UsuarioDiscord u) {

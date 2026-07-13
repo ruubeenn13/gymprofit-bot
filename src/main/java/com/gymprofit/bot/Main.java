@@ -29,6 +29,9 @@ import com.gymprofit.bot.commands.moderacion.UntimeoutComando;
 import com.gymprofit.bot.commands.moderacion.UnwarnComando;
 import com.gymprofit.bot.commands.moderacion.WarnComando;
 import com.gymprofit.bot.commands.moderacion.WarnsComando;
+import com.gymprofit.bot.commands.privacidad.BorrarMisDatosComando;
+import com.gymprofit.bot.commands.privacidad.MisDatosComando;
+import com.gymprofit.bot.commands.privacidad.PrivacidadComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
@@ -38,12 +41,15 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ModeracionService;
+import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
+import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.XpMensajeListener;
+import com.gymprofit.bot.jobs.RetencionJob;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.EstadisticasService;
 import com.gymprofit.bot.services.LimpiezaService;
@@ -191,10 +197,10 @@ public final class Main {
             if (!cifrador.habilitado()) {
                 log.warn("BOT_CRYPTO_KEY no configurada: los motivos de moderación no se guardarán.");
             }
-            ModeracionService moderacion = new ModeracionService(
-                    new WarnRepositorio(db.dataSource()),
-                    new SancionRepositorio(db.dataSource()),
-                    usuarios, cifrador);
+            WarnRepositorio warnRepo = new WarnRepositorio(db.dataSource());
+            SancionRepositorio sancionRepo = new SancionRepositorio(db.dataSource());
+            ModeracionService moderacion =
+                    new ModeracionService(warnRepo, sancionRepo, usuarios, cifrador);
             comandos.add(new WarnComando(moderacion, configService));
             comandos.add(new WarnsComando(moderacion));
             comandos.add(new UnwarnComando(moderacion));
@@ -215,6 +221,15 @@ public final class Main {
             comandos.add(new LockdownComando(configService));
             comandos.add(new UnlockdownComando(configService));
             comandos.add(new SlowmodeComando(configService));
+
+            // Privacidad (RGPD): acceso, portabilidad, olvido + job de retención.
+            PrivacidadService privacidad =
+                    new PrivacidadService(usuarios, warnRepo, sancionRepo, cifrador);
+            comandos.add(new PrivacidadComando());
+            comandos.add(new MisDatosComando(privacidad));
+            comandos.add(new BorrarMisDatosComando());
+            listeners.add(new BorrarDatosListener(privacidad));
+            new RetencionJob(warnRepo, sancionRepo).iniciar();
         } else {
             log.warn("Sin BD: XP por mensaje y /nivel, /top deshabilitados; solo /ping disponible.");
         }

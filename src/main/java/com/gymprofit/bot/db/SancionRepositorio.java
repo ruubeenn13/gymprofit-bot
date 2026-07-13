@@ -74,6 +74,26 @@ public final class SancionRepositorio {
         }
     }
 
+    /** Todas las sanciones del usuario en cualquier servidor (para el export de datos, acotado). */
+    public List<Sancion> listarTodasDelUsuario(long discordId, int limite) {
+        String sql = "SELECT id, guild_id, discord_id, moderador_id, tipo, motivo, nick_anterior, "
+                + "duracion_seg, creado_en FROM sanciones WHERE discord_id = ? ORDER BY id DESC LIMIT ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, discordId);
+            ps.setInt(2, limite);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<Sancion> sanciones = new ArrayList<>();
+                while (rs.next()) {
+                    sanciones.add(mapear(rs));
+                }
+                return sanciones;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error exportando sanciones de " + discordId, e);
+        }
+    }
+
     /** Nº total de sanciones del usuario en el servidor, para paginar. */
     public int contarPorUsuario(long guildId, long discordId) {
         String sql = "SELECT COUNT(*) FROM sanciones WHERE guild_id = ? AND discord_id = ?";
@@ -100,6 +120,30 @@ public final class SancionRepositorio {
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new DatabaseException("Error actualizando el motivo de la sanción " + id, e);
+        }
+    }
+
+    /** Borra TODAS las sanciones del usuario en todos los servidores (derecho al olvido). */
+    public int borrarTodasDelUsuario(long discordId) {
+        String sql = "DELETE FROM sanciones WHERE discord_id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, discordId);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error borrando todas las sanciones de " + discordId, e);
+        }
+    }
+
+    /** Purga las sanciones anteriores a {@code limite} (retención). Devuelve cuántas se borraron. */
+    public int purgarAnterioresA(java.time.Instant limite) {
+        String sql = "DELETE FROM sanciones WHERE creado_en < ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setTimestamp(1, java.sql.Timestamp.from(limite));
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error purgando sanciones antiguas", e);
         }
     }
 

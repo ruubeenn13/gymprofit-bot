@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Privacidad (RGPD) — derechos del usuario**: `/privacidad` (qué se guarda y para qué),
+  `/mis-datos` (export JSON efímero, acceso/portabilidad) y `/borrar-mis-datos` (olvido, con
+  confirmación por botón). Nuevo `PrivacidadService` y **job de retención** (`RetencionJob`): purga
+  avisos revocados > 6 meses y sanciones > 12 meses. Sección de privacidad en el README. (Fase E.)
 - **Moderación — canales**: `/lock` `/unlock` (bloquear/reabrir un canal), `/lockdown` `/unlockdown`
   (todos los canales de texto, anti-raid) y `/slowmode` (modo lento). Solo altos cargos; log en
   `🤖・bot-logs`. (Fase D.)

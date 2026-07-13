@@ -99,6 +99,7 @@ en [`docs/architecture.md`](docs/architecture.md) y decisiones en [`docs/decisio
 | `DB_URL` / `DB_USER` / `DB_PASSWORD` | BD del bot (Aiven MySQL `gymprofit_bot`) |
 | `GYMPROFIT_API_URL` | Base de la API GymProFit (p. ej. `https://gymprofit-api.onrender.com/api`) |
 | `BOT_SERVICE_USER` / `BOT_SERVICE_PASSWORD` | Cuenta de servicio del bot en la app |
+| `BOT_CRYPTO_KEY` | Clave AES-256 (32 bytes base64) para cifrar el texto libre con dato personal |
 | `PORT` | Puerto del health server (Render lo inyecta; por defecto 8080) |
 | `TZ` | `Europe/Madrid` (los jobs no confían en la TZ del sistema) |
 
@@ -122,9 +123,25 @@ API (SPEC §14 / ADR-004); ver [`docs/decisions.md`](docs/decisions.md).
 
 ### Privacidad (GDPR)
 
-El bot guarda en su BD el estado de comunidad (XP, coins, rachas, warns, etc.) asociado a tu
-`discord_id`. `/borrar-mis-datos` (Fase 1+) elimina todas tus filas y revoca la vinculación con la
-app si existe. Detalle de qué se guarda y para qué, en esta sección conforme avancen las fases.
+**Qué se guarda.** En la BD del bot (`gymprofit_bot` en Aiven MySQL, separada de la de la app) solo
+tu **`discord_id`** (identificador público de Discord) y datos de comunidad: XP, nivel, monedas,
+racha, idioma y, si te han moderado, tus avisos/sanciones. **No** se guardan nombres reales, emails
+ni contraseñas.
+
+**Cómo se protege.** Cifrado en reposo (Aiven) + TLS en tránsito (`sslMode=REQUIRED`). El **texto
+libre** con posible dato personal (motivos de sanción, apodos previos) se guarda **cifrado con
+AES-256-GCM** (`util/Cifrador`, clave `BOT_CRYPTO_KEY`). Los IDs y numéricos van en claro para poder
+consultar y paginar. Minimización de datos y **retención automática** (job que purga avisos
+revocados > 6 meses y sanciones > 12 meses).
+
+**Tus derechos (base legal: interés legítimo).**
+- `/privacidad` — qué guardamos, para qué y cómo ejercer tus derechos.
+- `/mis-datos` — descarga (efímera) un JSON con todo lo que el bot guarda de ti.
+- `/borrar-mis-datos` — elimina **todas** tus filas del bot (con confirmación) y revoca la
+  vinculación con la app si existe.
+
+Detalles de diseño en [`docs/decisions.md`](docs/decisions.md) (ADR-009) y en el spec de
+moderación/RGPD.
 
 </details>
 

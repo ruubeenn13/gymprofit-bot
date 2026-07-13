@@ -115,6 +115,18 @@ public final class WarnRepositorio {
         }
     }
 
+    /** Purga los avisos ya revocados anteriores a {@code limite} (retención). Devuelve cuántos. */
+    public int purgarRevocadosAnterioresA(java.time.Instant limite) {
+        String sql = "DELETE FROM warns WHERE activo = FALSE AND creado_en < ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setTimestamp(1, java.sql.Timestamp.from(limite));
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error purgando avisos revocados antiguos", e);
+        }
+    }
+
     private static Warn mapear(ResultSet rs) throws SQLException {
         return new Warn(
                 rs.getLong("id"),

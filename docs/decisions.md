@@ -74,7 +74,8 @@ tickets). Hay que minimizar el riesgo legal sin romper consultas ni paginación.
   `/privacidad` + nota en README (transparencia).
 - **Retención:** job diario que purga datos viejos por ventanas.
 
-**Estado:** aceptada (F-A implementada: `Cifrador` + esquema; resto por fases).
+**Estado:** aceptada e **implementada** (cifrado `Cifrador`, esquema V4, moderación con auditoría
+cifrada, comandos `/privacidad` · `/mis-datos` · `/borrar-mis-datos` y job de retención `RetencionJob`).
 
 ---
 
