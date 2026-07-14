@@ -24,6 +24,7 @@ import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
+import com.gymprofit.bot.commands.economia.PelearComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
@@ -76,6 +77,7 @@ import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
+import com.gymprofit.bot.services.BatallaService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.PrivacidadService;
@@ -87,6 +89,7 @@ import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
+import com.gymprofit.bot.events.CombateListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.TicketListener;
@@ -327,10 +330,16 @@ public final class Main {
             comandos.add(new DesequiparComando(combateService));
 
             // Combate (COMBAT-2): mundos y bestiario (datos + navegación, sin pelea aún).
-            MundoService mundoService =
-                    new MundoService(new MundoRepositorio(db.dataSource()), usuarios);
+            MundoRepositorio mundoRepo = new MundoRepositorio(db.dataSource());
+            MundoService mundoService = new MundoService(mundoRepo, usuarios);
             comandos.add(new MundosComando(mundoService));
             comandos.add(new MonstruosComando());
+
+            // Combate (COMBAT-3): batalla por turnos con botones.
+            BatallaService batallaService = new BatallaService(
+                    personajeRepo, inventarioRepo, usuarios, economiaRepo, xpService, mundoRepo);
+            comandos.add(new PelearComando(mundoService));
+            listeners.add(new CombateListener(batallaService, inventarioRepo));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

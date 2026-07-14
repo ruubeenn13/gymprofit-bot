@@ -78,12 +78,53 @@ public final class CombateService {
         return true;
     }
 
-    /** Poder de combate = fuerza + resistencia + ataque del arma + defensa de la armadura. */
+    /**
+     * Poder de combate = fuerza + resistencia + ataque del arma + defensa de la armadura. Equivale a
+     * {@code ataqueDe(p) + defensaDe(p)} (cada uno ya suma su atributo base + su equipo).
+     */
     public static int poderCombate(Personaje p) {
-        int ataque = p.arma() == null ? 0
-                : Items.porId(p.arma()).map(Items::ataque).orElse(0);
-        int defensa = p.armadura() == null ? 0
+        return ataqueDe(p) + defensaDe(p);
+    }
+
+    // ---------------------- Matemática de batalla (COMBAT-3) ----------------------
+
+    /** HP base del combate (con 0 de resistencia). */
+    public static final int HP_BASE = 80;
+    /** HP de combate que aporta cada punto de resistencia. */
+    public static final int HP_POR_RESISTENCIA = 10;
+
+    /**
+     * HP de combate del jugador = base + resistencia·k. Es independiente de la <i>salud</i> general
+     * (bienestar): la salud la mueven los consumibles; el HP es solo de la pelea y se recalcula en
+     * cada combate.
+     */
+    public static int hpCombate(Personaje p) {
+        return HP_BASE + p.resistencia() * HP_POR_RESISTENCIA;
+    }
+
+    /** Ofensiva del jugador = fuerza + ataque del arma equipada. */
+    public static int ataqueDe(Personaje p) {
+        int arma = p.arma() == null ? 0 : Items.porId(p.arma()).map(Items::ataque).orElse(0);
+        return p.fuerza() + arma;
+    }
+
+    /** Defensa del jugador = resistencia + defensa de la armadura equipada. */
+    public static int defensaDe(Personaje p) {
+        int armadura = p.armadura() == null ? 0
                 : Items.porId(p.armadura()).map(Items::defensa).orElse(0);
-        return p.fuerza() + p.resistencia() + ataque + defensa;
+        return p.resistencia() + armadura;
+    }
+
+    /**
+     * Daño de un golpe: {@code (ofensiva − defensa)} con suelo en 1, multiplicado por un factor de
+     * azar y redondeado (mínimo 1). Función pura para poder testear el balance de forma determinista.
+     *
+     * @param ofensiva ataque del atacante
+     * @param defensa  defensa del defensor
+     * @param factor   multiplicador de azar (típicamente ~0.85–1.15)
+     */
+    public static int dano(int ofensiva, int defensa, double factor) {
+        int base = Math.max(1, ofensiva - defensa);
+        return Math.max(1, (int) Math.round(base * factor));
     }
 }

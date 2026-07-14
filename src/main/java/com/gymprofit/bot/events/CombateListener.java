@@ -1,0 +1,224 @@
+package com.gymprofit.bot.events;
+
+import com.gymprofit.bot.commands.economia.PelearComando;
+import com.gymprofit.bot.db.InventarioRepositorio;
+import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.i18n.Messages;
+import com.gymprofit.bot.services.BatallaService;
+import com.gymprofit.bot.services.BatallaService.ResultadoInicio;
+import com.gymprofit.bot.services.BatallaService.Turno;
+import com.gymprofit.bot.services.CombateSesion;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Conduce la batalla por turnos (COMBAT-3). Escucha el menú de rivales de {@code /pelear}, los
+ * botones Atacar/Defender/Objeto/Huir y el submenú de objetos, todos con customId
+ * {@code pelear:<accion>:<ownerId>[...]}. Guarda una {@link CombateSesion} por jugador en memoria y
+ * la descarta al terminar la pelea. Solo el dueño del combate puede pulsar sus botones.
+ */
+public final class CombateListener extends ListenerAdapter {
+
+    private static final String PREFIJO = "pelear:";
+
+    private final BatallaService batalla;
+    private final InventarioRepositorio inventario;
+    private final Map<Long, CombateSesion> sesiones = new ConcurrentHashMap<>();
+
+    public CombateListener(BatallaService batalla, InventarioRepositorio inventario) {
+        this.batalla = batalla;
+        this.inventario = inventario;
+    }
+
+    @Override
+    public void onStringSelectInteraction(StringSelectInteractionEvent evento) {
+        String id = evento.getComponentId();
+        if (!id.startsWith(PREFIJO) || evento.getGuild() == null) {
+            return;
+        }
+        String[] partes = id.split(":");
+        Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
+        if (!esDueno(evento, partes[2], locale)) {
+            return;
+        }
+        long ownerId = Long.parseUnsignedLong(partes[2]);
+        if (partes[1].equals("rival")) {
+            seleccionarRival(evento, ownerId, partes[3], evento.getValues().get(0), locale);
+        } else if (partes[1].equals("usar")) {
+            usarObjeto(evento, ownerId, evento.getValues().get(0), locale);
+        }
+    }
+
+    @Override
+    public void onButtonInteraction(ButtonInteractionEvent evento) {
+        String id = evento.getComponentId();
+        if (!id.startsWith(PREFIJO) || evento.getGuild() == null) {
+            return;
+        }
+        String[] partes = id.split(":");
+        Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
+        if (!esDueno(evento, partes[2], locale)) {
+            return;
+        }
+        long ownerId = Long.parseUnsignedLong(partes[2]);
+        CombateSesion s = sesiones.get(ownerId);
+        switch (partes[1]) {
+            case "atacar" -> {
+                if (s == null) { sinSesion(evento, locale); return; }
+                resolver(evento, ownerId, s, batalla.atacar(s));
+            }
+            case "defender" -> {
+                if (s == null) { sinSesion(evento, locale); return; }
+                resolver(evento, ownerId, s, batalla.defender(s));
+            }
+            case "objeto" -> {
+                if (s == null) { sinSesion(evento, locale); return; }
+                abrirObjetos(evento, ownerId, s, locale);
+            }
+            case "volver" -> {
+                if (s == null) { sinSesion(evento, locale); return; }
+                evento.editMessageEmbeds(PelearComando.embedBatalla(locale, s, null))
+                        .setComponents(PelearComando.botonesBatalla(ownerId, locale)).queue();
+            }
+            case "huir" -> {
+                sesiones.remove(ownerId);
+                MessageEmbed fin = s != null ? PelearComando.embedHuida(locale, s)
+                        : EmbedFactory.aviso(EmbedFactory.Tipo.DUELO, locale,
+                                Messages.get(locale, "batalla.nosesion"));
+                evento.editMessageEmbeds(fin).setComponents().queue();
+            }
+            default -> { /* customId ajeno */ }
+        }
+    }
+
+    // ---------------------- handlers ----------------------
+
+    private void seleccionarRival(StringSelectInteractionEvent evento, long ownerId,
+                                  String mundoId, String monstruoId, Locale locale) {
+        if (sesiones.containsKey(ownerId)) {
+            evento.reply(Messages.get(locale, "batalla.yaencombate")).setEphemeral(true).queue();
+            return;
+        }
+        ResultadoInicio r = batalla.iniciar(ownerId, monstruoId);
+        if (r.estado() != BatallaService.InicioEstado.OK) {
+            evento.editMessageEmbeds(motivoInicio(locale, r)).setComponents().queue();
+            return;
+        }
+        sesiones.put(ownerId, r.sesion());
+        evento.editMessageEmbeds(PelearComando.embedBatalla(locale, r.sesion(), null))
+                .setComponents(PelearComando.botonesBatalla(ownerId, locale)).queue();
+    }
+
+    private void abrirObjetos(ButtonInteractionEvent evento, long ownerId, CombateSesion s,
+                              Locale locale) {
+        Map<String, Integer> inv = inventario.listar(ownerId);
+        List<ActionRow> filas = PelearComando.filasObjetos(ownerId, locale, inv);
+        if (filas == null) {
+            evento.reply(Messages.get(locale, "batalla.objeto.vacio")).setEphemeral(true).queue();
+            return;
+        }
+        evento.editMessageEmbeds(PelearComando.embedBatalla(locale, s, null))
+                .setComponents(filas).queue();
+    }
+
+    private void usarObjeto(StringSelectInteractionEvent evento, long ownerId, String itemId,
+                            Locale locale) {
+        CombateSesion s = sesiones.get(ownerId);
+        if (s == null) {
+            sinSesion(evento, locale);
+            return;
+        }
+        Turno t = batalla.usarObjeto(s, itemId);
+        if (t == null) {
+            evento.reply(Messages.get(locale, "batalla.objeto.invalido")).setEphemeral(true).queue();
+            return;
+        }
+        resolver(evento, ownerId, s, t);
+    }
+
+    /** Aplica el desenlace de un turno al mensaje (continúa, victoria o derrota). */
+    private void resolver(IReplyCallback evento, long ownerId, CombateSesion s, Turno t) {
+        Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
+        switch (t.desenlace()) {
+            case VICTORIA -> {
+                BatallaService.Botin botin = batalla.recompensar(s);
+                sesiones.remove(ownerId);
+                editar(evento, PelearComando.embedVictoria(locale, s, botin), null);
+            }
+            case DERROTA -> {
+                batalla.penalizar(ownerId);
+                sesiones.remove(ownerId);
+                editar(evento, PelearComando.embedDerrota(locale, s), null);
+            }
+            case CONTINUA -> editar(evento, PelearComando.embedBatalla(locale, s, logTurno(locale, t)),
+                    PelearComando.botonesBatalla(ownerId, locale));
+        }
+    }
+
+    /** Edita el mensaje de la interacción (botón o menú) con embed y componentes dados. */
+    private static void editar(IReplyCallback evento, MessageEmbed embed, ActionRow fila) {
+        if (evento instanceof ButtonInteractionEvent b) {
+            if (fila == null) {
+                b.editMessageEmbeds(embed).setComponents().queue();
+            } else {
+                b.editMessageEmbeds(embed).setComponents(fila).queue();
+            }
+        } else if (evento instanceof StringSelectInteractionEvent m) {
+            if (fila == null) {
+                m.editMessageEmbeds(embed).setComponents().queue();
+            } else {
+                m.editMessageEmbeds(embed).setComponents(fila).queue();
+            }
+        }
+    }
+
+    /** Resumen localizado del turno para el embed de batalla. */
+    private static String logTurno(Locale locale, Turno t) {
+        if (t.sinContraataque()) {
+            return Messages.get(locale, "batalla.log.energia");
+        }
+        if (t.curado() > 0) {
+            return Messages.get(locale, "batalla.log.cura", t.curado(), t.danoAlJugador());
+        }
+        if (t.danoAlMonstruo() > 0) {
+            return Messages.get(locale, "batalla.log.atacar", t.danoAlMonstruo(), t.danoAlJugador());
+        }
+        return Messages.get(locale, "batalla.log.defender", t.danoAlJugador());
+    }
+
+    private MessageEmbed motivoInicio(Locale locale, ResultadoInicio r) {
+        String msg = switch (r.estado()) {
+            case MONSTRUO_NO_EXISTE -> Messages.get(locale, "pelear.rival.noexiste");
+            case MUNDO_BLOQUEADO -> Messages.get(locale, "pelear.bloqueado");
+            case NIVEL_INSUFICIENTE -> Messages.get(locale, "pelear.nivel", r.detalle());
+            case SIN_ENERGIA -> Messages.get(locale, "pelear.sinenergia", r.detalle());
+            case EN_COOLDOWN -> Messages.get(locale, "pelear.cooldown", r.detalle());
+            case OK -> "";
+        };
+        return EmbedFactory.aviso(EmbedFactory.Tipo.DUELO, locale, msg);
+    }
+
+    /** ¿Es quien pulsa el dueño del combate? Si no, aviso efímero y corta. */
+    private static boolean esDueno(IReplyCallback evento, String ownerIdStr, Locale locale) {
+        long ownerId = Long.parseUnsignedLong(ownerIdStr);
+        if (evento.getUser().getIdLong() == ownerId) {
+            return true;
+        }
+        evento.reply(Messages.get(locale, "batalla.noestuyo")).setEphemeral(true).queue();
+        return false;
+    }
+
+    private static void sinSesion(IReplyCallback evento, Locale locale) {
+        editar(evento, EmbedFactory.aviso(EmbedFactory.Tipo.DUELO, locale,
+                Messages.get(locale, "batalla.nosesion")), null);
+    }
+}

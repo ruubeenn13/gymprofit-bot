@@ -32,7 +32,7 @@ class CombateServiceTest {
 
     /** Personaje base con arma/armadura opcionales (resto de campos irrelevantes para el test). */
     private static Personaje personaje(int fuerza, int resistencia, String arma, String armadura) {
-        return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, arma, armadura);
+        return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, arma, armadura, null);
     }
 
     @Test
@@ -100,6 +100,27 @@ class CombateServiceTest {
     @Test
     void poderCombateSinEquipoSoloStats() {
         assertEquals(8, CombateService.poderCombate(personaje(5, 3, null, null)));
+    }
+
+    @Test
+    void hpCombateEscalaConResistencia() {
+        // HP = 80 + resistencia*10
+        assertEquals(80, CombateService.hpCombate(personaje(0, 0, null, null)));
+        assertEquals(120, CombateService.hpCombate(personaje(0, 4, null, null)));
+    }
+
+    @Test
+    void ataqueYDefensaSumanEquipo() {
+        // fuerza 5 + espada(23) = 28 ; resistencia 3 + placas(14) = 17
+        assertEquals(28, CombateService.ataqueDe(personaje(5, 3, "espada", "placas")));
+        assertEquals(17, CombateService.defensaDe(personaje(5, 3, "espada", "placas")));
+    }
+
+    @Test
+    void danoRestaDefensaAplicaFactorYTieneSuelo() {
+        assertEquals(15, CombateService.dano(20, 5, 1.0));
+        assertEquals(8, CombateService.dano(20, 5, 0.5));  // round(7.5)
+        assertEquals(1, CombateService.dano(3, 10, 1.0));  // suelo en 1 aunque la defensa supere
     }
 
     @Test

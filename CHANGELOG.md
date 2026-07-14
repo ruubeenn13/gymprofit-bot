@@ -7,6 +7,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — batalla por turnos** (COMBAT-3): migración **V12** (`personajes.ultimo_combate`,
+  cooldown tras derrota). `/pelear <mundo>` abre un menú de rivales y arranca una **batalla por
+  turnos con botones** (Atacar / Defender / Objeto / Huir) conducida por `CombateListener` (sesión en
+  memoria, una por jugador). HP de combate propio = `base + resistencia·k` (distinto de la salud);
+  daño = `f(ataque+arma, defensa rival, azar)`, con contraataque del monstruo. **Objeto** usa
+  consumibles: los de salud curan HP de combate, los de energía dan **turno extra**. Al **ganar**:
+  coins + XP + tirada de **loot** (al inventario) y, si es jefe, se marca `progreso_mundos` y se
+  **desbloquea el mundo siguiente**; al **perder**: −salud + cooldown. Pelear cuesta energía. Todo en
+  **embeds con barras de HP**. `BatallaService` (motor, azar inyectable) + `CombateSesion`;
+  `BatallaServiceTest` (15) y math de combate en `CombateServiceTest`.
 - **Combate / RPG — mundos y bestiario** (COMBAT-2): migración **V11** (`progreso_mundos`: qué
   mundos ha completado cada jugador). Catálogos en código: **`Mundos`** (8 mundos desbloqueables en
   orden, del Bosque Susurrante al Reino Sombrío, con nivel recomendado) y **`Monstruos`** (bestiario

@@ -94,13 +94,22 @@ desbloqueo), `/monstruos <mundo>` (bestiario). Sin pelea aún (solo datos + nave
 > <mundo>` (un embed por dificultad, límite 4096). Canales `⚔️・combate` `🗺️・mundos`
 > `📖・bestiario` en la categoría 🎮 VIDA. `MundoServiceTest` (10). La batalla la escribe COMBAT-3.
 
-**COMBAT-3 · Batalla por turnos**
+**COMBAT-3 · Batalla por turnos** — ✅ **HECHO**
 Sesión de combate en memoria (jugador HP vs monstruo HP, turno). `/pelear <monstruo>`: comprueba
 mundo desbloqueado, nivel, energía y cooldown; abre un embed con **barras de HP** y botones
 **Atacar / Defender / Objeto / Huir** (listener `CombateListener`). Cada turno: daño =
 f(ataque+fuerza, defensa rival, azar); el monstruo contraataca. Al ganar: coins + XP + tirada de
 loot (añade ítem al inventario); si es jefe, marca `jefe_derrotado` y **desbloquea el siguiente
 mundo**. Al perder: −salud + cooldown. Todo en **embeds bonitos**.
+> Implementado: **V12** (`personajes.ultimo_combate`, cooldown solo al perder). `/pelear <mundo>` →
+> menú de rivales → `BatallaService.iniciar` (valida desbloqueo/nivel/energía/cooldown, consume
+> energía) → `CombateListener` conduce la pelea (mapa de `CombateSesion` por jugador, botones
+> guardados por dueño). HP combate = `80 + resistencia·10`; `dano = max(1, ofensiva−defensa)·azar`
+> (azar inyectable para tests). **Objeto**: consumibles de salud curan HP de combate; los de energía
+> = **turno extra** (sin contraataque). Victoria: `economia.ingresar` + `xp.ganarXp` + loot al
+> inventario (+ desbloqueo si jefe). Derrota: `registrarDerrota` (−20 salud + cooldown 5 min).
+> `BatallaServiceTest` (15) + math en `CombateServiceTest`. Extras (habilidades/críticos/rareza/
+> encantar) siguen en COMBAT-4.
 
 **COMBAT-4 · Habilidades, rareza y encantamientos** *(profundidad)*
 Habilidades de combate + críticos/esquivas; rareza de loot (común→legendario); `/encantar` +

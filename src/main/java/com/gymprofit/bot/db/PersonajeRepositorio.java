@@ -36,7 +36,7 @@ public final class PersonajeRepositorio {
     /** Personaje por id, si existe. */
     public Optional<Personaje> buscar(long discordId) {
         String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud, trabajo, "
-                + "ultimo_work, arma, armadura FROM personajes WHERE discord_id = ?";
+                + "ultimo_work, arma, armadura, ultimo_combate FROM personajes WHERE discord_id = ?";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, discordId);
@@ -168,11 +168,43 @@ public final class PersonajeRepositorio {
         });
     }
 
+    /**
+     * Gasta {@code coste} de energía si hay suficiente (atómico). A diferencia de {@link #trabajar},
+     * no toca {@code ultimo_work}: es el coste de entrar en una pelea. Devuelve si se aplicó.
+     */
+    public boolean gastarEnergia(long discordId, int coste) {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "UPDATE personajes SET energia = energia - ? "
+                             + "WHERE discord_id = ? AND energia >= ?")) {
+            ps.setInt(1, coste);
+            ps.setLong(2, discordId);
+            ps.setInt(3, coste);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error gastando energía de " + discordId, e);
+        }
+    }
+
+    /**
+     * Registra una derrota en combate: resta {@code saludPerdida} (con suelo en 0) y fija
+     * {@code ultimo_combate = NOW()} para arrancar el cooldown de pelea.
+     */
+    public void registrarDerrota(long discordId, int saludPerdida) {
+        ejecutar("UPDATE personajes SET salud = GREATEST(0, salud - ?), ultimo_combate = NOW() "
+                + "WHERE discord_id = ?", ps -> {
+            ps.setInt(1, saludPerdida);
+            ps.setLong(2, discordId);
+        });
+    }
+
     private static Personaje mapear(ResultSet rs) throws SQLException {
         java.sql.Timestamp uw = rs.getTimestamp("ultimo_work");
+        java.sql.Timestamp uc = rs.getTimestamp("ultimo_combate");
         return new Personaje(rs.getLong("discord_id"), rs.getInt("fuerza"), rs.getInt("resistencia"),
                 rs.getInt("carisma"), rs.getInt("energia"), rs.getInt("salud"),
                 rs.getString("trabajo"), uw == null ? null : uw.toInstant(),
-                rs.getString("arma"), rs.getString("armadura"));
+                rs.getString("arma"), rs.getString("armadura"),
+                uc == null ? null : uc.toInstant());
     }
 }
