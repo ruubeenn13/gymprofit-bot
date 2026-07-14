@@ -228,7 +228,7 @@ public final class SetupServidorPlan {
                             .conTopic("Preguntas frecuentes. Busca por etiqueta o abre un post con tu duda."),
                     anuncios("📣・anuncios", "intro.anuncios")
                             .conTopic("Novedades importantes del servidor y del equipo."),
-                    anuncios("📲・novedades-app", null)
+                    anuncios("📲・novedades-app", "intro.novedadesapp")
                             .conTopic("Actualizaciones y cambios de la app GymProFit."),
                     info("📱・redes-sociales", null, "intro.redes")
                             .conTopic("Síguenos en Instagram, TikTok, YouTube y más."))),
@@ -237,13 +237,13 @@ public final class SetupServidorPlan {
                             .conTopic("Charla general. Preséntate, pregunta y conoce a la gente. 💬"),
                     texto("👋・presentaciones", null, "intro.presentaciones")
                             .conTopic("¿Nuevo por aquí? Cuéntanos quién eres y tus objetivos."),
-                    texto("😂・memes", null)
+                    texto("😂・memes", null, "intro.memes")
                             .conTopic("Memes de gym y humor fit. Sin pasarse. 😂"),
-                    texto("🎮・gaming", null)
+                    texto("🎮・gaming", null, "intro.gaming")
                             .conTopic("Gaming, partidas y quedadas para jugar."),
-                    texto("🎵・música", null)
+                    texto("🎵・música", null, "intro.musica")
                             .conTopic("Comparte y descubre música para entrenar. 🎵"),
-                    texto("🎧・off-topic", null)
+                    texto("🎧・off-topic", null, "intro.offtopic")
                             .conTopic("Todo lo que no encaje en el resto de canales."))),
             new CategoriaPlan("▬▬ 🏋️ FITNESS ▬▬", false, false, List.of(
                     texto("🗓️・ejercicio-del-día", TipoCanal.EJERCICIO_DIA)
@@ -262,9 +262,9 @@ public final class SetupServidorPlan {
                             .conTopic("Pregunta sobre entrenamiento y técnica. Marca 'Resuelto' al cerrar.")
                             .permite("🧑‍🏫 Coach", Permission.MESSAGE_MANAGE, Permission.MANAGE_THREADS))),
             new CategoriaPlan("▬▬ 🎮 GAMIFICACIÓN ▬▬", false, false, List.of(
-                    info("🏆・logros", TipoCanal.LOGROS)
+                    info("🏆・logros", TipoCanal.LOGROS, "intro.logros")
                             .conTopic("Logros desbloqueados por la comunidad (los publica el bot). 🏆"),
-                    info("📊・ranking", null)
+                    info("📊・ranking", null, "intro.ranking")
                             .conTopic("Clasificación de XP y niveles del servidor (la publica el bot)."),
                     texto("🧠・trivia", null, "intro.proximamente")
                             .conTopic("Preguntas de fitness para ganar XP. (Próximamente)")
@@ -286,12 +286,12 @@ public final class SetupServidorPlan {
                     // Aventura (COMBAT): equipo, mundos desbloqueables y bestiario.
                     texto("⚔️・combate", null, "intro.combate")
                             .conTopic("Equípate y prepárate para la aventura: /equipar, /mundos, /monstruos. ⚔️"),
-                    texto("🗺️・mundos", null)
+                    texto("🗺️・mundos", null, "intro.mundos")
                             .conTopic("Los mundos del RPG y su progreso: /mundos. 🗺️"),
-                    texto("📖・bestiario", null)
+                    texto("📖・bestiario", null, "intro.bestiario")
                             .conTopic("Todos los monstruos por mundo y dificultad: /monstruos. 📖"),
                     // Economía social/riesgo (mercado, casino, bolsa) y comunidad del RPG.
-                    texto("📈・bolsa", null)
+                    texto("📈・bolsa", null, "intro.bolsa")
                             .conTopic("Bolsa de ficción: /bolsa, /invertir, /cartera. 📈"))),
             new CategoriaPlan("▬▬ 🛎️ AYUDA ▬▬", false, false, List.of(
                     foro("💡・sugerencias", TipoCanal.SUGERENCIAS,
@@ -311,15 +311,15 @@ public final class SetupServidorPlan {
                     voz("🎥 Directo", 0),
                     voz("💤 AFK", 0))),
             new CategoriaPlan("▬▬ 🔒 STAFF ▬▬", true, true, List.of(
-                    texto("🛠️・staff-chat", null)
+                    texto("🛠️・staff-chat", null, "intro.staffchat")
                             .conTopic("Coordinación interna del equipo."),
                     texto("🤖・bot-logs", TipoCanal.BOT_LOGS)
                             .conTopic("Registro de eventos del bot."),
-                    texto("📋・moderación", null)
+                    texto("📋・moderación", null, "intro.moderacioncanal")
                             .conTopic("Alertas de moderación y AutoMod."),
                     foro("📥・reportes", null, "Pendiente", "En curso", "Resuelto", "Descartado")
                             .conTopic("Reportes de miembros. Un post por caso; etiqueta su estado."),
-                    texto("🗄️・logs-tickets", null)
+                    texto("🗄️・logs-tickets", null, "intro.logstickets")
                             .conTopic("Histórico de tickets cerrados."),
                     voz("🔒 Voz staff", 0))),
             new CategoriaPlan("▬▬ 🎫 TICKETS ▬▬", true, true, List.of())
