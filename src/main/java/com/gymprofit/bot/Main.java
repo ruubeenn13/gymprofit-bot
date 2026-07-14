@@ -15,11 +15,21 @@ import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.BancoComando;
+import com.gymprofit.bot.commands.economia.CoinflipComando;
+import com.gymprofit.bot.commands.economia.DadoComando;
+import com.gymprofit.bot.commands.economia.DueloComando;
+import com.gymprofit.bot.commands.economia.RuletaComando;
 import com.gymprofit.bot.commands.economia.CofresComando;
 import com.gymprofit.bot.commands.economia.DepositarComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.ComprarMercadoComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
+import com.gymprofit.bot.commands.economia.CrearGremioComando;
+import com.gymprofit.bot.commands.economia.DisolverGremioComando;
+import com.gymprofit.bot.commands.economia.GremioAddComando;
+import com.gymprofit.bot.commands.economia.GremioComando;
+import com.gymprofit.bot.commands.economia.GremioKickComando;
+import com.gymprofit.bot.commands.economia.SalirGremioComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
 import com.gymprofit.bot.commands.economia.EquiparComando;
@@ -87,6 +97,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.BancoRepositorio;
+import com.gymprofit.bot.db.GremioRepositorio;
 import com.gymprofit.bot.db.InsigniaRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
 import com.gymprofit.bot.db.MercadoRepositorio;
@@ -102,8 +113,11 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
+import com.gymprofit.bot.services.ApuestaService;
 import com.gymprofit.bot.services.BancoService;
 import com.gymprofit.bot.services.CofreService;
+import com.gymprofit.bot.services.DueloService;
+import com.gymprofit.bot.services.GremioService;
 import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.EconomiaService;
@@ -129,10 +143,12 @@ import com.gymprofit.bot.services.SugerenciaService;
 import com.gymprofit.bot.services.TicketService;
 import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.util.Cifrador;
+import com.gymprofit.bot.util.Cooldown;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.CombateListener;
+import com.gymprofit.bot.events.DueloListener;
 import com.gymprofit.bot.events.TruequeListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
@@ -448,6 +464,26 @@ public final class Main {
             comandos.add(new TruequeComando(truequeRegistro));
             listeners.add(new TruequeListener(
                     new TruequeService(economiaRepo, inventarioRepo, usuarios), truequeRegistro));
+
+            // Gremios (F-ECO-5a): grupos con canal privado.
+            GremioService gremioService = new GremioService(
+                    new GremioRepositorio(db.dataSource()), economiaRepo, usuarios);
+            comandos.add(new CrearGremioComando(gremioService));
+            comandos.add(new GremioComando(gremioService));
+            comandos.add(new GremioAddComando(gremioService));
+            comandos.add(new SalirGremioComando(gremioService));
+            comandos.add(new GremioKickComando(gremioService));
+            comandos.add(new DisolverGremioComando(gremioService));
+
+            // Casino (F-ECO-6): juegos de azar de ficción y duelos.
+            ApuestaService apuestaService = new ApuestaService(economiaRepo, usuarios);
+            Cooldown apuestasCooldown = new Cooldown(java.time.Duration.ofSeconds(5));
+            comandos.add(new CoinflipComando(apuestaService, apuestasCooldown));
+            comandos.add(new DadoComando(apuestaService, apuestasCooldown));
+            comandos.add(new RuletaComando(apuestaService, apuestasCooldown));
+            DueloService dueloService = new DueloService(economiaRepo, usuarios);
+            comandos.add(new DueloComando(dueloService));
+            listeners.add(new DueloListener(dueloService));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

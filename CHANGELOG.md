@@ -7,6 +7,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **RPG — casino de ficción** (F-ECO-6): juegos de azar con **moneda ficticia** (nunca dinero real).
+  `/coinflip <apuesta> <cara>` (paga el doble), `/dado <número> <apuesta>` (acierta 1-6, paga 5×) y
+  `/ruleta <apuesta> <color>` (rojo/negro 2×, verde 30×), con límites de apuesta, cooldown anti-spam y
+  una pequeña **ventaja de la casa** (valor esperado < 1 = sumidero). `/duelo <usuario> <apuesta>`
+  reta a otro jugador: ambos apuestan y, al azar, el ganador se lleva todo (confirmación por botón).
+  `ApuestaService`/`DueloService` (azar inyectable) + tests. Con esto **F-ECO-6 hecho** y la economía
+  queda muy completa (quedan alianzas entre gremios y ascensos de carrera como extras).
+- **RPG — gremios** (F-ECO-5a): migración **V21** (tablas `gremios`, `gremio_miembros`). `/crear-gremio
+  <nombre>` funda un gremio (coste 5000, sumidero) y le crea un **canal privado** visible solo para
+  sus miembros (por permisos de miembro, sin rol, para no gastar el cupo de roles). `/gremio` lo
+  muestra; `/gremio-add` y `/gremio-kick` gestionan miembros (solo dueño); `/salir-gremio` abandona;
+  `/disolver-gremio` lo elimina y borra el canal. Un jugador pertenece a un solo gremio; máximo 10
+  miembros. `GremioService` (lógica de datos, testeada) + `GremioCanal` (gestión del canal por JDA).
 - **RPG — trueque entre jugadores** (F-ECO-4d): `/trueque <usuario> [doy_item] [doy_coins] [pido_item]
   [pido_coins] …` propone un intercambio de ítems y/o coins en ambos sentidos; el otro jugador lo
   **confirma con botones** (Aceptar/Rechazar). El intercambio es atómico: reserva lo que aporta cada
