@@ -25,7 +25,7 @@ public record Items(String id, Categoria categoria, String emoji, long precio, E
      * Categorías del catálogo. {@code ARMA}/{@code ARMADURA} son equipables (COMBAT-1) y aportan
      * ataque/defensa al poder de combate; el resto no se equipa.
      */
-    public enum Categoria { CONSUMIBLE, EQUIPO, BIEN, ARMA, ARMADURA }
+    public enum Categoria { CONSUMIBLE, EQUIPO, BIEN, ARMA, ARMADURA, PICO, MINERAL }
 
     public enum Efecto { NINGUNO, ENERGIA, SALUD }
 
@@ -133,7 +133,24 @@ public record Items(String id, Categoria categoria, String emoji, long precio, E
             new Items("armadura_elfica", Categoria.ARMADURA, "🍃", 12000, Efecto.NINGUNO, 0, 0, 25),
             new Items("armadura_dorada", Categoria.ARMADURA, "🥇", 25000, Efecto.NINGUNO, 0, 0, 30),
             new Items("armadura_draconica", Categoria.ARMADURA, "🐉", 60000, Efecto.NINGUNO, 0, 0, 40),
-            new Items("armadura_divina", Categoria.ARMADURA, "✨", 120000, Efecto.NINGUNO, 0, 0, 55));
+            new Items("armadura_divina", Categoria.ARMADURA, "✨", 120000, Efecto.NINGUNO, 0, 0, 55),
+            // --- Picos (minería; su tier/durabilidad viven en services/Picos). Comprables. ---
+            new Items("pico_madera", Categoria.PICO, "🪓", 300, Efecto.NINGUNO, 0),
+            new Items("pico_hierro", Categoria.PICO, "⛏️", 2000, Efecto.NINGUNO, 0),
+            new Items("pico_diamante", Categoria.PICO, "💠", 15000, Efecto.NINGUNO, 0),
+            new Items("pico_mithril", Categoria.PICO, "🔱", 80000, Efecto.NINGUNO, 0),
+            // --- Minerales (solo se minan; precio = valor de venta). No se compran en la tienda. ---
+            new Items("piedra", Categoria.MINERAL, "🪨", 3, Efecto.NINGUNO, 0),
+            new Items("carbon", Categoria.MINERAL, "⚫", 6, Efecto.NINGUNO, 0),
+            new Items("cobre", Categoria.MINERAL, "🟤", 12, Efecto.NINGUNO, 0),
+            new Items("hierro", Categoria.MINERAL, "⚙️", 20, Efecto.NINGUNO, 0),
+            new Items("plata", Categoria.MINERAL, "🥈", 40, Efecto.NINGUNO, 0),
+            new Items("oro", Categoria.MINERAL, "🥇", 70, Efecto.NINGUNO, 0),
+            new Items("esmeralda", Categoria.MINERAL, "🟩", 120, Efecto.NINGUNO, 0),
+            new Items("diamante", Categoria.MINERAL, "💎", 200, Efecto.NINGUNO, 0),
+            new Items("rubi", Categoria.MINERAL, "🔴", 350, Efecto.NINGUNO, 0),
+            new Items("obsidiana", Categoria.MINERAL, "⬛", 500, Efecto.NINGUNO, 0),
+            new Items("mithril", Categoria.MINERAL, "🔷", 900, Efecto.NINGUNO, 0));
 
     /** Busca un ítem por id. */
     public static Optional<Items> porId(String id) {

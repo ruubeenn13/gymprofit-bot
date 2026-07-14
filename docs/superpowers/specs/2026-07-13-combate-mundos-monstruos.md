@@ -128,9 +128,17 @@ catálogo amplio de encantamientos/efectos aplicados a armas.
 > (robo de vida cura por golpe); `/perfil` muestra +nivel y emoji del encanto. `EncantarService`
 > (sumidero de coins) + tests. **COMBAT-4 completo.** Próximo: COMBAT-5 (minería).
 
-**COMBAT-5 · Minería y recursos**
+**COMBAT-5 · Minería y recursos** — 🔄 **EN CURSO** (5a hecho; 5b pendiente)
 `/minar` (recursos con cooldown/energía), catálogo amplio de minerales, `/vender` (recursos/loot →
 coins). Base para el crafting.
+> **5a HECHO:** V14 (tabla `mineria`: nivel + cooldown). `/minar` universal (usa el mejor pico del
+> inventario, gasta energía, cooldown 2 min, sube `nivel_mineria`); picos por tier
+> (madera/hierro/diamante/mithril) desbloquean minerales; catálogo `Minerales` (11) + `Picos` (4) como
+> ítems de categorías nuevas MINERAL/PICO en `Items`. `/vender <item> [cant]` (mineral a valor
+> completo, resto a la mitad → anti-arbitraje). Picos comprables en `/tienda`; minerales no.
+> `MineriaService` (azar inyectable) + `VentaService` + tests.
+> **5b (pendiente):** durabilidad del pico (baja con el uso) + `/reparar` (sumidero de coins).
+> Crafting/herrería (`/craftear`) queda para más adelante (visión), sobre esta base.
 
 **COMBAT-6 · Contenido y objetivos**
 - **Misiones de caza** (`/mision`): objetivos tipo «mata 10 lobos» → recompensa; diarias/semanales.

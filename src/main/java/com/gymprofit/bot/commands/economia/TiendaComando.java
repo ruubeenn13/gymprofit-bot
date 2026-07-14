@@ -31,6 +31,7 @@ public final class TiendaComando implements Comando {
                 .addChoice("bienes", "BIEN")
                 .addChoice("armas", "ARMA")
                 .addChoice("armaduras", "ARMADURA")
+                .addChoice("picos", "PICO")
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.tienda.opcion.categoria"));
 
@@ -53,6 +54,10 @@ public final class TiendaComando implements Comando {
         // descripción de un embed, así que se reparte (Discord admite varios embeds por mensaje).
         List<MessageEmbed> embeds = new ArrayList<>();
         for (Items.Categoria cat : Items.Categoria.values()) {
+            // Los minerales no se compran (solo se minan y se venden): no salen en la tienda.
+            if (cat == Items.Categoria.MINERAL) {
+                continue;
+            }
             if (filtro != null && !cat.name().equals(filtro)) {
                 continue;
             }

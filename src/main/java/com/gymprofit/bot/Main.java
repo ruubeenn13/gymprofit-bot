@@ -23,9 +23,11 @@ import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
+import com.gymprofit.bot.commands.economia.MinarComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
+import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
@@ -63,6 +65,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
+import com.gymprofit.bot.db.MineriaRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
@@ -80,8 +83,10 @@ import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
 import com.gymprofit.bot.services.BatallaService;
+import com.gymprofit.bot.services.MineriaService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
+import com.gymprofit.bot.services.VentaService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
 import com.gymprofit.bot.services.SugerenciaService;
@@ -346,6 +351,12 @@ public final class Main {
             // Combate (COMBAT-4c): encantar el arma (nivel + efectos).
             comandos.add(new EncantarComando(
                     new EncantarService(personajeRepo, economiaRepo, usuarios)));
+
+            // Minería (COMBAT-5a): minar recursos y venderlos.
+            MineriaService mineriaService = new MineriaService(
+                    new MineriaRepositorio(db.dataSource()), personajeRepo, inventarioRepo, usuarios);
+            comandos.add(new MinarComando(mineriaService));
+            comandos.add(new VenderComando(new VentaService(inventarioRepo, economiaRepo, usuarios)));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

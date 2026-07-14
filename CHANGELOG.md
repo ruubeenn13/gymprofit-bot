@@ -7,6 +7,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — minería y venta** (COMBAT-5a): migración **V14** (tabla `mineria`: nivel y
+  cooldown por jugador). `/minar` es una actividad universal: con un pico en el inventario (se usa el
+  de mayor tier) extraes minerales gastando energía y con cooldown; el **nivel de minería** sube con
+  el uso y aumenta la cantidad. Picos por tier (madera→hierro→diamante→mithril) que desbloquean qué
+  minerales salen; catálogo de **11 minerales** (piedra→mithril, con valor creciente). `/vender <item>
+  [cantidad]` convierte minerales/loot en coins (minerales a valor completo; el resto a la mitad, para
+  evitar arbitraje). Picos comprables en `/tienda` (sección Picos); los minerales no se compran.
+  Catálogos `Picos`/`Minerales`, `MineriaService` (azar inyectable) y `VentaService`; tests de ambos.
+  Siguiente: 5b durabilidad de picos + `/reparar`.
 - **Combate / RPG — encantamientos de arma** (COMBAT-4c): migración **V13** (`personajes.arma_nivel`,
   `arma_encanto`). `/encantar` mejora el arma equipada: sin opción **sube su nivel** (+daño en combate,
   coste creciente, tope nivel 10); con la opción `efecto` aplica un **encantamiento** del catálogo
