@@ -173,3 +173,48 @@ de roles; los inexistentes se omiten con aviso. Los canales de anuncios pasan a 
 antes `@everyone` podía escribir en ellos).
 
 **Estado:** aceptada.
+
+## ADR-010 — RPG económico: catálogos en código, azar inyectable y anti-inflación
+
+**Contexto.** La Fase 2 añade un RPG/economía enorme (combate, minería, herrería, cofres, misiones,
+mazmorras, mercado, banco, trueque, gremios, casino, bolsa). Hay que decidir dónde viven los datos,
+cómo se testea el azar y cómo no romper la economía ficticia.
+
+**Decisión.**
+- **Catálogos de contenido en código** (records + `List` estáticas: `Items`, `Monstruos`, `Mundos`,
+  `Recetas`, `Cofres`, `Acciones`…), no en BD. La BD guarda solo el **estado del jugador**. Editar
+  contenido = editar código + test; sin migraciones para cada ítem nuevo.
+- **Azar inyectable** (`BatallaService.Aleatorio`, `@FunctionalInterface` `double next()`): los
+  services de combate/cofres/casino/bolsa/minería lo reciben; en producción es
+  `ThreadLocalRandom`, en tests una secuencia fija → balance determinista y testeable.
+- **Anti-inflación por diseño:** cada fuente de coins tiene un **sumidero** que la compensa
+  (comisión de mercado 5 %, comisión de banco/préstamo, ventaja de la casa en el casino con EV<1,
+  comisión de bolsa, coste de encantar/reparar/fundar gremio, durabilidad de picos). Invariante
+  probado donde aplica (p. ej. `CofreService`: valor esperado < precio).
+- **Monedero atómico** con ledger (`EconomiaRepositorio`, `transacciones`), nunca saldo negativo.
+
+**Estado:** aceptada e implementada (F-ECO-0..6 + combate + extras).
+
+## ADR-011 — Comandos de economía agrupados en subcomandos (límite de 100)
+
+**Contexto.** Discord limita a **100** los slash commands por servidor. El RPG llegó a 94 comandos
+sueltos; cada feature nueva acercaba al muro (si se rebasa, el registro falla y no carga nada).
+
+**Decisión.** Agrupar las familias grandes en **un comando con subcomandos** (`SubcommandData` +
+dispatch por `evento.getSubcommandName()`): `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`.
+Bajó el total a 76 (margen 24). Regla: los comandos nuevos de una familia existente se añaden como
+subcomando; vigilar el total < 100. El router no cambia (enruta por el nombre de nivel superior).
+
+**Estado:** aceptada e implementada.
+
+## ADR-012 — Canales privados de gremio por permisos de miembro (sin rol)
+
+**Contexto.** Los gremios (y futuras alianzas) necesitan un canal privado por grupo. Un rol por
+gremio agotaría el cupo de roles del servidor (250) y ensucia la lista de roles.
+
+**Decisión.** El canal del gremio se hace privado con **permission overrides por miembro** (deny
+`VIEW_CHANNEL` a `@everyone`, allow a cada miembro), **sin crear rol**. Al entrar/salir se ajusta el
+override del miembro; al disolver se borra el canal. Requiere que el bot tenga **Gestionar canales**;
+es best-effort (si falla, el gremio sigue en BD y se registra el fallo).
+
+**Estado:** aceptada e implementada (F-ECO-5a).

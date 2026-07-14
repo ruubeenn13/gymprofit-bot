@@ -23,7 +23,11 @@ migration (`V2__`, `V3__`…); never edit an applied one or touch the DB by hand
 `discord_links` table does **not** live here (it's app data, in the API's DB). See the
 `nueva-migracion` skill.
 
-Current migrations: `V1__esquema_inicial_f1.sql` (Phase 1 tables) and
-`V2__seed_frases_trivia.sql` (mandatory seeds: ≥50 trivia questions, ≥30 quotes, ES/EN).
+Migrations so far: **V1–V22**. F1: `V1` (base schema), `V2` (trivia/quote seeds), `V3` (events),
+`V4` (moderation), `V5` (raffles). RPG/economy (Phase 2): `V6` characters + `transacciones` ledger,
+`V7` work, `V8` inventory, `V9` upgrades, `V10`–`V13` combat (equipment, worlds progress, cooldown,
+enchantments), `V14`–`V15` mining (+durability), `V16` missions, `V17` studies, `V18` badges,
+`V19` market, `V20` bank, `V21` guilds, `V22` stock market. Never edit an applied migration; add a
+new `V23__…`.
 
-_Example:_ new `insignias` table ⇒ `V3__crea_tabla_insignias.sql` + `InsigniaRepository`.
+_Example:_ new `insignias` table ⇒ `V23__crea_tabla_x.sql` + its `Repositorio`.

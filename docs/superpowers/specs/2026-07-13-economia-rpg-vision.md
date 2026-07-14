@@ -4,6 +4,15 @@
 **Estado:** visión aprobada; se construye por fases (cada una jugable y desplegable).
 **Ámbito:** subsistema de gamificación/economía. Fase 2 del proyecto (Economía) y más allá.
 
+> **Estado de implementación (2026-07-14).** Hechas y en `main`: **F-ECO-0..6** (cimientos, trabajo/
+> energía, tienda/inventario, mejoras, progresión con rangos/`/rank`/estudios/insignias, economía
+> entre jugadores —regalar/mercado/banco/trueque—, gremios, casino) + **combate COMBAT-1..6**
+> (armas/armaduras, mundos/bestiario, batalla por turnos, críticos/esquivas/rareza, habilidades,
+> encantar, minería, herrería, misiones, mazmorras) + **extras** (cofres, bolsa ficticia, `/robar`).
+> Migraciones Flyway hasta **V22**. Comandos de economía agrupados en subcomandos (ADR-011).
+> **Pendiente:** alianzas entre gremios (F-ECO-5b), ascensos de carrera, efectos pasivos de
+> equipo/bienes, roles cosméticos comprables, directorio de comandos autogenerado, COMBAT-7 (pulido).
+
 > **Todo es ficción.** Las monedas (**coins**) son virtuales, **no comprables con dinero real** ni
 > convertibles. El gambling es una mecánica de juego sobre moneda ficticia; nunca dinero real.
 

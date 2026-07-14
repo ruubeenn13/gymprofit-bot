@@ -60,6 +60,25 @@ GymProBot turns the community server into a gamified gym and wires it to the app
 Also: **message XP** (with a 60 s anti-spam cooldown) that levels users up and announces it, and
 **welcome + auto-roles** (embed on member join with a goal menu that assigns the role).
 
+### RPG / Economy (fiction)
+
+A fictional life sim on top of the community. **Virtual coins**, not purchasable with real money nor
+convertible. By block:
+
+- **Character & progression:** `/perfil` · `/rank` · `/daily` · `/entrenar` · `/estudiar` ·
+  `/insignias` · automatic level ranks.
+- **Work & shop:** `/trabajos` · `/elegir-trabajo` · `/work` · `/tienda` · `/comprar` ·
+  `/inventario` · `/usar` · `/vender` · `/mejoras` · `/mejorar`.
+- **Combat:** `/mundos` · `/monstruos` · `/pelear` (turn-based, buttons) · `/mazmorra` ·
+  `/misiones` · `/equipar` · `/encantar`.
+- **Mining & smithing:** `/minar` · `/reparar` · `/recetas` · `/craftear`.
+- **Chests:** `/cofres` · `/abrir`.
+- **Between players:** `/regalar` · `/trueque` · `/robar` · `/mercado` (subcommands).
+- **Banking & gambling:** `/banco` · `/bolsa` · `/casino` (subcommands; all fiction).
+- **Social:** `/gremio` (groups with a private channel, subcommands).
+
+Design details in [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).
+
 ---
 
 <details>
