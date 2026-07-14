@@ -13,6 +13,7 @@ import com.gymprofit.bot.services.BatallaService.InicioEstado;
 import com.gymprofit.bot.services.BatallaService.Turno;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -324,5 +325,68 @@ class BatallaServiceTest {
         assertNotNull(r.sesion());
         assertEquals("lobo", r.sesion().monstruo().id());
         assertEquals(110, r.sesion().hpMaxJugador()); // 80 + 3*10
+    }
+
+    // ---------------------- Mazmorras ----------------------
+
+    @Test
+    void iniciarMazmorraCargaLaPrimeraOleada() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(personaje(5, 3));
+        when(mundos.completados(1L)).thenReturn(Set.of());
+        when(usuarios.buscar(1L)).thenReturn(Optional.of(
+                new UsuarioDiscord(1L, 0, 10, 0, 0, null, null, false)));
+        when(personajes.gastarEnergia(1L, BatallaService.ENERGIA_POR_MAZMORRA)).thenReturn(true);
+        var r = svc(0.5).iniciarMazmorra(1L, "guarida_lobos");
+        assertEquals(InicioEstado.OK, r.estado());
+        assertTrue(r.sesion().esMazmorra());
+        assertEquals(5, r.sesion().oleadasTotal());
+        assertEquals("lobo", r.sesion().monstruo().id());
+    }
+
+    @Test
+    void iniciarMazmorraSinEnergiaFalla() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(personaje(5, 3));
+        when(mundos.completados(1L)).thenReturn(Set.of());
+        when(usuarios.buscar(1L)).thenReturn(Optional.of(
+                new UsuarioDiscord(1L, 0, 10, 0, 0, null, null, false)));
+        when(personajes.gastarEnergia(1L, BatallaService.ENERGIA_POR_MAZMORRA)).thenReturn(false);
+        assertEquals(InicioEstado.SIN_ENERGIA,
+                svc(0.5).iniciarMazmorra(1L, "guarida_lobos").estado());
+    }
+
+    @Test
+    void avanzarOleadaRecorreLasOleadasYLuegoTermina() {
+        CombateSesion s = sesion("lobo", 20, 5, 100);
+        s.configurarMazmorra("guarida_lobos", List.of(
+                Monstruos.porId("jabali").orElseThrow(), Monstruos.porId("oso").orElseThrow()), 3);
+        s.danarJugador(30); // el HP se conserva entre oleadas
+        assertTrue(s.avanzarOleada());
+        assertEquals("jabali", s.monstruo().id());
+        assertEquals(s.hpMaxMonstruo(), s.hpMonstruo()); // el monstruo empieza a tope
+        assertEquals(70, s.hpJugador());                 // el jugador no se cura
+        assertTrue(s.avanzarOleada());
+        assertEquals("oso", s.monstruo().id());
+        assertFalse(s.avanzarOleada());                  // no quedan más oleadas
+    }
+
+    @Test
+    void completarMazmorraDaElBonus() {
+        when(xp.ganarXp(anyLong(), anyInt())).thenReturn(new XpResultado(null, false, 1, 1));
+        var b = svc(0.5).completarMazmorra(1L, "guarida_lobos");
+        assertEquals(300, b.coins());
+        assertEquals(150, b.xp());
+        verify(economia).ingresar(eq(1L), eq(300L), anyString());
+        verify(xp).ganarXp(1L, 150);
+    }
+
+    @Test
+    void catalogoDeMazmorrasEsCoherente() {
+        for (Mazmorras mz : Mazmorras.CATALOGO) {
+            assertTrue(Mundos.porId(mz.mundo()).isPresent(), mz.id());
+            assertTrue(mz.oleadas().size() > 0, mz.id());
+            for (String id : mz.oleadas()) {
+                assertTrue(Monstruos.porId(id).isPresent(), "monstruo inexistente: " + id);
+            }
+        }
     }
 }

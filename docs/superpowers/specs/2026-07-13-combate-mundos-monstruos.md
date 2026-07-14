@@ -145,12 +145,22 @@ coins). Base para el crafting.
 > armas/armaduras/picos (catálogo `Recetas`, 15; sin coins, sin schema) y `/recetas` las lista.
 > Cierra el bucle minar → forjar → combatir. `CrafteoService` + tests.
 
-**COMBAT-6 · Contenido y objetivos**
-- **Misiones de caza** (`/mision`): objetivos tipo «mata 10 lobos» → recompensa; diarias/semanales.
+**COMBAT-6 · Contenido y objetivos** — ✅ **HECHO** (6a misiones · 6b mazmorras; mercado espera F-ECO-4)
+- **Misiones de caza** (`/misiones`): objetivos tipo «mata 10 lobos» → recompensa; diarias/semanales.
 - **Mazmorras / oleadas** (`/mazmorra`): varios monstruos seguidos, más riesgo → más botín, jefe al
   final.
 - **Loot en el mercado:** el botín y los minerales se listan/venden en el `/mercado` de jugadores
   (integra con F-ECO-4), cerrando el círculo de la economía.
+> **6a HECHO:** V16 (tabla `mision_progreso`). Catálogo `Misiones` (8, tipos MONSTRUO/MUNDO/JEFE,
+> repetibles). Se completan solas al vencer (`MisionService.registrarVictoria` desde `CombateListener`):
+> pagan coins+XP y reinician; la recompensa sale en el embed de victoria. `/misiones` muestra progreso
+> con barras. Simplificado a repetibles (el «diarias/semanales» = tuning futuro). + tests.
+> **6b HECHO:** `/mazmorra <mazmorra>` (4: bosque/cueva/pantano/desierto) encadena oleadas de
+> monstruos + jefe final SIN curación entre oleadas; cuesta 30 energía; cada monstruo da su botín y
+> avanza misiones, y al completarla un bonus (coins+XP). Reusa el combate por turnos: `Mazmorras`
+> catálogo, oleadas en `CombateSesion` (`avanzarOleada`), `BatallaService.iniciarMazmorra`/
+> `completarMazmorra`, botón «Entrar» + rama de victoria en `CombateListener`. + tests.
+> **Loot al mercado:** requiere F-ECO-4 (mercado de jugadores), aún no existe. **COMBAT-6 hecho.**
 
 **COMBAT-7 · Pulido**
 Rare spawns (monstruo raro con loot top), sets de armadura (bonus por conjunto), rankings de mundos/

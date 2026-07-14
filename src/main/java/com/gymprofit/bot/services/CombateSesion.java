@@ -10,17 +10,23 @@ public final class CombateSesion {
 
     private final long jugadorId;
     private final String mundoId;
-    private final Monstruos monstruo;
     private final int ataqueJugador;
     private final int defensaJugador;
     private final double critJugador;
     private final double esquivaJugador;
     private final double roboVida;
     private final int hpMaxJugador;
-    private final int hpMaxMonstruo;
 
     private final java.util.Map<String, Integer> cooldowns = new java.util.HashMap<>();
 
+    // Estado de mazmorra (oleadas). Para un combate normal: mazmorraId null, sin oleadas siguientes.
+    private final java.util.List<Monstruos> oleadasSiguientes = new java.util.ArrayList<>();
+    private String mazmorraId;
+    private int oleadaActual = 1;
+    private int oleadasTotal = 1;
+
+    private Monstruos monstruo;
+    private int hpMaxMonstruo;
     private int hpJugador;
     private int hpMonstruo;
     private boolean defendiendo;
@@ -133,6 +139,48 @@ public final class CombateSesion {
     public void avanzarTurno() {
         turno++;
         cooldowns.replaceAll((id, restante) -> Math.max(0, restante - 1));
+    }
+
+    // ---------------------- Mazmorra (oleadas) ----------------------
+
+    /** Configura esta sesión como mazmorra: id + oleadas que vienen tras el monstruo actual. */
+    public void configurarMazmorra(String mazmorraId, java.util.List<Monstruos> siguientes, int total) {
+        this.mazmorraId = mazmorraId;
+        this.oleadasSiguientes.addAll(siguientes);
+        this.oleadasTotal = total;
+    }
+
+    /** ¿Es una mazmorra (varias oleadas)? */
+    public boolean esMazmorra() {
+        return mazmorraId != null;
+    }
+
+    public String mazmorraId() {
+        return mazmorraId;
+    }
+
+    public int oleadaActual() {
+        return oleadaActual;
+    }
+
+    public int oleadasTotal() {
+        return oleadasTotal;
+    }
+
+    /**
+     * Pasa a la siguiente oleada: nuevo monstruo a tope, el jugador conserva su HP (riesgo). Devuelve
+     * {@code false} si no quedan oleadas (mazmorra completada).
+     */
+    public boolean avanzarOleada() {
+        if (oleadasSiguientes.isEmpty()) {
+            return false;
+        }
+        monstruo = oleadasSiguientes.remove(0);
+        hpMaxMonstruo = monstruo.hp();
+        hpMonstruo = hpMaxMonstruo;
+        defendiendo = false;
+        oleadaActual++;
+        return true;
     }
 
     public boolean monstruoMuerto() {

@@ -25,7 +25,7 @@ public record Items(String id, Categoria categoria, String emoji, long precio, E
      * Categorías del catálogo. {@code ARMA}/{@code ARMADURA} son equipables (COMBAT-1) y aportan
      * ataque/defensa al poder de combate; el resto no se equipa.
      */
-    public enum Categoria { CONSUMIBLE, EQUIPO, BIEN, ARMA, ARMADURA, PICO, MINERAL }
+    public enum Categoria { CONSUMIBLE, EQUIPO, BIEN, ARMA, ARMADURA, PICO, MINERAL, COFRE }
 
     public enum Efecto { NINGUNO, ENERGIA, SALUD }
 
@@ -150,7 +150,12 @@ public record Items(String id, Categoria categoria, String emoji, long precio, E
             new Items("diamante", Categoria.MINERAL, "💎", 200, Efecto.NINGUNO, 0),
             new Items("rubi", Categoria.MINERAL, "🔴", 350, Efecto.NINGUNO, 0),
             new Items("obsidiana", Categoria.MINERAL, "⬛", 500, Efecto.NINGUNO, 0),
-            new Items("mithril", Categoria.MINERAL, "🔷", 900, Efecto.NINGUNO, 0));
+            new Items("mithril", Categoria.MINERAL, "🔷", 900, Efecto.NINGUNO, 0),
+            // --- Cofres (se compran y se abren con /abrir; su loot vive en services/Cofres). ---
+            new Items("cofre_comun", Categoria.COFRE, "🎁", 120, Efecto.NINGUNO, 0),
+            new Items("cofre_raro", Categoria.COFRE, "🎀", 800, Efecto.NINGUNO, 0),
+            new Items("cofre_epico", Categoria.COFRE, "🧰", 5000, Efecto.NINGUNO, 0),
+            new Items("cofre_legendario", Categoria.COFRE, "🏆", 30000, Efecto.NINGUNO, 0));
 
     /** Busca un ítem por id. */
     public static Optional<Items> porId(String id) {

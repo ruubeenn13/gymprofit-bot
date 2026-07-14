@@ -32,6 +32,7 @@ public final class TiendaComando implements Comando {
                 .addChoice("armas", "ARMA")
                 .addChoice("armaduras", "ARMADURA")
                 .addChoice("picos", "PICO")
+                .addChoice("cofres", "COFRE")
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.tienda.opcion.categoria"));
 

@@ -12,7 +12,9 @@ import com.gymprofit.bot.commands.config.PanelComando;
 import com.gymprofit.bot.commands.contenido.AnuncioComando;
 import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
+import com.gymprofit.bot.commands.economia.AbrirComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
+import com.gymprofit.bot.commands.economia.CofresComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
@@ -24,7 +26,9 @@ import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
+import com.gymprofit.bot.commands.economia.MazmorraComando;
 import com.gymprofit.bot.commands.economia.MinarComando;
+import com.gymprofit.bot.commands.economia.MisionesComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
@@ -69,6 +73,7 @@ import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
 import com.gymprofit.bot.db.MineriaRepositorio;
+import com.gymprofit.bot.db.MisionRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
@@ -79,6 +84,7 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
+import com.gymprofit.bot.services.CofreService;
 import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.EconomiaService;
@@ -88,6 +94,7 @@ import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
 import com.gymprofit.bot.services.BatallaService;
 import com.gymprofit.bot.services.MineriaService;
+import com.gymprofit.bot.services.MisionService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.VentaService;
@@ -349,8 +356,13 @@ public final class Main {
             // Combate (COMBAT-3): batalla por turnos con botones.
             BatallaService batallaService = new BatallaService(
                     personajeRepo, inventarioRepo, usuarios, economiaRepo, xpService, mundoRepo);
+            // Misiones de caza (COMBAT-6a): se completan al vencer en combate.
+            MisionService misionService = new MisionService(
+                    new MisionRepositorio(db.dataSource()), economiaRepo, xpService, usuarios);
             comandos.add(new PelearComando(mundoService));
-            listeners.add(new CombateListener(batallaService, inventarioRepo));
+            comandos.add(new MazmorraComando(mundoService));
+            comandos.add(new MisionesComando(misionService));
+            listeners.add(new CombateListener(batallaService, inventarioRepo, misionService));
 
             // Combate (COMBAT-4c): encantar el arma (nivel + efectos).
             comandos.add(new EncantarComando(
@@ -367,6 +379,12 @@ public final class Main {
             CrafteoService crafteoService = new CrafteoService(inventarioRepo, usuarios);
             comandos.add(new CrafteoComando(crafteoService));
             comandos.add(new RecetasComando());
+
+            // Cofres: comprar y abrir por loot al azar.
+            CofreService cofreService = new CofreService(
+                    inventarioRepo, economiaRepo, personajeRepo, usuarios);
+            comandos.add(new AbrirComando(cofreService));
+            comandos.add(new CofresComando());
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

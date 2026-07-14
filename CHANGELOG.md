@@ -7,6 +7,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **RPG — sistema de cofres**: cofres comprables que sueltan **botín al azar** con rarezas
+  (⬜🟦🟪🟨). `/abrir <cofre> [cantidad]` reparte un premio por cofre según su tabla (a menos peso,
+  más raro): ítems, coins, minerales, un encantamiento para el arma o un nivel de arma (si sales sin
+  arma, el encanto/nivel se convierte en coins). `/cofres` muestra cada cofre con sus **probabilidades
+  reales**. 4 cofres (común, raro, épico, legendario); a mejor cofre, más opción de lo top. Balance de
+  **sumidero** garantizado por test (valor esperado en coins < precio, para no inflar la economía).
+  Cofres comprables en `/tienda`; catálogos `Cofres`/`Rareza`, `CofreService` + tests.
+- **Combate / RPG — mazmorras** (COMBAT-6b): `/mazmorra <mazmorra>` encadena **varias oleadas de
+  monstruos** que terminan en el jefe del mundo, **sin curarte entre oleadas** (ese es el riesgo).
+  Reutiliza el combate por turnos: cada monstruo da su botín normal (y avanza misiones) y, al superar
+  la última oleada, se cobra un **bonus de finalización** (coins + XP). Cuesta más energía que una
+  pelea normal. 4 mazmorras (bosque, cueva, pantano, desierto). Catálogo `Mazmorras`;
+  `BatallaService.iniciarMazmorra`/`completarMazmorra`, oleadas en `CombateSesion`; `MazmorraComando`.
+  Con esto **COMBAT-6 queda hecho** (6a misiones · 6b mazmorras); el «loot al mercado» espera a F-ECO-4.
+- **Combate / RPG — misiones de caza** (COMBAT-6a): migración **V16** (tabla `mision_progreso`).
+  Catálogo de 8 misiones repetibles del tipo «mata N de X» (por monstruo, por mundo o jefes). Se
+  **completan solas** al ganar combates: la recompensa (coins + XP) aparece en el propio embed de
+  victoria, sin comando de reclamar. `/misiones` muestra tu progreso con barras. `Misiones` +
+  `MisionService` (enganchado a la victoria en `CombateListener`); tests. Siguiente: 6b mazmorras.
 - **Combate / RPG — herrería y crafteo**: cierra el bucle **minar → forjar → combatir**. `/craftear
   <receta>` combina minerales (de `/minar`) para fabricar armas, armaduras y picos, sin gastar coins
   (el coste es la minería). `/recetas` lista las 15 recetas con sus materiales. Incluye recetas de

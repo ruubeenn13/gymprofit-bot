@@ -32,11 +32,14 @@ public final class CombateListener extends ListenerAdapter {
 
     private final BatallaService batalla;
     private final InventarioRepositorio inventario;
+    private final com.gymprofit.bot.services.MisionService misiones;
     private final Map<Long, CombateSesion> sesiones = new ConcurrentHashMap<>();
 
-    public CombateListener(BatallaService batalla, InventarioRepositorio inventario) {
+    public CombateListener(BatallaService batalla, InventarioRepositorio inventario,
+                           com.gymprofit.bot.services.MisionService misiones) {
         this.batalla = batalla;
         this.inventario = inventario;
+        this.misiones = misiones;
     }
 
     @Override
@@ -72,6 +75,10 @@ public final class CombateListener extends ListenerAdapter {
             return;
         }
         long ownerId = Long.parseUnsignedLong(partes[2]);
+        if (partes[1].equals("mazent")) {
+            entrarMazmorra(evento, ownerId, partes[3], locale);
+            return;
+        }
         CombateSesion s = sesiones.get(ownerId);
         switch (partes[1]) {
             case "atacar" -> {
@@ -116,6 +123,22 @@ public final class CombateListener extends ListenerAdapter {
             return;
         }
         ResultadoInicio r = batalla.iniciar(ownerId, monstruoId);
+        if (r.estado() != BatallaService.InicioEstado.OK) {
+            evento.editMessageEmbeds(motivoInicio(locale, r)).setComponents().queue();
+            return;
+        }
+        sesiones.put(ownerId, r.sesion());
+        evento.editMessageEmbeds(PelearComando.embedBatalla(locale, r.sesion(), null))
+                .setComponents(PelearComando.botonesBatalla(ownerId, locale)).queue();
+    }
+
+    private void entrarMazmorra(ButtonInteractionEvent evento, long ownerId, String mazmorraId,
+                                Locale locale) {
+        if (sesiones.containsKey(ownerId)) {
+            evento.reply(Messages.get(locale, "batalla.yaencombate")).setEphemeral(true).queue();
+            return;
+        }
+        ResultadoInicio r = batalla.iniciarMazmorra(ownerId, mazmorraId);
         if (r.estado() != BatallaService.InicioEstado.OK) {
             evento.editMessageEmbeds(motivoInicio(locale, r)).setComponents().queue();
             return;
@@ -173,8 +196,20 @@ public final class CombateListener extends ListenerAdapter {
         switch (t.desenlace()) {
             case VICTORIA -> {
                 BatallaService.Botin botin = batalla.recompensar(s);
-                sesiones.remove(ownerId);
-                editar(evento, PelearComando.embedVictoria(locale, s, botin), null);
+                var misComp = misiones.registrarVictoria(ownerId, s.monstruo());
+                if (s.esMazmorra() && s.avanzarOleada()) {
+                    // Siguiente oleada: el jugador conserva su HP (riesgo).
+                    editar(evento, PelearComando.embedBatalla(locale, s,
+                            Messages.get(locale, "batalla.oleada", s.oleadaActual(), s.oleadasTotal())),
+                            PelearComando.botonesBatalla(ownerId, locale));
+                } else if (s.esMazmorra()) {
+                    BatallaService.BonusMazmorra bonus = batalla.completarMazmorra(ownerId, s.mazmorraId());
+                    sesiones.remove(ownerId);
+                    editar(evento, PelearComando.embedMazmorraCompletada(locale, s, bonus), null);
+                } else {
+                    sesiones.remove(ownerId);
+                    editar(evento, PelearComando.embedVictoria(locale, s, botin, misComp), null);
+                }
             }
             case DERROTA -> {
                 batalla.penalizar(ownerId);

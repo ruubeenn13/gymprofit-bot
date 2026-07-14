@@ -5,9 +5,11 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.BatallaService.Botin;
 import com.gymprofit.bot.services.BatallaService.Turno;
+import com.gymprofit.bot.services.BatallaService;
 import com.gymprofit.bot.services.CombateSesion;
 import com.gymprofit.bot.services.Habilidad;
 import com.gymprofit.bot.services.Items;
+import com.gymprofit.bot.services.Mazmorras;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.MundoService.MundoVista;
 import com.gymprofit.bot.services.Mundos;
@@ -203,8 +205,9 @@ public final class PelearComando implements Comando {
                         Messages.get(locale, "batalla.btn.volver"))));
     }
 
-    /** Embed de victoria con el botín. */
-    public static MessageEmbed embedVictoria(Locale locale, CombateSesion s, Botin botin) {
+    /** Embed de victoria con el botín y las misiones completadas en esta pelea. */
+    public static MessageEmbed embedVictoria(Locale locale, CombateSesion s, Botin botin,
+                                             List<com.gymprofit.bot.services.Misiones> misiones) {
         Monstruos m = s.monstruo();
         String nombreMon = m.emoji() + " " + Messages.get(locale, "monstruo." + m.id());
         StringBuilder sb = new StringBuilder(Messages.get(locale, "batalla.victoria.desc", nombreMon));
@@ -230,8 +233,37 @@ public final class PelearComando implements Comando {
                         Messages.get(locale, "mundo." + botin.siguienteMundoId()))
                     : Messages.get(locale, "batalla.jefe.final"));
         }
+        for (com.gymprofit.bot.services.Misiones mis : misiones) {
+            sb.append('\n').append(Messages.get(locale, "batalla.mision",
+                    Messages.get(locale, "mision." + mis.id()), mis.coins(), mis.xp()));
+        }
         return EmbedFactory.base(EmbedFactory.Tipo.LOGRO, locale,
                 Messages.get(locale, "batalla.victoria.titulo"), sb.toString()).build();
+    }
+
+    /** Embed de la pantalla de entrada a una mazmorra (con botón Entrar). */
+    public static MessageEmbed embedEntrarMazmorra(Locale locale, Mazmorras mz) {
+        String nombre = mz.emoji() + " " + Messages.get(locale, "mazmorra." + mz.id());
+        return EmbedFactory.base(EmbedFactory.Tipo.DUELO, locale,
+                Messages.get(locale, "mazmorra.entrar.titulo", nombre),
+                Messages.get(locale, "mazmorra.entrar.desc", mz.totalOleadas(),
+                        BatallaService.ENERGIA_POR_MAZMORRA, mz.bonusCoins(), mz.bonusXp())).build();
+    }
+
+    /** Botón para entrar en una mazmorra. */
+    public static ActionRow botonEntrarMazmorra(long userId, String mazmorraId, Locale locale) {
+        return ActionRow.of(Button.success("pelear:mazent:" + userId + ":" + mazmorraId,
+                Messages.get(locale, "mazmorra.btn.entrar")).withEmoji(Emoji.fromUnicode("⚔️")));
+    }
+
+    /** Embed de mazmorra completada (con el bonus de finalización). */
+    public static MessageEmbed embedMazmorraCompletada(Locale locale, CombateSesion s,
+                                                       BatallaService.BonusMazmorra bonus) {
+        String nombre = Messages.get(locale, "mazmorra." + s.mazmorraId());
+        return EmbedFactory.base(EmbedFactory.Tipo.LOGRO, locale,
+                Messages.get(locale, "mazmorra.completada.titulo"),
+                Messages.get(locale, "mazmorra.completada.desc", nombre, bonus.coins(), bonus.xp()))
+                .build();
     }
 
     /** Embed de derrota. */

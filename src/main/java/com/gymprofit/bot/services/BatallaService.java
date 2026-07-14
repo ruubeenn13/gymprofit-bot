@@ -28,6 +28,8 @@ public final class BatallaService {
 
     /** Energía que cuesta entrar en una pelea. */
     public static final int ENERGIA_POR_PELEA = 12;
+    /** Energía que cuesta entrar en una mazmorra (varias oleadas). */
+    public static final int ENERGIA_POR_MAZMORRA = 30;
     /** Cooldown tras perder una batalla. */
     public static final Duration COOLDOWN_DERROTA = Duration.ofMinutes(5);
     /** Salud (bienestar) que se pierde al ser derrotado. */
@@ -162,8 +164,61 @@ public final class BatallaService {
         if (!personajes.gastarEnergia(discordId, ENERGIA_POR_PELEA)) {
             return new ResultadoInicio(InicioEstado.SIN_ENERGIA, null, ENERGIA_POR_PELEA);
         }
+        return new ResultadoInicio(InicioEstado.OK, nuevaSesion(p, monstruo, monstruo.mundo()), 0);
+    }
 
-        // Ataque/crit/esquiva base + bonos del arma (nivel de mejora y encantamiento).
+    /**
+     * Valida y arranca una <b>mazmorra</b> (oleadas de monstruos seguidas). Mismo gate que
+     * {@link #iniciar} (mundo, nivel, cooldown) pero cuesta más energía; la sesión queda con la
+     * primera oleada activa y el resto en cola.
+     */
+    public ResultadoInicio iniciarMazmorra(long discordId, String mazmorraId) {
+        Mazmorras mz = Mazmorras.porId(mazmorraId).orElse(null);
+        if (mz == null || mz.oleadas().isEmpty()) {
+            return new ResultadoInicio(InicioEstado.MONSTRUO_NO_EXISTE, null, 0);
+        }
+        usuarios.obtenerOCrear(discordId);
+        Personaje p = personajes.obtenerOCrear(discordId);
+        Mundos mundo = Mundos.porId(mz.mundo()).orElseThrow();
+        if (!MundoService.estaDesbloqueado(mundo, mundos.completados(discordId))) {
+            return new ResultadoInicio(InicioEstado.MUNDO_BLOQUEADO, null, 0);
+        }
+        int nivel = usuarios.buscar(discordId).map(UsuarioDiscord::nivel).orElse(0);
+        if (nivel < mundo.nivelRequerido()) {
+            return new ResultadoInicio(InicioEstado.NIVEL_INSUFICIENTE, null, mundo.nivelRequerido());
+        }
+        if (p.ultimoCombate() != null) {
+            long restante = COOLDOWN_DERROTA.getSeconds()
+                    - Duration.between(p.ultimoCombate(), Instant.now()).getSeconds();
+            if (restante > 0) {
+                return new ResultadoInicio(InicioEstado.EN_COOLDOWN, null, (int) restante);
+            }
+        }
+        if (!personajes.gastarEnergia(discordId, ENERGIA_POR_MAZMORRA)) {
+            return new ResultadoInicio(InicioEstado.SIN_ENERGIA, null, ENERGIA_POR_MAZMORRA);
+        }
+
+        List<Monstruos> oleadas = mz.oleadas().stream()
+                .map(id -> Monstruos.porId(id).orElseThrow()).toList();
+        CombateSesion sesion = nuevaSesion(p, oleadas.get(0), mz.mundo());
+        sesion.configurarMazmorra(mazmorraId, oleadas.subList(1, oleadas.size()), oleadas.size());
+        return new ResultadoInicio(InicioEstado.OK, sesion, 0);
+    }
+
+    /** Otorga el bonus de completar una mazmorra (coins + XP). */
+    public BonusMazmorra completarMazmorra(long discordId, String mazmorraId) {
+        Mazmorras mz = Mazmorras.porId(mazmorraId).orElseThrow();
+        economia.ingresar(discordId, mz.bonusCoins(), "mazmorra:" + mazmorraId);
+        xp.ganarXp(discordId, mz.bonusXp());
+        return new BonusMazmorra(mz.bonusCoins(), mz.bonusXp());
+    }
+
+    /** Bonus de finalización de una mazmorra. */
+    public record BonusMazmorra(long coins, int xp) {
+    }
+
+    /** Construye la sesión aplicando ataque/crit/esquiva/robo del personaje (arma, nivel, encanto). */
+    private CombateSesion nuevaSesion(Personaje p, Monstruos monstruo, String mundoId) {
         int ataque = CombateService.ataqueDe(p) + p.armaNivel() * CombateService.NIVEL_DANO;
         double crit = CombateService.probCritico(p);
         double esquiva = CombateService.probEsquiva(p);
@@ -179,10 +234,8 @@ public final class BatallaService {
                 case ROBO_VIDA -> roboVida = e.magnitud();
             }
         }
-        CombateSesion sesion = new CombateSesion(discordId, monstruo.mundo(), monstruo,
-                ataque, CombateService.defensaDe(p), crit, esquiva, roboVida,
-                CombateService.hpCombate(p));
-        return new ResultadoInicio(InicioEstado.OK, sesion, 0);
+        return new CombateSesion(p.discordId(), mundoId, monstruo, ataque,
+                CombateService.defensaDe(p), crit, esquiva, roboVida, CombateService.hpCombate(p));
     }
 
     /** Acción <b>Atacar</b>: el jugador golpea (con opción a crítico/esquiva); si sobrevive, contraataca. */
