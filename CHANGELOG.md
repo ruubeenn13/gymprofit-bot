@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **RPG — bolsa ficticia** (extra): migración **V22** (tablas `acciones`, `cartera`). 8 acciones
+  inventadas cuyo **precio se mueve solo** (job cada 12 min: random walk por volatilidad + eventos de
+  crash/boom). `/bolsa` muestra precios y tendencia (↑↓); `/invertir <acción> <cantidad>` compra,
+  `/vender-acciones` vende (comisión 1 %, sumidero) y `/cartera` muestra tus posiciones, su valor
+  actual y el P/L. Nuevo canal `📈・bolsa` en `/setup`. Todo es ficción (moneda no real ni convertible).
+  `Acciones`/`BolsaService` (movimiento de precio puro y testeado) + `BolsaJob` + tests.
 - **RPG — casino de ficción** (F-ECO-6): juegos de azar con **moneda ficticia** (nunca dinero real).
   `/coinflip <apuesta> <cara>` (paga el doble), `/dado <número> <apuesta>` (acierta 1-6, paga 5×) y
   `/ruleta <apuesta> <color>` (rojo/negro 2×, verde 30×), con límites de apuesta, cooldown anti-spam y

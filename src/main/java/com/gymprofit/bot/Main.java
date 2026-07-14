@@ -15,7 +15,11 @@ import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.BancoComando;
+import com.gymprofit.bot.commands.economia.BolsaComando;
+import com.gymprofit.bot.commands.economia.CarteraComando;
 import com.gymprofit.bot.commands.economia.CoinflipComando;
+import com.gymprofit.bot.commands.economia.InvertirComando;
+import com.gymprofit.bot.commands.economia.VenderAccionesComando;
 import com.gymprofit.bot.commands.economia.DadoComando;
 import com.gymprofit.bot.commands.economia.DueloComando;
 import com.gymprofit.bot.commands.economia.RuletaComando;
@@ -97,6 +101,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.BancoRepositorio;
+import com.gymprofit.bot.db.BolsaRepositorio;
 import com.gymprofit.bot.db.GremioRepositorio;
 import com.gymprofit.bot.db.InsigniaRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
@@ -112,9 +117,11 @@ import com.gymprofit.bot.db.SugerenciaRepositorio;
 import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
+import com.gymprofit.bot.jobs.BolsaJob;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.ApuestaService;
 import com.gymprofit.bot.services.BancoService;
+import com.gymprofit.bot.services.BolsaService;
 import com.gymprofit.bot.services.CofreService;
 import com.gymprofit.bot.services.DueloService;
 import com.gymprofit.bot.services.GremioService;
@@ -484,6 +491,15 @@ public final class Main {
             DueloService dueloService = new DueloService(economiaRepo, usuarios);
             comandos.add(new DueloComando(dueloService));
             listeners.add(new DueloListener(dueloService));
+
+            // Bolsa ficticia (extra): acciones con precio dinámico.
+            BolsaService bolsaService = new BolsaService(
+                    new BolsaRepositorio(db.dataSource()), economiaRepo, usuarios);
+            comandos.add(new BolsaComando(bolsaService));
+            comandos.add(new InvertirComando(bolsaService));
+            comandos.add(new VenderAccionesComando(bolsaService));
+            comandos.add(new CarteraComando(bolsaService));
+            new BolsaJob(bolsaService).iniciar();
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

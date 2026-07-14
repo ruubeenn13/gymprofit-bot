@@ -289,7 +289,10 @@ public final class SetupServidorPlan {
                     texto("🗺️・mundos", null)
                             .conTopic("Los mundos del RPG y su progreso: /mundos. 🗺️"),
                     texto("📖・bestiario", null)
-                            .conTopic("Todos los monstruos por mundo y dificultad: /monstruos. 📖"))),
+                            .conTopic("Todos los monstruos por mundo y dificultad: /monstruos. 📖"),
+                    // Economía social/riesgo (mercado, casino, bolsa) y comunidad del RPG.
+                    texto("📈・bolsa", null)
+                            .conTopic("Bolsa de ficción: /bolsa, /invertir, /cartera. 📈"))),
             new CategoriaPlan("▬▬ 🛎️ AYUDA ▬▬", false, false, List.of(
                     foro("💡・sugerencias", TipoCanal.SUGERENCIAS,
                             "En estudio", "Aprobada", "Rechazada", "Implementada")
