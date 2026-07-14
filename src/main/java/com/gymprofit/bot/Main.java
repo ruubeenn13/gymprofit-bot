@@ -27,6 +27,7 @@ import com.gymprofit.bot.commands.economia.MinarComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
+import com.gymprofit.bot.commands.economia.RepararComando;
 import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
@@ -352,10 +353,11 @@ public final class Main {
             comandos.add(new EncantarComando(
                     new EncantarService(personajeRepo, economiaRepo, usuarios)));
 
-            // Minería (COMBAT-5a): minar recursos y venderlos.
-            MineriaService mineriaService = new MineriaService(
-                    new MineriaRepositorio(db.dataSource()), personajeRepo, inventarioRepo, usuarios);
+            // Minería (COMBAT-5): minar recursos, repararlos picos y venderlos.
+            MineriaService mineriaService = new MineriaService(new MineriaRepositorio(db.dataSource()),
+                    personajeRepo, inventarioRepo, economiaRepo, usuarios);
             comandos.add(new MinarComando(mineriaService));
+            comandos.add(new RepararComando(mineriaService));
             comandos.add(new VenderComando(new VentaService(inventarioRepo, economiaRepo, usuarios)));
 
             // Árbol de mejoras (sube atributos permanentemente).

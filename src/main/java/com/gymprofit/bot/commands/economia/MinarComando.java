@@ -45,6 +45,7 @@ public final class MinarComando implements Comando {
         String mensaje = switch (r.estado()) {
             case OK -> mensajeExito(locale, r);
             case SIN_PICO -> Messages.get(locale, "minar.sinpico");
+            case PICO_ROTO -> Messages.get(locale, "minar.picoroto");
             case SIN_ENERGIA -> Messages.get(locale, "minar.sinenergia", r.detalle());
             case EN_COOLDOWN -> Messages.get(locale, "minar.cooldown", r.detalle());
         };
@@ -59,6 +60,9 @@ public final class MinarComando implements Comando {
             botin.append(emoji).append(' ').append(Messages.get(locale, "item." + e.getKey()))
                     .append(" ×").append(e.getValue()).append('\n');
         }
-        return Messages.get(locale, "minar.ok", botin.toString().strip(), r.nivelNuevo());
+        String pico = Items.porId(r.picoId()).map(i -> i.emoji() + " "
+                + Messages.get(locale, "item." + i.id())).orElse(r.picoId());
+        return Messages.get(locale, "minar.ok", botin.toString().strip(), r.nivelNuevo(),
+                pico, r.durabilidad(), r.durabilidadMax());
     }
 }

@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — durabilidad de picos y reparación** (COMBAT-5b): migración **V15** (tabla
+  `durabilidad_picos`). Los picos ahora se **desgastan** al minar (durabilidad por tier: madera 30 …
+  mithril 150); al llegar a 0 el pico se rompe y no se puede usar. `/reparar <pico>` lo restaura a tope
+  cobrando coins según el desgaste y el tier (sumidero contra la inflación). `/minar` usa el mejor pico
+  **con durabilidad** y muestra la restante. Con esto **COMBAT-5 queda completo** (5a minar/vender ·
+  5b durabilidad/reparar). `MineriaService` amplía durabilidad + `reparar`; `RepararComando` + tests.
 - **Combate / RPG — minería y venta** (COMBAT-5a): migración **V14** (tabla `mineria`: nivel y
   cooldown por jugador). `/minar` es una actividad universal: con un pico en el inventario (se usa el
   de mayor tier) extraes minerales gastando energía y con cooldown; el **nivel de minería** sube con

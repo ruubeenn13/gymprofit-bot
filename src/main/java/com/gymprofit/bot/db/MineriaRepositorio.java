@@ -59,4 +59,55 @@ public final class MineriaRepositorio {
             throw new DatabaseException("Error registrando minado de " + discordId, e);
         }
     }
+
+    /**
+     * Durabilidad actual de un pico del jugador. Si no hay fila, el pico está intacto: devuelve
+     * {@code durabilidadMax}.
+     */
+    public int durabilidad(long discordId, String picoId, int durabilidadMax) {
+        String sql = "SELECT durabilidad FROM durabilidad_picos WHERE discord_id = ? AND pico_id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, discordId);
+            ps.setString(2, picoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : durabilidadMax;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error consultando durabilidad de " + discordId, e);
+        }
+    }
+
+    /**
+     * Gasta 1 de durabilidad al pico (suelo 0). En el primer uso crea la fila en
+     * {@code durabilidadMax - 1}; después descuenta 1 sin bajar de 0.
+     */
+    public void gastarDurabilidad(long discordId, String picoId, int durabilidadMax) {
+        String sql = "INSERT INTO durabilidad_picos (discord_id, pico_id, durabilidad) "
+                + "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE durabilidad = GREATEST(0, durabilidad - 1)";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, discordId);
+            ps.setString(2, picoId);
+            ps.setInt(3, Math.max(0, durabilidadMax - 1));
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error gastando durabilidad de " + discordId, e);
+        }
+    }
+
+    /** Repara un pico dejándolo a {@code durabilidadMax} (el coste lo cobra el service antes). */
+    public void repararPico(long discordId, String picoId, int durabilidadMax) {
+        String sql = "INSERT INTO durabilidad_picos (discord_id, pico_id, durabilidad) "
+                + "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE durabilidad = VALUES(durabilidad)";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, discordId);
+            ps.setString(2, picoId);
+            ps.setInt(3, durabilidadMax);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error reparando pico de " + discordId, e);
+        }
+    }
 }
