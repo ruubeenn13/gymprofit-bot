@@ -55,6 +55,8 @@ public final class CombateListener extends ListenerAdapter {
             seleccionarRival(evento, ownerId, partes[3], evento.getValues().get(0), locale);
         } else if (partes[1].equals("usar")) {
             usarObjeto(evento, ownerId, evento.getValues().get(0), locale);
+        } else if (partes[1].equals("hab")) {
+            usarHabilidad(evento, ownerId, evento.getValues().get(0), locale);
         }
     }
 
@@ -83,6 +85,11 @@ public final class CombateListener extends ListenerAdapter {
             case "objeto" -> {
                 if (s == null) { sinSesion(evento, locale); return; }
                 abrirObjetos(evento, ownerId, s, locale);
+            }
+            case "habilidad" -> {
+                if (s == null) { sinSesion(evento, locale); return; }
+                evento.editMessageEmbeds(PelearComando.embedBatalla(locale, s, null))
+                        .setComponents(PelearComando.filasHabilidades(ownerId, locale, s)).queue();
             }
             case "volver" -> {
                 if (s == null) { sinSesion(evento, locale); return; }
@@ -145,6 +152,21 @@ public final class CombateListener extends ListenerAdapter {
         resolver(evento, ownerId, s, t);
     }
 
+    private void usarHabilidad(StringSelectInteractionEvent evento, long ownerId, String habId,
+                              Locale locale) {
+        CombateSesion s = sesiones.get(ownerId);
+        if (s == null) {
+            sinSesion(evento, locale);
+            return;
+        }
+        Turno t = batalla.usarHabilidad(s, habId);
+        if (t == null) {
+            evento.reply(Messages.get(locale, "batalla.hab.encooldown")).setEphemeral(true).queue();
+            return;
+        }
+        resolver(evento, ownerId, s, t);
+    }
+
     /** Aplica el desenlace de un turno al mensaje (continúa, victoria o derrota). */
     private void resolver(IReplyCallback evento, long ownerId, CombateSesion s, Turno t) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
@@ -181,18 +203,35 @@ public final class CombateListener extends ListenerAdapter {
         }
     }
 
-    /** Resumen localizado del turno para el embed de batalla. */
+    /** Resumen localizado del turno para el embed de batalla (con marcas de crítico/esquiva). */
     private static String logTurno(Locale locale, Turno t) {
         if (t.sinContraataque()) {
+            // Aturdir: hay daño + el monstruo no contraataca. Objeto de energía: sin daño.
+            if (t.danoAlMonstruo() > 0) {
+                return Messages.get(locale, "batalla.frag.golpe", t.danoAlMonstruo())
+                        + (t.critJugador() ? Messages.get(locale, "batalla.frag.critico") : "")
+                        + Messages.get(locale, "batalla.frag.aturde");
+            }
             return Messages.get(locale, "batalla.log.energia");
         }
+        // Parte del jugador: curar, defender, esquiva del enemigo o golpe (con crítico).
+        String jugador;
         if (t.curado() > 0) {
-            return Messages.get(locale, "batalla.log.cura", t.curado(), t.danoAlJugador());
+            jugador = Messages.get(locale, "batalla.frag.curas", t.curado());
+        } else if (t.esquivaMonstruo()) {
+            jugador = Messages.get(locale, "batalla.frag.enemigoEsquiva");
+        } else if (t.danoAlMonstruo() == 0) {
+            jugador = Messages.get(locale, "batalla.frag.defiendes");
+        } else {
+            jugador = Messages.get(locale, "batalla.frag.golpe", t.danoAlMonstruo())
+                    + (t.critJugador() ? Messages.get(locale, "batalla.frag.critico") : "");
         }
-        if (t.danoAlMonstruo() > 0) {
-            return Messages.get(locale, "batalla.log.atacar", t.danoAlMonstruo(), t.danoAlJugador());
-        }
-        return Messages.get(locale, "batalla.log.defender", t.danoAlJugador());
+        // Parte del monstruo: esquiva del jugador o contraataque (con crítico).
+        String monstruo = t.esquivaJugador()
+                ? Messages.get(locale, "batalla.frag.esquivas")
+                : Messages.get(locale, t.critMonstruo()
+                        ? "batalla.frag.contraCrit" : "batalla.frag.contra", t.danoAlJugador());
+        return jugador + monstruo;
     }
 
     private MessageEmbed motivoInicio(Locale locale, ResultadoInicio r) {

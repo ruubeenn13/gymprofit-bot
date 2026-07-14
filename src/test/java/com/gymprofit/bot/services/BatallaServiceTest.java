@@ -50,12 +50,33 @@ class BatallaServiceTest {
     }
 
     private static Personaje personaje(int fuerza, int resistencia) {
-        return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, null, null, null);
+        return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, null, null,
+                null, 0, null);
     }
 
     private static CombateSesion sesion(String monstruoId, int ataque, int defensa, int hpMax) {
+        return sesion(monstruoId, ataque, defensa, 0.0, 0.0, hpMax);
+    }
+
+    private static CombateSesion sesion(String monstruoId, int ataque, int defensa,
+                                        double crit, double esquiva, int hpMax) {
+        return sesion(monstruoId, ataque, defensa, crit, esquiva, 0.0, hpMax);
+    }
+
+    private static CombateSesion sesion(String monstruoId, int ataque, int defensa,
+                                        double crit, double esquiva, double roboVida, int hpMax) {
         Monstruos m = Monstruos.porId(monstruoId).orElseThrow();
-        return new CombateSesion(1L, m.mundo(), m, ataque, defensa, hpMax);
+        return new CombateSesion(1L, m.mundo(), m, ataque, defensa, crit, esquiva, roboVida, hpMax);
+    }
+
+    /** Azar secuenciado: devuelve los valores en orden y repite el último. */
+    private static BatallaService.Aleatorio cola(double... vals) {
+        int[] i = {0};
+        return () -> vals[Math.min(i[0]++, vals.length - 1)];
+    }
+
+    private BatallaService svc(BatallaService.Aleatorio azar) {
+        return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, azar);
     }
 
     // ---------------------- Turnos ----------------------
@@ -131,6 +152,102 @@ class BatallaServiceTest {
         when(inventario.quitar(1L, "botiquin", 1)).thenReturn(false);
         CombateSesion s = sesion("lobo", 20, 5, 100);
         assertNull(svc(0.5).usarObjeto(s, "botiquin"));
+    }
+
+    // ---------------------- Críticos y esquivas ----------------------
+
+    @Test
+    void unGolpeCriticoDoblaElDano() {
+        // lobo poder 8, hp 30, def=1 ; ataque 20 -> 19, crítico -> 38 (mata)
+        CombateSesion s = sesion("lobo", 20, 5, 1.0, 0.0, 100);
+        // secuencia del golpe del jugador: [esquiva-monstruo, factor, crítico]
+        Turno t = svc(cola(0.9, 0.5, 0.0)).atacar(s);
+        assertTrue(t.critJugador());
+        assertEquals(38, t.danoAlMonstruo());
+        assertEquals(Desenlace.VICTORIA, t.desenlace());
+    }
+
+    @Test
+    void elMonstruoPuedeEsquivarTuGolpe() {
+        CombateSesion s = sesion("lobo", 20, 5, 100);
+        // primer valor 0.0 < 0.05 -> el monstruo esquiva; luego contraataque normal
+        Turno t = svc(cola(0.0, 0.9, 0.5, 0.9)).atacar(s);
+        assertTrue(t.esquivaMonstruo());
+        assertEquals(0, t.danoAlMonstruo());
+        assertEquals(3, t.danoAlJugador()); // poder 8 - def 5
+    }
+
+    @Test
+    void puedesEsquivarElContraataque() {
+        CombateSesion s = sesion("lobo", 20, 5, 0.0, 1.0, 100); // esquiva jugador 100%
+        Turno t = svc(cola(0.9, 0.5, 0.9, 0.5)).atacar(s);
+        assertTrue(t.esquivaJugador());
+        assertEquals(0, t.danoAlJugador());
+        assertEquals(19, t.danoAlMonstruo());
+        assertEquals(100, s.hpJugador());
+    }
+
+    @Test
+    void elMonstruoPuedeAsestarUnCritico() {
+        CombateSesion s = sesion("lobo", 20, 5, 100);
+        // jugador: [0.9,0.5,0.9] (golpe normal) ; contra: [0.9 no-esq, 0.5 factor, 0.0 crítico]
+        Turno t = svc(cola(0.9, 0.5, 0.9, 0.9, 0.5, 0.0)).atacar(s);
+        assertTrue(t.critMonstruo());
+        assertEquals(6, t.danoAlJugador()); // (8-5)=3, crítico x2
+    }
+
+    // ---------------------- Habilidades ----------------------
+
+    @Test
+    void golpePotenteDoblaElAtaque() {
+        CombateSesion s = sesion("lobo", 20, 5, 100); // ataque*2=40, def=1 -> 39, mata (hp30)
+        Turno t = svc(0.5).usarHabilidad(s, "golpe_potente");
+        assertEquals(39, t.danoAlMonstruo());
+        assertEquals(Desenlace.VICTORIA, t.desenlace());
+    }
+
+    @Test
+    void curarRecuperaHpYGastaElTurno() {
+        CombateSesion s = sesion("lobo", 20, 5, 100);
+        s.danarJugador(60); // hp 40
+        Turno t = svc(0.5).usarHabilidad(s, "curar"); // cura 30% de 100 = 30
+        assertEquals(30, t.curado());
+        assertEquals(67, s.hpJugador()); // 40 + 30 - 3 (contra)
+    }
+
+    @Test
+    void aturdirGolpeaYEvitaElContraataque() {
+        CombateSesion s = sesion("oso", 20, 5, 200); // oso hp120: sobrevive al golpe
+        Turno t = svc(0.5).usarHabilidad(s, "aturdir");
+        assertTrue(t.sinContraataque());
+        assertTrue(t.danoAlMonstruo() > 0);
+        assertEquals(200, s.hpJugador()); // no recibe contraataque
+    }
+
+    @Test
+    void unaHabilidadEnCooldownNoSePuedeRepetir() {
+        CombateSesion s = sesion("oso", 20, 5, 300); // sobrevive para poder reintentar
+        assertNotNull(svc(0.5).usarHabilidad(s, "golpe_potente"));
+        assertTrue(s.cooldown("golpe_potente") > 0);
+        assertNull(svc(0.5).usarHabilidad(s, "golpe_potente"));
+    }
+
+    @Test
+    void habilidadInexistenteDevuelveNull() {
+        CombateSesion s = sesion("lobo", 20, 5, 100);
+        assertNull(svc(0.5).usarHabilidad(s, "teletransporte"));
+    }
+
+    // ---------------------- Encantamientos (efecto en combate) ----------------------
+
+    @Test
+    void elRoboDeVidaCuraAlGolpear() {
+        // roboVida 50%; ataque 41 vs lobo (def 1) -> 40 daño, mata; cura round(40*0.5)=20
+        CombateSesion s = sesion("lobo", 41, 5, 0.0, 0.0, 0.5, 200);
+        s.danarJugador(100); // hp 100
+        Turno t = svc(0.5).atacar(s);
+        assertEquals(Desenlace.VICTORIA, t.desenlace());
+        assertEquals(120, s.hpJugador());
     }
 
     // ---------------------- Botín ----------------------

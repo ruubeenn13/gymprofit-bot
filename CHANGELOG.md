@@ -7,6 +7,27 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — encantamientos de arma** (COMBAT-4c): migración **V13** (`personajes.arma_nivel`,
+  `arma_encanto`). `/encantar` mejora el arma equipada: sin opción **sube su nivel** (+daño en combate,
+  coste creciente, tope nivel 10); con la opción `efecto` aplica un **encantamiento** del catálogo
+  (`Encantamiento`, 9: afilado/veneno = +daño plano, llama/tormenta = +% daño, vampírico/sagrado =
+  robo de vida, preciso/rúnico = +crítico, escarcha = +esquiva). Los bonos se resuelven al iniciar la
+  pelea (`BatallaService`); el robo de vida cura por golpe. `/perfil` muestra el arma con su
+  **+nivel** y el emoji del encantamiento. `EncantarService` (sumidero de coins) + `EncantarServiceTest`.
+  Con esto **COMBAT-4 queda completo** (4a críticos/esquivas/rareza · 4b habilidades · 4c encantar).
+- **Combate / RPG — habilidades de combate** (COMBAT-4b): botón **✨ Habilidad** en la batalla con un
+  set fijo para todos y **cooldown en turnos** (sin schema): **💥 Golpe potente** (dobla tu ataque, no
+  esquivable), **💚 Curación** (recupera 30 % de tu HP de combate) y **💫 Aturdir** (golpeas y el
+  monstruo pierde su contraataque ese turno). Los cooldowns se llevan en la sesión y bajan cada turno.
+  `Habilidad` (enum) + `BatallaService.usarHabilidad`; menú de habilidades con su estado en
+  `CombateListener`. Tests de habilidades en `BatallaServiceTest`. Siguiente: 4c `/encantar`.
+- **Combate / RPG — críticos, esquivas y rareza de loot** (COMBAT-4a): en la batalla por turnos, cada
+  golpe puede ser **crítico** (×2 daño; probabilidad escala con la fuerza) y ser **esquivado** (anula
+  el golpe; escala con el carisma); también el monstruo puede criticar/esquivar. El botín se pinta con
+  su **rareza** (⬜ común · 🟦 raro · 🟪 épico · 🟨 legendario), derivada del ítem (stat de combate en
+  armas/armaduras, precio en el resto) sin tocar el catálogo. Sin cambios de esquema. `Rareza` +
+  `CombateService.probCritico/probEsquiva`; azar inyectable en `BatallaService` para tests
+  deterministas (`RarezaTest`, tests de crítico/esquiva). Siguiente: 4b habilidades, 4c `/encantar`.
 - **Combate / RPG — batalla por turnos** (COMBAT-3): migración **V12** (`personajes.ultimo_combate`,
   cooldown tras derrota). `/pelear <mundo>` abre un menú de rivales y arranca una **batalla por
   turnos con botones** (Atacar / Defender / Objeto / Huir) conducida por `CombateListener` (sesión en

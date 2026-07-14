@@ -78,12 +78,15 @@ public final class CombateService {
         return true;
     }
 
+    /** Daño extra por cada nivel de mejora del arma ({@code /encantar}). */
+    public static final int NIVEL_DANO = 2;
+
     /**
-     * Poder de combate = fuerza + resistencia + ataque del arma + defensa de la armadura. Equivale a
-     * {@code ataqueDe(p) + defensaDe(p)} (cada uno ya suma su atributo base + su equipo).
+     * Poder de combate = fuerza + resistencia + ataque del arma (+ mejora por nivel) + defensa de la
+     * armadura. Equivale a {@code ataqueDe(p) + defensaDe(p)} más el bono de nivel del arma.
      */
     public static int poderCombate(Personaje p) {
-        return ataqueDe(p) + defensaDe(p);
+        return ataqueDe(p) + defensaDe(p) + p.armaNivel() * NIVEL_DANO;
     }
 
     // ---------------------- Matemática de batalla (COMBAT-3) ----------------------
@@ -126,5 +129,24 @@ public final class CombateService {
     public static int dano(int ofensiva, int defensa, double factor) {
         int base = Math.max(1, ofensiva - defensa);
         return Math.max(1, (int) Math.round(base * factor));
+    }
+
+    // ---------------------- Críticos y esquivas (COMBAT-4a) ----------------------
+
+    private static final double CRIT_BASE = 0.05;
+    private static final double CRIT_POR_FUERZA = 0.008;
+    private static final double CRIT_TOPE = 0.50;
+    private static final double ESQ_BASE = 0.05;
+    private static final double ESQ_POR_CARISMA = 0.008;
+    private static final double ESQ_TOPE = 0.40;
+
+    /** Probabilidad de crítico del jugador (×2 daño): escala con la fuerza, con tope. */
+    public static double probCritico(Personaje p) {
+        return Math.min(CRIT_TOPE, CRIT_BASE + p.fuerza() * CRIT_POR_FUERZA);
+    }
+
+    /** Probabilidad de esquiva del jugador (anula el golpe): escala con el carisma, con tope. */
+    public static double probEsquiva(Personaje p) {
+        return Math.min(ESQ_TOPE, ESQ_BASE + p.carisma() * ESQ_POR_CARISMA);
     }
 }

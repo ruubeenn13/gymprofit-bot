@@ -32,7 +32,8 @@ class CombateServiceTest {
 
     /** Personaje base con arma/armadura opcionales (resto de campos irrelevantes para el test). */
     private static Personaje personaje(int fuerza, int resistencia, String arma, String armadura) {
-        return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, arma, armadura, null);
+        return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, arma, armadura,
+                null, 0, null);
     }
 
     @Test
@@ -121,6 +122,21 @@ class CombateServiceTest {
         assertEquals(15, CombateService.dano(20, 5, 1.0));
         assertEquals(8, CombateService.dano(20, 5, 0.5));  // round(7.5)
         assertEquals(1, CombateService.dano(3, 10, 1.0));  // suelo en 1 aunque la defensa supere
+    }
+
+    @Test
+    void probabilidadDeCriticoEscalaConFuerzaYSeTopa() {
+        assertEquals(0.13, CombateService.probCritico(personaje(10, 0, null, null)), 1e-9);
+        assertEquals(0.50, CombateService.probCritico(personaje(1000, 0, null, null)), 1e-9);
+    }
+
+    @Test
+    void probabilidadDeEsquivaEscalaConCarismaYSeTopa() {
+        // carisma 0 -> base 0.05 ; carisma alto -> tope 0.40
+        assertEquals(0.05, CombateService.probEsquiva(
+                new Personaje(1L, 0, 0, 0, 100, 100, null, null, null, null, null, 0, null)), 1e-9);
+        assertEquals(0.40, CombateService.probEsquiva(
+                new Personaje(1L, 0, 0, 1000, 100, 100, null, null, null, null, null, 0, null)), 1e-9);
     }
 
     @Test

@@ -53,7 +53,7 @@ public final class PerfilComando implements Comando {
 
         evento.deferReply(true).queue();
         Perfil p = economia.perfil(objetivo.getIdLong());
-        String arma = nombreEquipo(locale, p.personaje().arma());
+        String arma = armaTexto(locale, p.personaje());
         String armadura = nombreEquipo(locale, p.personaje().armadura());
         String desc = Messages.get(locale, "perfil.cuerpo",
                 p.coins(), p.personaje().energia(), p.personaje().salud(),
@@ -63,6 +63,22 @@ public final class PerfilComando implements Comando {
                         Messages.get(locale, "perfil.titulo", objetivo.getName()), desc)
                 .setThumbnail(objetivo.getEffectiveAvatarUrl()).build();
         evento.getHook().sendMessageEmbeds(embed).queue();
+    }
+
+    /** Arma equipada con su mejora: nombre + «+nivel» + emoji del encantamiento, o «—» si no hay. */
+    private static String armaTexto(Locale locale, com.gymprofit.bot.db.Personaje p) {
+        if (p.arma() == null) {
+            return Messages.get(locale, "perfil.sinequipo");
+        }
+        StringBuilder sb = new StringBuilder(nombreEquipo(locale, p.arma()));
+        if (p.armaNivel() > 0) {
+            sb.append(" **+").append(p.armaNivel()).append("**");
+        }
+        if (p.armaEncanto() != null) {
+            com.gymprofit.bot.services.Encantamiento.porId(p.armaEncanto())
+                    .ifPresent(e -> sb.append(' ').append(e.emoji()));
+        }
+        return sb.toString();
     }
 
     /** Nombre localizado del ítem equipado (con emoji), o «—» si la ranura está vacía. */

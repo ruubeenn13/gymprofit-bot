@@ -18,6 +18,7 @@ import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
 import com.gymprofit.bot.commands.economia.EquiparComando;
 import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
+import com.gymprofit.bot.commands.economia.EncantarComando;
 import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
@@ -74,6 +75,7 @@ import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.EconomiaService;
+import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
@@ -340,6 +342,10 @@ public final class Main {
                     personajeRepo, inventarioRepo, usuarios, economiaRepo, xpService, mundoRepo);
             comandos.add(new PelearComando(mundoService));
             listeners.add(new CombateListener(batallaService, inventarioRepo));
+
+            // Combate (COMBAT-4c): encantar el arma (nivel + efectos).
+            comandos.add(new EncantarComando(
+                    new EncantarService(personajeRepo, economiaRepo, usuarios)));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

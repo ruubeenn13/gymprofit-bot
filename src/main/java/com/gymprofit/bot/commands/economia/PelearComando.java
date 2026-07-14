@@ -6,11 +6,13 @@ import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.BatallaService.Botin;
 import com.gymprofit.bot.services.BatallaService.Turno;
 import com.gymprofit.bot.services.CombateSesion;
+import com.gymprofit.bot.services.Habilidad;
 import com.gymprofit.bot.services.Items;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.MundoService.MundoVista;
 import com.gymprofit.bot.services.Mundos;
 import com.gymprofit.bot.services.Monstruos;
+import com.gymprofit.bot.services.Rareza;
 import com.gymprofit.bot.util.Barras;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -137,17 +139,36 @@ public final class PelearComando implements Comando {
                 Messages.get(locale, "batalla.titulo", nombreMon), sb.toString()).build();
     }
 
-    /** Fila de botones de acción de la batalla. */
+    /** Fila de botones de acción de la batalla (5: atacar, defender, habilidad, objeto, huir). */
     public static ActionRow botonesBatalla(long userId, Locale locale) {
         return ActionRow.of(
                 Button.danger("pelear:atacar:" + userId, Messages.get(locale, "batalla.btn.atacar"))
                         .withEmoji(Emoji.fromUnicode("⚔️")),
                 Button.primary("pelear:defender:" + userId, Messages.get(locale, "batalla.btn.defender"))
                         .withEmoji(Emoji.fromUnicode("🛡️")),
-                Button.success("pelear:objeto:" + userId, Messages.get(locale, "batalla.btn.objeto"))
+                Button.success("pelear:habilidad:" + userId, Messages.get(locale, "batalla.btn.habilidad"))
+                        .withEmoji(Emoji.fromUnicode("✨")),
+                Button.secondary("pelear:objeto:" + userId, Messages.get(locale, "batalla.btn.objeto"))
                         .withEmoji(Emoji.fromUnicode("🎒")),
                 Button.secondary("pelear:huir:" + userId, Messages.get(locale, "batalla.btn.huir"))
                         .withEmoji(Emoji.fromUnicode("🏃")));
+    }
+
+    /** Menú de habilidades (con su cooldown) + botón para volver. */
+    public static List<ActionRow> filasHabilidades(long userId, Locale locale, CombateSesion s) {
+        StringSelectMenu.Builder menu = StringSelectMenu.create("pelear:hab:" + userId)
+                .setPlaceholder(Messages.get(locale, "batalla.hab.placeholder"));
+        for (Habilidad h : Habilidad.values()) {
+            int cd = s.cooldown(h.id());
+            String desc = cd > 0 ? Messages.get(locale, "batalla.hab.cooldown", cd)
+                    : Messages.get(locale, "batalla.hab.listo");
+            menu.addOptions(SelectOption.of(Messages.get(locale, "habilidad." + h.id()), h.id())
+                    .withDescription(desc)
+                    .withEmoji(Emoji.fromUnicode(h.emoji())));
+        }
+        return List.of(ActionRow.of(menu.build()),
+                ActionRow.of(Button.secondary("pelear:volver:" + userId,
+                        Messages.get(locale, "batalla.btn.volver"))));
     }
 
     /**
@@ -191,8 +212,11 @@ public final class PelearComando implements Comando {
         if (!botin.items().isEmpty()) {
             StringBuilder loot = new StringBuilder();
             for (String id : botin.items()) {
-                String emoji = Items.porId(id).map(Items::emoji).orElse("🎁");
-                loot.append(emoji).append(' ').append(Messages.get(locale, "item." + id)).append(", ");
+                Items item = Items.porId(id).orElse(null);
+                String rareza = item != null ? Rareza.de(item).emoji() + " " : "";
+                String emoji = item != null ? item.emoji() : "🎁";
+                loot.append(rareza).append(emoji).append(' ')
+                        .append(Messages.get(locale, "item." + id)).append(", ");
             }
             loot.setLength(loot.length() - 2);
             sb.append('\n').append(Messages.get(locale, "batalla.loot", loot.toString()));

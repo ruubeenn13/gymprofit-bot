@@ -18,8 +18,11 @@ import java.time.Instant;
  * @param arma          id del arma equipada (catálogo Items), o {@code null} si combate a puño
  * @param armadura      id de la armadura equipada (catálogo Items), o {@code null} si sin armadura
  * @param ultimoCombate última derrota en combate (cooldown), o {@code null} si no hay cooldown activo
+ * @param armaNivel     nivel de mejora del arma equipada (+daño en combate)
+ * @param armaEncanto   id del encantamiento del arma (catálogo Encantamiento), o {@code null}
  */
 public record Personaje(long discordId, int fuerza, int resistencia, int carisma,
                         int energia, int salud, String trabajo, Instant ultimoWork,
-                        String arma, String armadura, Instant ultimoCombate) {
+                        String arma, String armadura, Instant ultimoCombate,
+                        int armaNivel, String armaEncanto) {
 }

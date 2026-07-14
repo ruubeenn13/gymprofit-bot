@@ -36,7 +36,8 @@ public final class PersonajeRepositorio {
     /** Personaje por id, si existe. */
     public Optional<Personaje> buscar(long discordId) {
         String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud, trabajo, "
-                + "ultimo_work, arma, armadura, ultimo_combate FROM personajes WHERE discord_id = ?";
+                + "ultimo_work, arma, armadura, ultimo_combate, arma_nivel, arma_encanto "
+                + "FROM personajes WHERE discord_id = ?";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, discordId);
@@ -198,6 +199,20 @@ public final class PersonajeRepositorio {
         });
     }
 
+    /** Sube en 1 el nivel de mejora del arma equipada (el coste lo cobra el service antes). */
+    public void subirNivelArma(long discordId) {
+        ejecutar("UPDATE personajes SET arma_nivel = arma_nivel + 1 WHERE discord_id = ?",
+                ps -> ps.setLong(1, discordId));
+    }
+
+    /** Fija el encantamiento del arma ({@code null} lo quita). */
+    public void fijarEncanto(long discordId, String encantoId) {
+        ejecutar("UPDATE personajes SET arma_encanto = ? WHERE discord_id = ?", ps -> {
+            ps.setString(1, encantoId);
+            ps.setLong(2, discordId);
+        });
+    }
+
     private static Personaje mapear(ResultSet rs) throws SQLException {
         java.sql.Timestamp uw = rs.getTimestamp("ultimo_work");
         java.sql.Timestamp uc = rs.getTimestamp("ultimo_combate");
@@ -205,6 +220,7 @@ public final class PersonajeRepositorio {
                 rs.getInt("carisma"), rs.getInt("energia"), rs.getInt("salud"),
                 rs.getString("trabajo"), uw == null ? null : uw.toInstant(),
                 rs.getString("arma"), rs.getString("armadura"),
-                uc == null ? null : uc.toInstant());
+                uc == null ? null : uc.toInstant(),
+                rs.getInt("arma_nivel"), rs.getString("arma_encanto"));
     }
 }

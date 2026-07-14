@@ -111,9 +111,22 @@ mundo**. Al perder: −salud + cooldown. Todo en **embeds bonitos**.
 > `BatallaServiceTest` (15) + math en `CombateServiceTest`. Extras (habilidades/críticos/rareza/
 > encantar) siguen en COMBAT-4.
 
-**COMBAT-4 · Habilidades, rareza y encantamientos** *(profundidad)*
+**COMBAT-4 · Habilidades, rareza y encantamientos** *(profundidad)* — ✅ **HECHO** (troceado 4a/4b/4c)
 Habilidades de combate + críticos/esquivas; rareza de loot (común→legendario); `/encantar` +
 catálogo amplio de encantamientos/efectos aplicados a armas.
+> **4a HECHO:** críticos (×2, escala con fuerza) + esquivas (anula golpe, escala con carisma), tanto
+> del jugador como del monstruo; rareza de loot ⬜🟦🟪🟨 (`Rareza.de(item)`, derivada sin tocar el
+> catálogo) pintada en el botín de victoria. `CombateService.probCritico/probEsquiva`, `golpe()` en
+> `BatallaService` (esquiva→daño→crítico, azar inyectable). Sin schema.
+> **4b HECHO:** botón ✨ Habilidad con set fijo + cooldown en turnos (sin schema): 💥 Golpe potente
+> (×2 ataque, no esquivable), 💚 Curación (+30% HP combate), 💫 Aturdir (golpeas y el monstruo pierde
+> su contraataque). `Habilidad` enum + `BatallaService.usarHabilidad`; cooldowns en `CombateSesion`.
+> **4c HECHO:** V13 (`personajes.arma_nivel`/`arma_encanto`). `/encantar` sin opción sube nivel del
+> arma (+daño, coste creciente, tope 10); con `efecto` aplica un encantamiento del catálogo
+> `Encantamiento` (9: afilado/veneno +daño plano, llama/tormenta +% daño, vampírico/sagrado robo de
+> vida, preciso/rúnico +crítico, escarcha +esquiva). Bonos resueltos en `BatallaService.iniciar`
+> (robo de vida cura por golpe); `/perfil` muestra +nivel y emoji del encanto. `EncantarService`
+> (sumidero de coins) + tests. **COMBAT-4 completo.** Próximo: COMBAT-5 (minería).
 
 **COMBAT-5 · Minería y recursos**
 `/minar` (recursos con cooldown/energía), catálogo amplio de minerales, `/vender` (recursos/loot →

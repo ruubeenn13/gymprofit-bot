@@ -13,8 +13,13 @@ public final class CombateSesion {
     private final Monstruos monstruo;
     private final int ataqueJugador;
     private final int defensaJugador;
+    private final double critJugador;
+    private final double esquivaJugador;
+    private final double roboVida;
     private final int hpMaxJugador;
     private final int hpMaxMonstruo;
+
+    private final java.util.Map<String, Integer> cooldowns = new java.util.HashMap<>();
 
     private int hpJugador;
     private int hpMonstruo;
@@ -22,12 +27,16 @@ public final class CombateSesion {
     private int turno = 1;
 
     public CombateSesion(long jugadorId, String mundoId, Monstruos monstruo,
-                         int ataqueJugador, int defensaJugador, int hpMaxJugador) {
+                         int ataqueJugador, int defensaJugador, double critJugador,
+                         double esquivaJugador, double roboVida, int hpMaxJugador) {
         this.jugadorId = jugadorId;
         this.mundoId = mundoId;
         this.monstruo = monstruo;
         this.ataqueJugador = ataqueJugador;
         this.defensaJugador = defensaJugador;
+        this.critJugador = critJugador;
+        this.esquivaJugador = esquivaJugador;
+        this.roboVida = roboVida;
         this.hpMaxJugador = hpMaxJugador;
         this.hpJugador = hpMaxJugador;
         this.hpMaxMonstruo = monstruo.hp();
@@ -52,6 +61,19 @@ public final class CombateSesion {
 
     public int defensaJugador() {
         return defensaJugador;
+    }
+
+    public double critJugador() {
+        return critJugador;
+    }
+
+    public double esquivaJugador() {
+        return esquivaJugador;
+    }
+
+    /** Fracción del daño infligido que se cura el jugador (robo de vida del encantamiento). */
+    public double roboVida() {
+        return roboVida;
     }
 
     public int hpMaxJugador() {
@@ -97,8 +119,20 @@ public final class CombateSesion {
         defendiendo = valor;
     }
 
+    /** Turnos que faltan para que una habilidad vuelva a estar disponible (0 = lista). */
+    public int cooldown(String habilidadId) {
+        return cooldowns.getOrDefault(habilidadId, 0);
+    }
+
+    /** Pone una habilidad en cooldown durante {@code turnos}. */
+    public void ponerCooldown(String habilidadId, int turnos) {
+        cooldowns.put(habilidadId, turnos);
+    }
+
+    /** Avanza el turno y descuenta un turno a todos los cooldowns activos (suelo 0). */
     public void avanzarTurno() {
         turno++;
+        cooldowns.replaceAll((id, restante) -> Math.max(0, restante - 1));
     }
 
     public boolean monstruoMuerto() {

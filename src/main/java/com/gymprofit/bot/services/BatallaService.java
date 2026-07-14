@@ -36,6 +36,9 @@ public final class BatallaService {
     private static final double VARIANZA_MIN = 0.85;
     private static final double VARIANZA_RANGO = 0.30; // factor final en [0.85, 1.15]
     private static final double DEFENSA_MULT = 0.5;    // el monstruo pega la mitad si defiendes
+    private static final int CRIT_MULT = 2;            // un crítico dobla el daño
+    private static final double CRIT_MONSTRUO = 0.08;  // prob. de crítico del monstruo
+    private static final double ESQUIVA_MONSTRUO = 0.05; // prob. de que el monstruo esquive
 
     /** Fuente de azar en [0,1). Inyectable para tests deterministas. */
     @FunctionalInterface
@@ -59,16 +62,26 @@ public final class BatallaService {
     public enum Desenlace { CONTINUA, VICTORIA, DERROTA }
 
     /**
-     * Resultado de un turno: desenlace + daños de ese turno (para el embed).
+     * Resultado de un turno: desenlace + daños de ese turno + marcas de crítico/esquiva (para el
+     * embed).
      *
      * @param desenlace        cómo queda la pelea tras el turno
-     * @param danoAlMonstruo   daño que ha hecho el jugador (0 si defendió o usó objeto de energía)
-     * @param danoAlJugador    daño del contraataque del monstruo (0 si no hubo contraataque)
+     * @param danoAlMonstruo   daño que ha hecho el jugador (0 si defendió, esquivado o usó energía)
+     * @param danoAlJugador    daño del contraataque del monstruo (0 si no hubo o lo esquivaste)
      * @param curado           HP curado con un objeto (0 si no aplica)
      * @param sinContraataque  {@code true} si el monstruo no contraatacó (p. ej. objeto de energía)
+     * @param critJugador      el golpe del jugador fue crítico
+     * @param esquivaMonstruo  el monstruo esquivó el golpe del jugador
+     * @param critMonstruo     el contraataque del monstruo fue crítico
+     * @param esquivaJugador   el jugador esquivó el contraataque
      */
     public record Turno(Desenlace desenlace, int danoAlMonstruo, int danoAlJugador,
-                        int curado, boolean sinContraataque) {
+                        int curado, boolean sinContraataque, boolean critJugador,
+                        boolean esquivaMonstruo, boolean critMonstruo, boolean esquivaJugador) {
+    }
+
+    /** Resultado de un golpe individual (con azar de esquiva/crítico ya resuelto). */
+    private record Golpe(int dano, boolean critico, boolean esquivado) {
     }
 
     /**
@@ -150,31 +163,52 @@ public final class BatallaService {
             return new ResultadoInicio(InicioEstado.SIN_ENERGIA, null, ENERGIA_POR_PELEA);
         }
 
+        // Ataque/crit/esquiva base + bonos del arma (nivel de mejora y encantamiento).
+        int ataque = CombateService.ataqueDe(p) + p.armaNivel() * CombateService.NIVEL_DANO;
+        double crit = CombateService.probCritico(p);
+        double esquiva = CombateService.probEsquiva(p);
+        double roboVida = 0;
+        Encantamiento e = p.armaEncanto() == null ? null
+                : Encantamiento.porId(p.armaEncanto()).orElse(null);
+        if (e != null) {
+            switch (e.tipo()) {
+                case DANO_PLANO -> ataque += (int) e.magnitud();
+                case DANO_PCT -> ataque = (int) Math.round(ataque * (1 + e.magnitud()));
+                case CRITICO -> crit = Math.min(0.9, crit + e.magnitud());
+                case ESQUIVA -> esquiva = Math.min(0.6, esquiva + e.magnitud());
+                case ROBO_VIDA -> roboVida = e.magnitud();
+            }
+        }
         CombateSesion sesion = new CombateSesion(discordId, monstruo.mundo(), monstruo,
-                CombateService.ataqueDe(p), CombateService.defensaDe(p),
+                ataque, CombateService.defensaDe(p), crit, esquiva, roboVida,
                 CombateService.hpCombate(p));
         return new ResultadoInicio(InicioEstado.OK, sesion, 0);
     }
 
-    /** Acción <b>Atacar</b>: el jugador golpea; si el monstruo sobrevive, contraataca. */
+    /** Acción <b>Atacar</b>: el jugador golpea (con opción a crítico/esquiva); si sobrevive, contraataca. */
     public Turno atacar(CombateSesion s) {
-        int dano = CombateService.dano(s.ataqueJugador(), defensaMonstruo(s.monstruo()), factor());
-        s.danarMonstruo(dano);
+        Golpe pg = golpe(s.ataqueJugador(), defensaMonstruo(s.monstruo()),
+                s.critJugador(), ESQUIVA_MONSTRUO);
+        s.danarMonstruo(pg.dano());
+        robarVida(s, pg.dano());
         if (s.monstruoMuerto()) {
-            return new Turno(Desenlace.VICTORIA, dano, 0, 0, false);
+            return new Turno(Desenlace.VICTORIA, pg.dano(), 0, 0, false,
+                    pg.critico(), pg.esquivado(), false, false);
         }
-        int contra = contraataque(s);
+        Golpe cg = contraataque(s);
         s.avanzarTurno();
-        return new Turno(desenlaceTrasContra(s), dano, contra, 0, false);
+        return new Turno(desenlaceTrasContra(s), pg.dano(), cg.dano(), 0, false,
+                pg.critico(), pg.esquivado(), cg.critico(), cg.esquivado());
     }
 
     /** Acción <b>Defender</b>: el jugador no golpea, pero el contraataque llega a la mitad. */
     public Turno defender(CombateSesion s) {
         s.ponerDefendiendo(true);
-        int contra = contraataque(s);
+        Golpe cg = contraataque(s);
         s.ponerDefendiendo(false);
         s.avanzarTurno();
-        return new Turno(desenlaceTrasContra(s), 0, contra, 0, false);
+        return new Turno(desenlaceTrasContra(s), 0, cg.dano(), 0, false,
+                false, false, cg.critico(), cg.esquivado());
     }
 
     /**
@@ -195,14 +229,69 @@ public final class BatallaService {
         if (i.efecto() == Items.Efecto.ENERGIA) {
             // Turno extra: recuperas tempo, el monstruo no contraataca este turno.
             s.avanzarTurno();
-            return new Turno(Desenlace.CONTINUA, 0, 0, 0, true);
+            return new Turno(Desenlace.CONTINUA, 0, 0, 0, true, false, false, false, false);
         }
         // SALUD (o cualquier otro consumible): cura HP de combate y el monstruo contraataca.
         int curado = Math.min(i.valor(), s.hpMaxJugador() - s.hpJugador());
         s.curarJugador(i.valor());
-        int contra = contraataque(s);
+        Golpe cg = contraataque(s);
         s.avanzarTurno();
-        return new Turno(desenlaceTrasContra(s), 0, contra, curado, false);
+        return new Turno(desenlaceTrasContra(s), 0, cg.dano(), curado, false,
+                false, false, cg.critico(), cg.esquivado());
+    }
+
+    private static final int POTENTE_MULT = 2;   // el golpe potente dobla el ataque
+    private static final double CURA_PCT = 0.30;  // la curación recupera 30% del HP máximo
+
+    /**
+     * Acción <b>Habilidad</b>: usa una habilidad si está fuera de cooldown (la pone en cooldown al
+     * terminar). Devuelve {@code null} si la habilidad no existe o aún está en cooldown.
+     */
+    public Turno usarHabilidad(CombateSesion s, String habilidadId) {
+        Optional<Habilidad> hab = Habilidad.porId(habilidadId);
+        if (hab.isEmpty() || s.cooldown(habilidadId) > 0) {
+            return null;
+        }
+        Habilidad h = hab.get();
+        int defMon = defensaMonstruo(s.monstruo());
+        Turno t = switch (h) {
+            case POTENTE -> {
+                // Golpe imposible de esquivar que dobla el ataque.
+                Golpe pg = golpe(s.ataqueJugador() * POTENTE_MULT, defMon, s.critJugador(), 0.0);
+                s.danarMonstruo(pg.dano());
+                robarVida(s, pg.dano());
+                if (s.monstruoMuerto()) {
+                    yield new Turno(Desenlace.VICTORIA, pg.dano(), 0, 0, false,
+                            pg.critico(), false, false, false);
+                }
+                Golpe cg = contraataque(s);
+                yield new Turno(desenlaceTrasContra(s), pg.dano(), cg.dano(), 0, false,
+                        pg.critico(), false, cg.critico(), cg.esquivado());
+            }
+            case CURAR -> {
+                int cura = (int) Math.round(s.hpMaxJugador() * CURA_PCT);
+                int curado = Math.min(cura, s.hpMaxJugador() - s.hpJugador());
+                s.curarJugador(cura);
+                Golpe cg = contraataque(s);
+                yield new Turno(desenlaceTrasContra(s), 0, cg.dano(), curado, false,
+                        false, false, cg.critico(), cg.esquivado());
+            }
+            case ATURDIR -> {
+                Golpe pg = golpe(s.ataqueJugador(), defMon, s.critJugador(), ESQUIVA_MONSTRUO);
+                s.danarMonstruo(pg.dano());
+                robarVida(s, pg.dano());
+                if (s.monstruoMuerto()) {
+                    yield new Turno(Desenlace.VICTORIA, pg.dano(), 0, 0, false,
+                            pg.critico(), pg.esquivado(), false, false);
+                }
+                // Aturdido: el monstruo pierde su contraataque este turno (sinContraataque + daño > 0).
+                yield new Turno(Desenlace.CONTINUA, pg.dano(), 0, 0, true,
+                        pg.critico(), pg.esquivado(), false, false);
+            }
+        };
+        s.avanzarTurno();
+        s.ponerCooldown(h.id(), h.cooldown());
+        return t;
     }
 
     /** Reparte el botín de una victoria (coins + XP + loot) y desbloquea el mundo si era el jefe. */
@@ -238,14 +327,38 @@ public final class BatallaService {
 
     // ---------------------- internos ----------------------
 
-    /** Contraataque del monstruo (mitad si el jugador defiende). Devuelve el daño aplicado. */
-    private int contraataque(CombateSesion s) {
-        int dano = CombateService.dano(s.monstruo().poder(), s.defensaJugador(), factor());
-        if (s.defendiendo()) {
+    /**
+     * Resuelve un golpe: primero tira esquiva (anula el golpe), luego el daño con varianza y por
+     * último crítico (×2). Cada tirada consume una muestra de {@link #azar}.
+     */
+    private Golpe golpe(int ofensiva, int defensa, double probCritico, double probEsquiva) {
+        if (azar.next() < probEsquiva) {
+            return new Golpe(0, false, true);
+        }
+        int dano = CombateService.dano(ofensiva, defensa, factor());
+        boolean critico = azar.next() < probCritico;
+        if (critico) {
+            dano *= CRIT_MULT;
+        }
+        return new Golpe(dano, critico, false);
+    }
+
+    /** Robo de vida del encantamiento: cura al jugador una fracción del daño que ha infligido. */
+    private void robarVida(CombateSesion s, int dano) {
+        if (s.roboVida() > 0 && dano > 0) {
+            s.curarJugador((int) Math.round(dano * s.roboVida()));
+        }
+    }
+
+    /** Contraataque del monstruo (mitad si el jugador defiende; el jugador puede esquivarlo). */
+    private Golpe contraataque(CombateSesion s) {
+        Golpe g = golpe(s.monstruo().poder(), s.defensaJugador(), CRIT_MONSTRUO, s.esquivaJugador());
+        int dano = g.dano();
+        if (dano > 0 && s.defendiendo()) {
             dano = Math.max(1, (int) Math.round(dano * DEFENSA_MULT));
         }
         s.danarJugador(dano);
-        return dano;
+        return new Golpe(dano, g.critico(), g.esquivado());
     }
 
     private static Desenlace desenlaceTrasContra(CombateSesion s) {
