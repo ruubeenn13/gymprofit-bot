@@ -6,6 +6,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin publicar]
 
+### Cambiado
+- **Comandos de economía agrupados en subcomandos**: para no acercarnos al límite de 100 slash
+  commands de Discord, se consolidan cinco familias en un comando cada una con subcomandos —
+  `/gremio` (crear/ver/add/kick/salir/disolver), `/banco` (ver/depositar/retirar/prestamo/pagar),
+  `/mercado` (ver/publicar/comprar/retirar), `/bolsa` (ver/invertir/vender/cartera) y `/casino`
+  (coinflip/dado/ruleta/duelo). Baja el total de 94 a 76 comandos (24 de margen) y agrupa mejor cada
+  sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
+
 ### Añadido
 - **RPG — robar** (extra, con riesgo): `/robar <usuario>` intenta robarle coins a otro jugador. Con
   suerte te llevas un 15 % de su monedero (con tope); si te pillan, pagas una multa a la víctima (así

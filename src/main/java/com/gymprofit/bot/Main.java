@@ -16,24 +16,11 @@ import com.gymprofit.bot.commands.economia.AbrirComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.BancoComando;
 import com.gymprofit.bot.commands.economia.BolsaComando;
-import com.gymprofit.bot.commands.economia.CarteraComando;
-import com.gymprofit.bot.commands.economia.CoinflipComando;
-import com.gymprofit.bot.commands.economia.InvertirComando;
-import com.gymprofit.bot.commands.economia.VenderAccionesComando;
-import com.gymprofit.bot.commands.economia.DadoComando;
-import com.gymprofit.bot.commands.economia.DueloComando;
-import com.gymprofit.bot.commands.economia.RuletaComando;
+import com.gymprofit.bot.commands.economia.CasinoComando;
 import com.gymprofit.bot.commands.economia.CofresComando;
-import com.gymprofit.bot.commands.economia.DepositarComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
-import com.gymprofit.bot.commands.economia.ComprarMercadoComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
-import com.gymprofit.bot.commands.economia.CrearGremioComando;
-import com.gymprofit.bot.commands.economia.DisolverGremioComando;
-import com.gymprofit.bot.commands.economia.GremioAddComando;
 import com.gymprofit.bot.commands.economia.GremioComando;
-import com.gymprofit.bot.commands.economia.GremioKickComando;
-import com.gymprofit.bot.commands.economia.SalirGremioComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
 import com.gymprofit.bot.commands.economia.EquiparComando;
@@ -51,16 +38,11 @@ import com.gymprofit.bot.commands.economia.MinarComando;
 import com.gymprofit.bot.commands.economia.MisionesComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
-import com.gymprofit.bot.commands.economia.PagarPrestamoComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
-import com.gymprofit.bot.commands.economia.PrestamoComando;
-import com.gymprofit.bot.commands.economia.PublicarComando;
 import com.gymprofit.bot.commands.economia.RecetasComando;
 import com.gymprofit.bot.commands.economia.RegalarComando;
 import com.gymprofit.bot.commands.economia.RegalarItemComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
-import com.gymprofit.bot.commands.economia.RetirarBancoComando;
-import com.gymprofit.bot.commands.economia.RetirarComando;
 import com.gymprofit.bot.commands.economia.RobarComando;
 import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
@@ -457,18 +439,11 @@ public final class Main {
             MercadoService mercadoService = new MercadoService(
                     new MercadoRepositorio(db.dataSource()), inventarioRepo, economiaRepo, usuarios);
             comandos.add(new MercadoComando(mercadoService));
-            comandos.add(new PublicarComando(mercadoService));
-            comandos.add(new ComprarMercadoComando(mercadoService));
-            comandos.add(new RetirarComando(mercadoService));
 
             // Banco (F-ECO-4c): ahorro con interés y préstamos.
             BancoService bancoService = new BancoService(
                     new BancoRepositorio(db.dataSource()), economiaRepo, usuarios);
             comandos.add(new BancoComando(bancoService));
-            comandos.add(new DepositarComando(bancoService));
-            comandos.add(new RetirarBancoComando(bancoService));
-            comandos.add(new PrestamoComando(bancoService));
-            comandos.add(new PagarPrestamoComando(bancoService));
 
             // Trueque (F-ECO-4d): intercambio con confirmación por botones.
             TruequeRegistro truequeRegistro = new TruequeRegistro();
@@ -479,30 +454,19 @@ public final class Main {
             // Gremios (F-ECO-5a): grupos con canal privado.
             GremioService gremioService = new GremioService(
                     new GremioRepositorio(db.dataSource()), economiaRepo, usuarios);
-            comandos.add(new CrearGremioComando(gremioService));
             comandos.add(new GremioComando(gremioService));
-            comandos.add(new GremioAddComando(gremioService));
-            comandos.add(new SalirGremioComando(gremioService));
-            comandos.add(new GremioKickComando(gremioService));
-            comandos.add(new DisolverGremioComando(gremioService));
 
             // Casino (F-ECO-6): juegos de azar de ficción y duelos.
             ApuestaService apuestaService = new ApuestaService(economiaRepo, usuarios);
             Cooldown apuestasCooldown = new Cooldown(java.time.Duration.ofSeconds(5));
-            comandos.add(new CoinflipComando(apuestaService, apuestasCooldown));
-            comandos.add(new DadoComando(apuestaService, apuestasCooldown));
-            comandos.add(new RuletaComando(apuestaService, apuestasCooldown));
             DueloService dueloService = new DueloService(economiaRepo, usuarios);
-            comandos.add(new DueloComando(dueloService));
+            comandos.add(new CasinoComando(apuestaService, dueloService, apuestasCooldown));
             listeners.add(new DueloListener(dueloService));
 
             // Bolsa ficticia (extra): acciones con precio dinámico.
             BolsaService bolsaService = new BolsaService(
                     new BolsaRepositorio(db.dataSource()), economiaRepo, usuarios);
             comandos.add(new BolsaComando(bolsaService));
-            comandos.add(new InvertirComando(bolsaService));
-            comandos.add(new VenderAccionesComando(bolsaService));
-            comandos.add(new CarteraComando(bolsaService));
             new BolsaJob(bolsaService).iniciar();
 
             // Árbol de mejoras (sube atributos permanentemente).
