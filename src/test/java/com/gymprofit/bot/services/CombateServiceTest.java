@@ -33,7 +33,7 @@ class CombateServiceTest {
     /** Personaje base con arma/armadura opcionales (resto de campos irrelevantes para el test). */
     private static Personaje personaje(int fuerza, int resistencia, String arma, String armadura) {
         return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, arma, armadura,
-                null, 0, null);
+                null, 0, null, 0);
     }
 
     @Test
@@ -134,9 +134,9 @@ class CombateServiceTest {
     void probabilidadDeEsquivaEscalaConCarismaYSeTopa() {
         // carisma 0 -> base 0.05 ; carisma alto -> tope 0.40
         assertEquals(0.05, CombateService.probEsquiva(
-                new Personaje(1L, 0, 0, 0, 100, 100, null, null, null, null, null, 0, null)), 1e-9);
+                new Personaje(1L, 0, 0, 0, 100, 100, null, null, null, null, null, 0, null, 0)), 1e-9);
         assertEquals(0.40, CombateService.probEsquiva(
-                new Personaje(1L, 0, 0, 1000, 100, 100, null, null, null, null, null, 0, null)), 1e-9);
+                new Personaje(1L, 0, 0, 1000, 100, 100, null, null, null, null, null, 0, null, 0)), 1e-9);
     }
 
     @Test

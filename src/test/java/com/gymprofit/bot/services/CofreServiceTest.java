@@ -31,7 +31,7 @@ class CofreServiceTest {
     }
 
     private static Personaje conArma(String arma) {
-        return new Personaje(1L, 0, 0, 0, 100, 100, null, null, arma, null, null, 0, null);
+        return new Personaje(1L, 0, 0, 0, 100, 100, null, null, arma, null, null, 0, null, 0);
     }
 
     @Test

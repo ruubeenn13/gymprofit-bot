@@ -20,9 +20,10 @@ import java.time.Instant;
  * @param ultimoCombate última derrota en combate (cooldown), o {@code null} si no hay cooldown activo
  * @param armaNivel     nivel de mejora del arma equipada (+daño en combate)
  * @param armaEncanto   id del encantamiento del arma (catálogo Encantamiento), o {@code null}
+ * @param estudios      nivel de estudios (bono al sueldo); sube con /estudiar
  */
 public record Personaje(long discordId, int fuerza, int resistencia, int carisma,
                         int energia, int salud, String trabajo, Instant ultimoWork,
                         String arma, String armadura, Instant ultimoCombate,
-                        int armaNivel, String armaEncanto) {
+                        int armaNivel, String armaEncanto, int estudios) {
 }

@@ -7,6 +7,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **RPG — progresión: estudios e insignias** (F-ECO-3b): migraciones **V17** (`personajes.estudios`) y
+  **V18** (`insignias_ganadas`). Nuevo `/estudiar` (gasta energía, sube estudios; cada punto da **+1 %
+  al sueldo** de `/work`, hasta +25 %). Nuevo `/insignias`: 13 logros que se **desbloquean solos** al
+  cumplir su condición sobre tu estado actual (nivel, coins, poder, minería, mundos, estudios, tener
+  trabajo). Estudios visibles en `/perfil` y `/rank`. `Insignias`/`InsigniaService` (condición pura,
+  testeada) + `EstudiarComando`/`InsigniasComando`. Las intros de `/setup` (💰・economía, ⚔️・combate)
+  ahora listan todos los comandos nuevos (minería, herrería, cofres, misiones, mazmorras, progresión).
+- **RPG — progresión: rangos automáticos y /rank** (F-ECO-3a): al subir de nivel, el bot asigna solo
+  el **rol de rango** que toca (🏅 Novato → Habitual → Veterano → Leyenda) y quita el anterior. Nuevo
+  `/rank [usuario]`: tarjeta con rango, nivel, **barra de XP** al siguiente nivel, saldo, poder de
+  combate y atributos (además auto-corrige el rango). `Rango` + `RangoService`; sin cambios de esquema.
 - **RPG — sistema de cofres**: cofres comprables que sueltan **botín al azar** con rarezas
   (⬜🟦🟪🟨). `/abrir <cofre> [cantidad]` reparte un premio por cofre según su tabla (a menos peso,
   más raro): ítems, coins, minerales, un encantamiento para el arma o un nivel de arma (si sales sin

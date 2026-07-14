@@ -28,10 +28,12 @@ public final class XpMensajeListener extends ListenerAdapter {
     private static final int XP_MAX = 25;
 
     private final XpService xpService;
+    private final com.gymprofit.bot.services.RangoService rangos;
     private final Cooldown cooldown = new Cooldown(Duration.ofSeconds(60));
 
-    public XpMensajeListener(XpService xpService) {
+    public XpMensajeListener(XpService xpService, com.gymprofit.bot.services.RangoService rangos) {
         this.xpService = xpService;
+        this.rangos = rangos;
     }
 
     @Override
@@ -51,6 +53,10 @@ public final class XpMensajeListener extends ListenerAdapter {
             XpResultado resultado = xpService.ganarXp(usuarioId, cantidad);
             if (resultado.subioNivel()) {
                 anunciarSubida(evento, resultado);
+                // Ajusta el rol de rango al nuevo nivel (si el bot puede gestionar roles).
+                if (evento.getMember() != null) {
+                    rangos.sincronizar(evento.getGuild(), evento.getMember(), resultado.nivelNuevo());
+                }
             }
         } catch (RuntimeException e) {
             // No romper el flujo de mensajes por un fallo de BD; se registra y se sigue.

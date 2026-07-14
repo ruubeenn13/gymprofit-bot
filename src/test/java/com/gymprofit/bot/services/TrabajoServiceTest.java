@@ -20,6 +20,14 @@ class TrabajoServiceTest {
     }
 
     @Test
+    void losEstudiosDanBonoAlSueldoConTope() {
+        assertEquals(100, TrabajoService.conBonoEstudios(100, 0));    // sin estudios
+        assertEquals(110, TrabajoService.conBonoEstudios(100, 10));   // +10%
+        assertEquals(125, TrabajoService.conBonoEstudios(100, 25));   // +25% (tope)
+        assertEquals(125, TrabajoService.conBonoEstudios(100, 100));  // no pasa del tope
+    }
+
+    @Test
     void catalogoAmplioYConsistente() {
         assertTrue(Trabajos.CATALOGO.size() >= 25, "catálogo amplio");
         for (Trabajos t : Trabajos.CATALOGO) {

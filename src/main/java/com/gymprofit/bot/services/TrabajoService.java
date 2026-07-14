@@ -21,6 +21,10 @@ public final class TrabajoService {
     public static final Duration COOLDOWN_WORK = Duration.ofMinutes(60);
     /** Energía que cuesta entrenar un atributo (+1). */
     public static final int ENERGIA_ENTRENAR = 25;
+    /** Bono al sueldo por cada punto de estudios. */
+    public static final double BONO_ESTUDIOS = 0.01;
+    /** Tope del bono de estudios al sueldo. */
+    public static final double BONO_ESTUDIOS_MAX = 0.25;
 
     public enum EstadoWork { OK, SIN_TRABAJO, EN_COOLDOWN, SIN_ENERGIA }
 
@@ -77,7 +81,8 @@ public final class TrabajoService {
         if (p.energia() < t.energiaCoste() || !personajes.trabajar(discordId, t.energiaCoste())) {
             return new ResultadoWork(EstadoWork.SIN_ENERGIA, 0, p.energia(), 0);
         }
-        int pago = calcularPago(t.salarioMin(), t.salarioMax(), aleatorio);
+        int base = calcularPago(t.salarioMin(), t.salarioMax(), aleatorio);
+        int pago = conBonoEstudios(base, p.estudios());
         economia.ingresar(discordId, pago, "work");
         return new ResultadoWork(EstadoWork.OK, pago, p.energia() - t.energiaCoste(), 0);
     }
@@ -93,5 +98,11 @@ public final class TrabajoService {
     /** Pago aleatorio dentro del rango [min, max] del trabajo. */
     public static int calcularPago(int min, int max, Random aleatorio) {
         return min + aleatorio.nextInt(max - min + 1);
+    }
+
+    /** Aplica el bono de estudios al pago base (+1% por punto, con tope). */
+    public static int conBonoEstudios(int base, int estudios) {
+        double bono = Math.min(BONO_ESTUDIOS_MAX, estudios * BONO_ESTUDIOS);
+        return (int) Math.round(base * (1 + bono));
     }
 }

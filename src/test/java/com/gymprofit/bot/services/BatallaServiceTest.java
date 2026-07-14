@@ -52,7 +52,7 @@ class BatallaServiceTest {
 
     private static Personaje personaje(int fuerza, int resistencia) {
         return new Personaje(1L, fuerza, resistencia, 0, 100, 100, null, null, null, null,
-                null, 0, null);
+                null, 0, null, 0);
     }
 
     private static CombateSesion sesion(String monstruoId, int ataque, int defensa, int hpMax) {

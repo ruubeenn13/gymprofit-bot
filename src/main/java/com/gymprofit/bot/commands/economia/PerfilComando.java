@@ -58,7 +58,7 @@ public final class PerfilComando implements Comando {
         String desc = Messages.get(locale, "perfil.cuerpo",
                 p.coins(), p.personaje().energia(), p.personaje().salud(),
                 p.personaje().fuerza(), p.personaje().resistencia(), p.personaje().carisma(),
-                CombateService.poderCombate(p.personaje()), arma, armadura);
+                CombateService.poderCombate(p.personaje()), arma, armadura, p.personaje().estudios());
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                         Messages.get(locale, "perfil.titulo", objetivo.getName()), desc)
                 .setThumbnail(objetivo.getEffectiveAvatarUrl()).build();

@@ -36,7 +36,7 @@ public final class PersonajeRepositorio {
     /** Personaje por id, si existe. */
     public Optional<Personaje> buscar(long discordId) {
         String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud, trabajo, "
-                + "ultimo_work, arma, armadura, ultimo_combate, arma_nivel, arma_encanto "
+                + "ultimo_work, arma, armadura, ultimo_combate, arma_nivel, arma_encanto, estudios "
                 + "FROM personajes WHERE discord_id = ?";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -81,7 +81,7 @@ public final class PersonajeRepositorio {
      */
     public boolean entrenar(long discordId, String atributo, int energiaCoste) {
         if (!atributo.equals("fuerza") && !atributo.equals("resistencia")
-                && !atributo.equals("carisma")) {
+                && !atributo.equals("carisma") && !atributo.equals("estudios")) {
             throw new IllegalArgumentException("Atributo no válido: " + atributo);
         }
         String sql = "UPDATE personajes SET " + atributo + " = " + atributo + " + 1, "
@@ -100,7 +100,7 @@ public final class PersonajeRepositorio {
     /** Suma {@code cantidad} a un atributo (fuerza/resistencia/carisma). Para el árbol de mejoras. */
     public void sumarAtributo(long discordId, String atributo, int cantidad) {
         if (!atributo.equals("fuerza") && !atributo.equals("resistencia")
-                && !atributo.equals("carisma")) {
+                && !atributo.equals("carisma") && !atributo.equals("estudios")) {
             throw new IllegalArgumentException("Atributo no válido: " + atributo);
         }
         ejecutar("UPDATE personajes SET " + atributo + " = " + atributo + " + ? WHERE discord_id = ?",
@@ -221,6 +221,6 @@ public final class PersonajeRepositorio {
                 rs.getString("trabajo"), uw == null ? null : uw.toInstant(),
                 rs.getString("arma"), rs.getString("armadura"),
                 uc == null ? null : uc.toInstant(),
-                rs.getInt("arma_nivel"), rs.getString("arma_encanto"));
+                rs.getInt("arma_nivel"), rs.getString("arma_encanto"), rs.getInt("estudios"));
     }
 }

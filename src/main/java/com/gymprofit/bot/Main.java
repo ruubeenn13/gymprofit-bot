@@ -23,6 +23,8 @@ import com.gymprofit.bot.commands.economia.EquiparComando;
 import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
 import com.gymprofit.bot.commands.economia.EncantarComando;
 import com.gymprofit.bot.commands.economia.EntrenarComando;
+import com.gymprofit.bot.commands.economia.EstudiarComando;
+import com.gymprofit.bot.commands.economia.InsigniasComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
@@ -36,6 +38,7 @@ import com.gymprofit.bot.commands.economia.RecetasComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
 import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
+import com.gymprofit.bot.commands.economia.RankComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
 import com.gymprofit.bot.commands.economia.UsarComando;
@@ -71,6 +74,7 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
+import com.gymprofit.bot.db.InsigniaRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
 import com.gymprofit.bot.db.MineriaRepositorio;
 import com.gymprofit.bot.db.MisionRepositorio;
@@ -90,6 +94,7 @@ import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
+import com.gymprofit.bot.services.InsigniaService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
 import com.gymprofit.bot.services.BatallaService;
@@ -97,6 +102,7 @@ import com.gymprofit.bot.services.MineriaService;
 import com.gymprofit.bot.services.MisionService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
+import com.gymprofit.bot.services.RangoService;
 import com.gymprofit.bot.services.VentaService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
@@ -242,9 +248,10 @@ public final class Main {
         if (db != null) {
             UsuarioDiscordRepositorio usuarios = new UsuarioDiscordRepositorio(db.dataSource());
             XpService xpService = new XpService(usuarios);
+            RangoService rangoService = new RangoService();
             comandos.add(new NivelComando(usuarios));
             comandos.add(new TopComando(usuarios));
-            listeners.add(new XpMensajeListener(xpService));
+            listeners.add(new XpMensajeListener(xpService, rangoService));
 
             ConfigServidorService configService =
                     new ConfigServidorService(new ConfigServidorRepositorio(db.dataSource()));
@@ -324,12 +331,14 @@ public final class Main {
             comandos.add(new BalanceComando(economiaService));
             comandos.add(new DailyComando(economiaService));
             comandos.add(new PerfilComando(economiaService));
+            comandos.add(new RankComando(economiaService, usuarios, rangoService));
 
             TrabajoService trabajoService = new TrabajoService(personajeRepo, economiaRepo, usuarios);
             comandos.add(new TrabajosComando());
             comandos.add(new ElegirTrabajoComando(trabajoService));
             comandos.add(new WorkComando(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
+            comandos.add(new EstudiarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();
 
             // Tienda e inventario.
@@ -369,7 +378,8 @@ public final class Main {
                     new EncantarService(personajeRepo, economiaRepo, usuarios)));
 
             // Minería (COMBAT-5): minar recursos, repararlos picos y venderlos.
-            MineriaService mineriaService = new MineriaService(new MineriaRepositorio(db.dataSource()),
+            MineriaRepositorio mineriaRepo = new MineriaRepositorio(db.dataSource());
+            MineriaService mineriaService = new MineriaService(mineriaRepo,
                     personajeRepo, inventarioRepo, economiaRepo, usuarios);
             comandos.add(new MinarComando(mineriaService));
             comandos.add(new RepararComando(mineriaService));
@@ -385,6 +395,11 @@ public final class Main {
                     inventarioRepo, economiaRepo, personajeRepo, usuarios);
             comandos.add(new AbrirComando(cofreService));
             comandos.add(new CofresComando());
+
+            // Progresión (F-ECO-3b): insignias/logros derivados del estado.
+            comandos.add(new InsigniasComando(new InsigniaService(
+                    new InsigniaRepositorio(db.dataSource()), usuarios, personajeRepo,
+                    mineriaRepo, mundoRepo)));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(
