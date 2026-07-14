@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Cambiado
+- **`/setup` mantiene al día las intros de los canales**: al reejecutarlo, ahora **edita** el mensaje
+  fijado de guía de cada canal que ya existe (en vez de dejarlo desfasado), sin duplicar pines; si el
+  canal no tenía intro, la publica. Antes la intro solo se ponía al **crear** el canal, así que había
+  que borrar el canal o usar `desde_cero` para refrescarla. Ahora basta con `/setup` normal.
 - **Comandos de economía agrupados en subcomandos**: para no acercarnos al límite de 100 slash
   commands de Discord, se consolidan cinco familias en un comando cada una con subcomandos —
   `/gremio` (crear/ver/add/kick/salir/disolver), `/banco` (ver/depositar/retirar/prestamo/pagar),

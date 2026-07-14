@@ -439,6 +439,10 @@ public final class SetupComando implements Comando {
                             aplicarConfig(guild, existente, chPlan);
                             aplicarTopic(existente, chPlan);
                             aplicarPermisos(guild, existente, chPlan, roles);
+                            // Refresca la intro fijada (edita el embed existente; no duplica).
+                            if (existente instanceof GuildMessageChannel gmc) {
+                                actualizarIntro(gmc, chPlan, locale);
+                            }
                             canal = existente;
                         } else {
                             canal = crearCanal(guild, categoria, chPlan, roles, locale);
@@ -702,6 +706,32 @@ public final class SetupComando implements Comando {
         canal.sendMessageEmbeds(embed).queue(
                 mensaje -> mensaje.pin().queue(),
                 error -> log.warn("No se pudo fijar la intro en {}", canal.getId(), error));
+    }
+
+    /**
+     * Actualiza la intro de un canal <b>reutilizado</b>: edita el embed fijado por el bot si existe
+     * (para no duplicar), o lo publica y fija si aún no está. El panel de roles se gestiona aparte,
+     * así que se omite aquí. Best-effort (async, no rompe el setup si falla).
+     */
+    private void actualizarIntro(GuildMessageChannel canal, CanalPlan chPlan, Locale locale) {
+        if (chPlan.introKey() == null || "panel.roles".equals(chPlan.introKey())) {
+            return;
+        }
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
+                Messages.get(locale, chPlan.introKey() + ".titulo"),
+                Messages.get(locale, chPlan.introKey() + ".desc"))
+                .build();
+        long botId = canal.getJDA().getSelfUser().getIdLong();
+        canal.retrievePinnedMessages().queue(pins -> {
+            var intro = pins.stream()
+                    .filter(m -> m.getAuthor().getIdLong() == botId && !m.getEmbeds().isEmpty())
+                    .findFirst().orElse(null);
+            if (intro != null) {
+                intro.editMessageEmbeds(embed).queue(null, e -> { });
+            } else {
+                canal.sendMessageEmbeds(embed).queue(m -> m.pin().queue(null, e -> { }), e -> { });
+            }
+        }, error -> log.warn("No se pudieron leer los pins de {}", canal.getId(), error));
     }
 
     /**
