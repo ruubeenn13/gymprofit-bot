@@ -7,6 +7,27 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **RPG — trueque entre jugadores** (F-ECO-4d): `/trueque <usuario> [doy_item] [doy_coins] [pido_item]
+  [pido_coins] …` propone un intercambio de ítems y/o coins en ambos sentidos; el otro jugador lo
+  **confirma con botones** (Aceptar/Rechazar). El intercambio es atómico: reserva lo que aporta cada
+  parte y, si alguna no cumple, deshace todo (nadie pierde nada). Cierra la economía entre jugadores
+  (F-ECO-4 completo: regalar · mercado · banco · trueque). `TruequeService`/`TruequeListener` + tests.
+- **RPG — banco: ahorro y préstamos** (F-ECO-4c): migración **V20** (tabla `banco`). `/banco` muestra
+  ahorro, deuda y monedero; `/depositar` y `/retirar-banco` mueven coins entre monedero y ahorro; el
+  ahorro genera un **interés diario pequeño** (2 %/día, tope 500/día) que se aplica de forma perezosa
+  (por días transcurridos, sin job 24/7). `/prestamo` adelanta coins hasta un límite que crece con el
+  nivel y se devuelve con una **comisión del 10 %** (sumidero); `/pagar-prestamo` salda la deuda.
+  `BancoService` (interés puro y testeado) + tests.
+- **RPG — mercado entre jugadores** (F-ECO-4b): migración **V19** (tabla `mercado`). `/publicar
+  <item> <cantidad> <precio>` pone ítems a la venta (se retiran del inventario como escrow),
+  `/mercado` lista los anuncios activos, `/comprar-mercado <nº> [cantidad]` compra (reserva atómica de
+  stock y reembolso si el cobro falla) y `/retirar <nº>` cancela un anuncio propio devolviendo los
+  ítems. La venta cobra una **comisión del 5 %** al vendedor (sumidero anti-inflación). Con esto ya se
+  pueden vender loot y minerales entre jugadores. `Mercado*` (repo/servicio) + tests.
+- **RPG — regalar entre jugadores** (F-ECO-4a): `/regalar <usuario> <coins>` y
+  `/regalar-item <usuario> <item> [cantidad]` transfieren coins e ítems a otro jugador (sin comisión,
+  atómico; no a bots ni a ti mismo). Primer paso de la economía entre jugadores. `RegaloService` +
+  tests; sin cambios de esquema. Intro de 💰・economía actualizada.
 - **RPG — progresión: estudios e insignias** (F-ECO-3b): migraciones **V17** (`personajes.estudios`) y
   **V18** (`insignias_ganadas`). Nuevo `/estudiar` (gasta energía, sube estudios; cada punto da **+1 %
   al sueldo** de `/work`, hasta +25 %). Nuevo `/insignias`: 13 logros que se **desbloquean solos** al

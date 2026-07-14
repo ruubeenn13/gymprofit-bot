@@ -14,8 +14,11 @@ import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
+import com.gymprofit.bot.commands.economia.BancoComando;
 import com.gymprofit.bot.commands.economia.CofresComando;
+import com.gymprofit.bot.commands.economia.DepositarComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
+import com.gymprofit.bot.commands.economia.ComprarMercadoComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
@@ -29,17 +32,26 @@ import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
 import com.gymprofit.bot.commands.economia.MazmorraComando;
+import com.gymprofit.bot.commands.economia.MercadoComando;
 import com.gymprofit.bot.commands.economia.MinarComando;
 import com.gymprofit.bot.commands.economia.MisionesComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
+import com.gymprofit.bot.commands.economia.PagarPrestamoComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
+import com.gymprofit.bot.commands.economia.PrestamoComando;
+import com.gymprofit.bot.commands.economia.PublicarComando;
 import com.gymprofit.bot.commands.economia.RecetasComando;
+import com.gymprofit.bot.commands.economia.RegalarComando;
+import com.gymprofit.bot.commands.economia.RegalarItemComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
+import com.gymprofit.bot.commands.economia.RetirarBancoComando;
+import com.gymprofit.bot.commands.economia.RetirarComando;
 import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.RankComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
+import com.gymprofit.bot.commands.economia.TruequeComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
 import com.gymprofit.bot.commands.economia.UsarComando;
 import com.gymprofit.bot.commands.economia.WorkComando;
@@ -74,8 +86,10 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
+import com.gymprofit.bot.db.BancoRepositorio;
 import com.gymprofit.bot.db.InsigniaRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
+import com.gymprofit.bot.db.MercadoRepositorio;
 import com.gymprofit.bot.db.MineriaRepositorio;
 import com.gymprofit.bot.db.MisionRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
@@ -88,6 +102,7 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
+import com.gymprofit.bot.services.BancoService;
 import com.gymprofit.bot.services.CofreService;
 import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.CrafteoService;
@@ -98,11 +113,15 @@ import com.gymprofit.bot.services.InsigniaService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
 import com.gymprofit.bot.services.BatallaService;
+import com.gymprofit.bot.services.MercadoService;
+import com.gymprofit.bot.services.TruequeRegistro;
+import com.gymprofit.bot.services.TruequeService;
 import com.gymprofit.bot.services.MineriaService;
 import com.gymprofit.bot.services.MisionService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.RangoService;
+import com.gymprofit.bot.services.RegaloService;
 import com.gymprofit.bot.services.VentaService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
@@ -114,6 +133,7 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.CombateListener;
+import com.gymprofit.bot.events.TruequeListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.TicketListener;
@@ -400,6 +420,34 @@ public final class Main {
             comandos.add(new InsigniasComando(new InsigniaService(
                     new InsigniaRepositorio(db.dataSource()), usuarios, personajeRepo,
                     mineriaRepo, mundoRepo)));
+
+            // Economía entre jugadores (F-ECO-4a): regalar coins e ítems.
+            RegaloService regaloService = new RegaloService(economiaRepo, inventarioRepo, usuarios);
+            comandos.add(new RegalarComando(regaloService));
+            comandos.add(new RegalarItemComando(regaloService));
+
+            // Mercado entre jugadores (F-ECO-4b): publicar, comprar, retirar.
+            MercadoService mercadoService = new MercadoService(
+                    new MercadoRepositorio(db.dataSource()), inventarioRepo, economiaRepo, usuarios);
+            comandos.add(new MercadoComando(mercadoService));
+            comandos.add(new PublicarComando(mercadoService));
+            comandos.add(new ComprarMercadoComando(mercadoService));
+            comandos.add(new RetirarComando(mercadoService));
+
+            // Banco (F-ECO-4c): ahorro con interés y préstamos.
+            BancoService bancoService = new BancoService(
+                    new BancoRepositorio(db.dataSource()), economiaRepo, usuarios);
+            comandos.add(new BancoComando(bancoService));
+            comandos.add(new DepositarComando(bancoService));
+            comandos.add(new RetirarBancoComando(bancoService));
+            comandos.add(new PrestamoComando(bancoService));
+            comandos.add(new PagarPrestamoComando(bancoService));
+
+            // Trueque (F-ECO-4d): intercambio con confirmación por botones.
+            TruequeRegistro truequeRegistro = new TruequeRegistro();
+            comandos.add(new TruequeComando(truequeRegistro));
+            listeners.add(new TruequeListener(
+                    new TruequeService(economiaRepo, inventarioRepo, usuarios), truequeRegistro));
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(
