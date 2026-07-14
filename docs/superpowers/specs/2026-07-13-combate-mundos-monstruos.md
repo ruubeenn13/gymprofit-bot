@@ -141,7 +141,9 @@ coins). Base para el crafting.
 > tier: 30/60/100/150); a 0 se rompen (estado `PICO_ROTO`). `/reparar <pico>` restaura a tope; coste =
 > `faltante · 8 · tier` (sumidero). `/minar` usa el mejor pico con durabilidad y muestra la restante.
 > `MineriaService.reparar` + `RepararComando` + tests. **COMBAT-5 completo.**
-> Crafting/herrería (`/craftear`) queda para más adelante (visión), sobre esta base.
+> **Crafting/herrería HECHO** (sobre la minería): `/craftear <receta>` combina minerales para fabricar
+> armas/armaduras/picos (catálogo `Recetas`, 15; sin coins, sin schema) y `/recetas` las lista.
+> Cierra el bucle minar → forjar → combatir. `CrafteoService` + tests.
 
 **COMBAT-6 · Contenido y objetivos**
 - **Misiones de caza** (`/mision`): objetivos tipo «mata 10 lobos» → recompensa; diarias/semanales.

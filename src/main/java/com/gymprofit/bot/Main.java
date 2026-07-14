@@ -14,6 +14,7 @@ import com.gymprofit.bot.commands.contenido.RedesComando;
 import com.gymprofit.bot.commands.contenido.SorteoComando;
 import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
+import com.gymprofit.bot.commands.economia.CrafteoComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
 import com.gymprofit.bot.commands.economia.EquiparComando;
@@ -27,6 +28,7 @@ import com.gymprofit.bot.commands.economia.MinarComando;
 import com.gymprofit.bot.commands.economia.MonstruosComando;
 import com.gymprofit.bot.commands.economia.MundosComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
+import com.gymprofit.bot.commands.economia.RecetasComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
 import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
@@ -78,6 +80,7 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.CombateService;
+import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
@@ -359,6 +362,11 @@ public final class Main {
             comandos.add(new MinarComando(mineriaService));
             comandos.add(new RepararComando(mineriaService));
             comandos.add(new VenderComando(new VentaService(inventarioRepo, economiaRepo, usuarios)));
+
+            // Herrería (COMBAT-6 crafting): fabricar equipo con minerales.
+            CrafteoService crafteoService = new CrafteoService(inventarioRepo, usuarios);
+            comandos.add(new CrafteoComando(crafteoService));
+            comandos.add(new RecetasComando());
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

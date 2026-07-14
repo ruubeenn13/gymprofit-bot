@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — herrería y crafteo**: cierra el bucle **minar → forjar → combatir**. `/craftear
+  <receta>` combina minerales (de `/minar`) para fabricar armas, armaduras y picos, sin gastar coins
+  (el coste es la minería). `/recetas` lista las 15 recetas con sus materiales. Incluye recetas de
+  picos (para subir de tier sin pasar por la tienda) y de equipo hasta la espada legendaria y la
+  armadura dracónica. Catálogo `Recetas` + `CrafteoService`; `CrafteoComando`/`RecetasComando` y tests.
+  Sin cambios de esquema (todo va por el inventario).
 - **Combate / RPG — durabilidad de picos y reparación** (COMBAT-5b): migración **V15** (tabla
   `durabilidad_picos`). Los picos ahora se **desgastan** al minar (durabilidad por tier: madera 30 …
   mithril 150); al llegar a 0 el pico se rompe y no se puede usar. `/reparar <pico>` lo restaura a tope
