@@ -61,6 +61,7 @@ import com.gymprofit.bot.commands.economia.RegalarItemComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
 import com.gymprofit.bot.commands.economia.RetirarBancoComando;
 import com.gymprofit.bot.commands.economia.RetirarComando;
+import com.gymprofit.bot.commands.economia.RobarComando;
 import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.RankComando;
@@ -143,6 +144,7 @@ import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.RangoService;
 import com.gymprofit.bot.services.RegaloService;
+import com.gymprofit.bot.services.RoboService;
 import com.gymprofit.bot.services.VentaService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
@@ -448,6 +450,8 @@ public final class Main {
             RegaloService regaloService = new RegaloService(economiaRepo, inventarioRepo, usuarios);
             comandos.add(new RegalarComando(regaloService));
             comandos.add(new RegalarItemComando(regaloService));
+            comandos.add(new RobarComando(new RoboService(economiaRepo, usuarios),
+                    new Cooldown(java.time.Duration.ofMinutes(30))));
 
             // Mercado entre jugadores (F-ECO-4b): publicar, comprar, retirar.
             MercadoService mercadoService = new MercadoService(

@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **RPG — robar** (extra, con riesgo): `/robar <usuario>` intenta robarle coins a otro jugador. Con
+  suerte te llevas un 15 % de su monedero (con tope); si te pillan, pagas una multa a la víctima (así
+  el robo es de suma cero, no infla la economía). Cooldown de 30 min para evitar el spam.
+  `RoboService` (azar inyectable) + tests.
 - **RPG — bolsa ficticia** (extra): migración **V22** (tablas `acciones`, `cartera`). 8 acciones
   inventadas cuyo **precio se mueve solo** (job cada 12 min: random walk por volatilidad + eventos de
   crash/boom). `/bolsa` muestra precios y tendencia (↑↓); `/invertir <acción> <cantidad>` compra,
