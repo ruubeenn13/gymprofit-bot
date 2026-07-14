@@ -22,6 +22,8 @@ import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
+import com.gymprofit.bot.commands.economia.MonstruosComando;
+import com.gymprofit.bot.commands.economia.MundosComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TrabajosComando;
@@ -59,6 +61,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.MejoraRepositorio;
+import com.gymprofit.bot.db.MundoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
@@ -74,6 +77,7 @@ import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.MejoraService;
 import com.gymprofit.bot.services.ModeracionService;
+import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.PrivacidadService;
 import com.gymprofit.bot.services.SorteoService;
 import com.gymprofit.bot.services.SugerenciaService;
@@ -321,6 +325,12 @@ public final class Main {
                     new CombateService(personajeRepo, inventarioRepo, usuarios);
             comandos.add(new EquiparComando(combateService));
             comandos.add(new DesequiparComando(combateService));
+
+            // Combate (COMBAT-2): mundos y bestiario (datos + navegación, sin pelea aún).
+            MundoService mundoService =
+                    new MundoService(new MundoRepositorio(db.dataSource()), usuarios);
+            comandos.add(new MundosComando(mundoService));
+            comandos.add(new MonstruosComando());
 
             // Árbol de mejoras (sube atributos permanentemente).
             MejoraService mejoraService = new MejoraService(

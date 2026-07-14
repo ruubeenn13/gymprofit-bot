@@ -84,9 +84,15 @@ Extiende `Items` con ARMA/ARMADURA (ataque/defensa); columnas `personajes.arma`/
 > de combate + equipo, `/tienda` con secciones Armas/Armaduras y su stat. `CombateServiceTest` (11).
 > El **HP de combate** se difiere a COMBAT-3 (cuando haya pelea). Sin canales nuevos aún.
 
-**COMBAT-2 · Mundos y monstruos**
+**COMBAT-2 · Mundos y monstruos** — ✅ **HECHO**
 Catálogos `Mundos` y `Monstruos` (amplios); tabla `progreso_mundos`; `/mundos` (lista con
 desbloqueo), `/monstruos <mundo>` (bestiario). Sin pelea aún (solo datos + navegación).
+> Implementado: **V11** (`progreso_mundos`), `Mundos` (8 mundos ordenados y desbloqueables) y
+> `Monstruos` (bestiario amplio, **64**: 7 normales por dificultad + 1 jefe por mundo, con poder/HP/
+> coins/XP/loot→`Items`). `MundoService` (desbloqueo = jefe del mundo anterior derrotado, lógica
+> pura testeable) + `MundoRepositorio`. `/mundos` (🔓/🔒/✅ + nivel del jugador) y `/monstruos
+> <mundo>` (un embed por dificultad, límite 4096). Canales `⚔️・combate` `🗺️・mundos`
+> `📖・bestiario` en la categoría 🎮 VIDA. `MundoServiceTest` (10). La batalla la escribe COMBAT-3.
 
 **COMBAT-3 · Batalla por turnos**
 Sesión de combate en memoria (jugador HP vs monstruo HP, turno). `/pelear <monstruo>`: comprueba

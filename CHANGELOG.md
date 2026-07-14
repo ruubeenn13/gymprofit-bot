@@ -7,6 +7,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Combate / RPG — mundos y bestiario** (COMBAT-2): migración **V11** (`progreso_mundos`: qué
+  mundos ha completado cada jugador). Catálogos en código: **`Mundos`** (8 mundos desbloqueables en
+  orden, del Bosque Susurrante al Reino Sombrío, con nivel recomendado) y **`Monstruos`** (bestiario
+  **amplio, 64 monstruos**: 7 normales por dificultad + 1 jefe por mundo, con poder, HP, coins, XP y
+  tabla de botín que apunta a `Items`). `MundoService` calcula el **desbloqueo** (un mundo se abre al
+  derrotar al jefe del anterior) y `MundoRepositorio` persiste el progreso. Comandos `/mundos`
+  (lista con 🔓/🔒/✅ y tu nivel) y `/monstruos <mundo>` (bestiario, un embed por dificultad para
+  respetar el límite de 4096). Canales nuevos en `/setup` (categoría 🎮 VIDA): **⚔️・combate**,
+  **🗺️・mundos** y **📖・bestiario**. Aún **sin pelea** (solo datos + navegación); la batalla por
+  turnos es COMBAT-3. `MundoServiceTest` (10) cubre desbloqueo e integridad de catálogos.
 - **Combate / RPG — armas, armaduras y poder de combate** (COMBAT-1): migración **V10** (columnas
   `personajes.arma`/`armadura`); catálogo ampliado (`Items`) con **16 armas** (puños→espada
   legendaria, +ataque) y **12 armaduras** (ropa→armadura divina, +defensa), temática aventura
