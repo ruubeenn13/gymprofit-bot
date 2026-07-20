@@ -46,6 +46,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
 
 ### Añadido
+- **El descanso se explica solo**: al despertar, el bot ya no suelta un «+47» a secas — desglosa de
+  dónde sale. Ahora dice tu energía **antes → después**, y añade el aviso que toque: que solo
+  cuentan las **primeras 9 h** (dormir cuatro días no da cuatro días de energía), que has llegado al
+  **tope de tu cama** y ahí se para, qué cama comprar para subirlo (con su precio) y, si duermes en
+  el suelo, que el hotel existe. También suma los avisos de **resistencia** («tu resistencia te ha
+  dado un +30 %») y de **salud baja** («por debajo de 30 se descansa a la mitad»). `/descansar
+  dormir` te dice a dónde llegarías durmiendo las 9 h y te avisa **antes** si ya tienes más energía
+  que el tope de tu cama, para no perder la noche; `/descansar estado` enseña tu energía junto al
+  tope (`13/60`) y la siguiente mejora. `DescansoService.desglosar` (puro y testeado) y
+  `Camas.siguienteMejor`.
 - **RPG — descanso y energía**: la energía ya no sube sola: ahora **se duerme**.
   `/descansar dormir` te acuesta y `/descansar despertar` te levanta dándote energía **según lo que
   hayas dormido de verdad** — una siesta de 20 min da poco, ocho horas te dejan nuevo (máx. 9 h). La

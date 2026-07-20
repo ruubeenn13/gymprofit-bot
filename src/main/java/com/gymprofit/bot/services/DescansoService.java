@@ -60,10 +60,30 @@ public final class DescansoService {
     /**
      * Resultado de acostarse.
      *
-     * @param estado resultado
-     * @param cama   dónde se ha acostado (para el mensaje), o {@code null} si no {@code OK}
+     * @param estado        resultado
+     * @param cama          dónde se ha acostado (para el mensaje), o {@code null} si no {@code OK}
+     * @param energiaActual energía al acostarse: si ya supera el tope de la cama, dormir ahí no
+     *                      subirá nada y conviene decírselo antes de que pierda la noche
      */
-    public record ResultadoDormir(EstadoDormir estado, Camas cama) {
+    public record ResultadoDormir(EstadoDormir estado, Camas cama, int energiaActual) {
+    }
+
+    /**
+     * Por qué se ha ganado esa energía y no más. Lo pinta el embed de despertar para que el número
+     * no parezca arbitrario.
+     *
+     * @param ganada             energía realmente sumada
+     * @param energiaAntes       energía antes de dormir
+     * @param energiaDespues     energía después (nunca menor que antes: dormir no resta)
+     * @param minutosContados    minutos que han contado (recortados a {@link #MAX_HORAS})
+     * @param recortadoPorHoras  si se durmió más de {@link #MAX_HORAS} y sobró tiempo
+     * @param topeAlcanzado      si el tope de la cama ha recortado la ganancia
+     * @param penalizadoPorSalud si la salud baja ha reducido el descanso a la mitad
+     * @param bonoResistenciaPct bono de resistencia aplicado, en porcentaje (0 si no hay)
+     */
+    public record Desglose(int ganada, int energiaAntes, int energiaDespues, long minutosContados,
+                           boolean recortadoPorHoras, boolean topeAlcanzado,
+                           boolean penalizadoPorSalud, int bonoResistenciaPct) {
     }
 
     /**
@@ -73,9 +93,10 @@ public final class DescansoService {
      * @param energiaGanada   energía sumada
      * @param minutosDormidos minutos que ha dormido
      * @param cama            dónde durmió
+     * @param desglose        por qué esa cifra (para el embed), o {@code null} si no {@code OK}
      */
     public record ResultadoDespertar(EstadoDespertar estado, int energiaGanada,
-                                     long minutosDormidos, Camas cama) {
+                                     long minutosDormidos, Camas cama, Desglose desglose) {
     }
 
     /**
@@ -85,8 +106,10 @@ public final class DescansoService {
      * @param minutosDormidos minutos que lleva dormido (0 si está despierto)
      * @param cama            su mejor cama
      * @param fatiga          si arrastra fatiga (&gt;24 h sin dormir)
+     * @param energiaActual   energía actual, para enseñarla junto al tope de su cama
      */
-    public record Vista(boolean dormido, long minutosDormidos, Camas cama, boolean fatiga) {
+    public record Vista(boolean dormido, long minutosDormidos, Camas cama, boolean fatiga,
+                        int energiaActual) {
     }
 
     private final DescansoRepositorio descanso;
@@ -110,20 +133,21 @@ public final class DescansoService {
         usuarios.obtenerOCrear(discordId);
         DescansoEstado estado = descanso.obtenerOCrear(discordId);
         if (estado.dormido()) {
-            return new ResultadoDormir(EstadoDormir.YA_DORMIDO, null);
+            return new ResultadoDormir(EstadoDormir.YA_DORMIDO, null, 0);
         }
+        int energia = personajes.obtenerOCrear(discordId).energia();
         Camas cama;
         if (hotel) {
             // Se cobra al acostarse, no al despertar: si no, dormiría gratis quien no despierte.
             if (!economia.gastar(discordId, Camas.PRECIO_HOTEL, "Noche de hotel")) {
-                return new ResultadoDormir(EstadoDormir.SIN_SALDO, null);
+                return new ResultadoDormir(EstadoDormir.SIN_SALDO, null, energia);
             }
             cama = Camas.HOTEL;
         } else {
             cama = Camas.mejorDe(inventario.listar(discordId));
         }
         descanso.acostar(discordId, ahora, hotel ? HOTEL_PAGADO : null);
-        return new ResultadoDormir(EstadoDormir.OK, cama);
+        return new ResultadoDormir(EstadoDormir.OK, cama, energia);
     }
 
     /**
@@ -138,18 +162,18 @@ public final class DescansoService {
         usuarios.obtenerOCrear(discordId);
         DescansoEstado estado = descanso.obtenerOCrear(discordId);
         if (!estado.dormido()) {
-            return new ResultadoDespertar(EstadoDespertar.NO_DORMIDO, 0, 0, null);
+            return new ResultadoDespertar(EstadoDespertar.NO_DORMIDO, 0, 0, null, null);
         }
         Personaje p = personajes.obtenerOCrear(discordId);
         Camas cama = HOTEL_PAGADO.equals(estado.camaPagada())
                 ? Camas.HOTEL : Camas.mejorDe(inventario.listar(discordId));
         long minutos = Duration.between(estado.dormidoDesde(), ahora).toMinutes();
-        int ganada = energiaGanada(minutos, cama, p.salud(), p.energia(), p.resistencia());
-        if (ganada > 0) {
-            personajes.sumarEnergiaConTope(discordId, ganada, cama.tope());
+        Desglose d = desglosar(minutos, cama, p.salud(), p.energia(), p.resistencia());
+        if (d.ganada() > 0) {
+            personajes.sumarEnergiaConTope(discordId, d.ganada(), cama.tope());
         }
         descanso.levantar(discordId, ahora);
-        return new ResultadoDespertar(EstadoDespertar.OK, ganada, minutos, cama);
+        return new ResultadoDespertar(EstadoDespertar.OK, d.ganada(), minutos, cama, d);
     }
 
     /** Si el jugador está durmiendo ahora mismo (lo consultan trabajo, combate y minería). */
@@ -192,7 +216,7 @@ public final class DescansoService {
         DescansoEstado e = descanso.obtenerOCrear(discordId);
         long minutos = e.dormido() ? Duration.between(e.dormidoDesde(), ahora).toMinutes() : 0;
         return new Vista(e.dormido(), minutos, Camas.mejorDe(inventario.listar(discordId)),
-                tieneFatiga(e, ahora));
+                tieneFatiga(e, ahora), personajes.obtenerOCrear(discordId).energia());
     }
 
     /**
@@ -224,17 +248,35 @@ public final class DescansoService {
      */
     public static int energiaGanada(long minutos, Camas cama, int salud, int energiaActual,
                                     int resistencia) {
+        return desglosar(minutos, cama, salud, energiaActual, resistencia).ganada();
+    }
+
+    /**
+     * Lo mismo que {@link #energiaGanada}, pero contando <b>por qué</b> ha salido esa cifra.
+     * <b>Puro</b>.
+     *
+     * <p>Existe para poder explicárselo al jugador: un «+47» a secas tras dormir cuatro días parece
+     * un error del bot. Con el desglose, el embed puede decirle que solo cuentan 9 h y que el suelo
+     * le corta en 60.
+     */
+    public static Desglose desglosar(long minutos, Camas cama, int salud, int energiaActual,
+                                     int resistencia) {
         // Ojo: "tope" aquí serían minutos, pero cama.tope() es energía. Nombres distintos a propósito.
         long minutosContados = Math.min(minutos, (long) MAX_HORAS * 60);
         double bruta = minutosContados / 60.0 * cama.energiaHora();
-        bruta *= 1 + bonoResistencia(resistencia);
-        if (salud < SALUD_BAJA) {
+        double bono = bonoResistencia(resistencia);
+        bruta *= 1 + bono;
+        boolean penalSalud = salud < SALUD_BAJA;
+        if (penalSalud) {
             bruta *= PENAL_SALUD;
         }
         int ganada = (int) Math.round(bruta);
         // El tope es de energía TOTAL, no de ganancia: con 50 y tope 60 solo caben 10 más.
         int cabe = cama.tope() - energiaActual;
-        return Math.max(0, Math.min(ganada, cabe));
+        int real = Math.max(0, Math.min(ganada, cabe));
+        return new Desglose(real, energiaActual, energiaActual + real, minutosContados,
+                minutos > (long) MAX_HORAS * 60, ganada > cabe, penalSalud,
+                (int) Math.round(bono * 100));
     }
 
     /** Bono de descanso por resistencia: +1 % por punto, con techo en +50 %. <b>Puro</b>. */

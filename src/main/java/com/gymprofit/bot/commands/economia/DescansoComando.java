@@ -7,7 +7,9 @@ import com.gymprofit.bot.services.Camas;
 import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.DescansoService.ResultadoDespertar;
 import com.gymprofit.bot.services.DescansoService.ResultadoDormir;
+import com.gymprofit.bot.services.DescansoService.Desglose;
 import com.gymprofit.bot.services.DescansoService.Vista;
+import com.gymprofit.bot.services.Items;
 import com.gymprofit.bot.util.Duraciones;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -95,8 +97,7 @@ public final class DescansoComando implements Comando {
         MessageEmbed embed = switch (r.estado()) {
             case OK -> EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "descansar.dormir.titulo"),
-                    Messages.get(locale, "descansar.dormir.ok", nombreCama(locale, r.cama()),
-                            r.cama().energiaHora(), r.cama().tope())).build();
+                    cuerpoDormir(locale, r)).build();
             case YA_DORMIDO -> EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "descansar.yadormido"));
             case SIN_SALDO -> EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
@@ -119,10 +120,67 @@ public final class DescansoComando implements Comando {
         }
         String dormido = Duraciones.formatear(r.minutosDormidos() * 60);
         String cama = nombreCama(locale, r.cama());
-        String clave = r.energiaGanada() > 0 ? "descansar.despertar.ok" : "descansar.despertar.nada";
+        Desglose d = r.desglose();
+
+        StringBuilder sb = new StringBuilder(
+                Messages.get(locale, "descansar.despertar.linea", dormido, cama));
+        sb.append(Messages.get(locale, "descansar.despertar.energia",
+                d.energiaAntes(), d.energiaDespues(), d.ganada()));
+
+        // Los avisos son la clave de todo esto: sin ellos, "+47 tras cuatro días" parece un fallo.
+        if (d.recortadoPorHoras()) {
+            sb.append(Messages.get(locale, "descansar.aviso.horas", DescansoService.MAX_HORAS));
+        }
+        if (d.bonoResistenciaPct() > 0) {
+            sb.append(Messages.get(locale, "descansar.aviso.resistencia", d.bonoResistenciaPct()));
+        }
+        if (d.penalizadoPorSalud()) {
+            sb.append(Messages.get(locale, "descansar.aviso.salud", DescansoService.SALUD_BAJA));
+        }
+        if (d.topeAlcanzado()) {
+            sb.append(Messages.get(locale, "descansar.aviso.tope", r.cama().tope()));
+            sb.append(mejora(locale, r.cama(), "descansar.dormir.mejora"));
+        }
         return EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
-                Messages.get(locale, "descansar.despertar.titulo"),
-                Messages.get(locale, clave, dormido, cama, r.energiaGanada())).build();
+                Messages.get(locale, "descansar.despertar.titulo"), sb.toString()).build();
+    }
+
+    /** Cuerpo del embed de acostarse: dónde duerme, hasta dónde llega y cómo mejorar. */
+    private static String cuerpoDormir(Locale locale, ResultadoDormir r) {
+        Camas cama = r.cama();
+        StringBuilder sb = new StringBuilder(Messages.get(locale, "descansar.dormir.ok",
+                nombreCama(locale, cama), cama.energiaHora(), cama.tope(),
+                DescansoService.MAX_HORAS));
+        // Acostarse ya por encima del tope es tiempo perdido: mejor avisar antes, no al despertar.
+        if (r.energiaActual() >= cama.tope()) {
+            sb.append(Messages.get(locale, "descansar.dormir.yatope", r.energiaActual(),
+                    cama.tope(), nombreCama(locale, cama)));
+        }
+        sb.append(mejora(locale, cama, "descansar.dormir.mejora"));
+        return sb.toString();
+    }
+
+    /**
+     * Línea de «cómo subir el tope»: la siguiente cama que mejora, con su precio, y el hotel como
+     * atajo para quien aún no puede comprar nada. Cadena vacía si ya se está en el tope máximo.
+     *
+     * @param clave clave i18n de la línea de mejora (cambia según el embed)
+     */
+    private static String mejora(Locale locale, Camas cama, String clave) {
+        StringBuilder sb = new StringBuilder();
+        Camas siguiente = Camas.siguienteMejor(cama).orElse(null);
+        if (siguiente == null) {
+            return Messages.get(locale, "descansar.aviso.tope.max");
+        }
+        long precio = Items.porId(siguiente.itemId()).map(Items::precio).orElse(0L);
+        sb.append(Messages.get(locale, clave, Messages.get(locale, "item." + siguiente.itemId()),
+                precio, siguiente.tope()));
+        // El hotel no se posee: es la única mejora inmediata para quien duerme en el suelo.
+        if (cama.tope() < Camas.HOTEL.tope() && precio > Camas.PRECIO_HOTEL) {
+            sb.append(Messages.get(locale, "descansar.dormir.hotel",
+                    Camas.PRECIO_HOTEL, Camas.HOTEL.tope()));
+        }
+        return sb.toString();
     }
 
     private void estado(SlashCommandInteractionEvent evento, Locale locale) {
@@ -135,6 +193,9 @@ public final class DescansoComando implements Comando {
                         v.cama().energiaHora(), v.cama().tope())
                 : Messages.get(locale, "descansar.estado.despierto", "", cama,
                         v.cama().energiaHora(), v.cama().tope());
+        desc += Messages.get(locale, "descansar.estado.energia",
+                v.energiaActual(), v.cama().tope());
+        desc += mejora(locale, v.cama(), "descansar.estado.mejora");
         if (v.fatiga()) {
             desc += Messages.get(locale, "descansar.estado.fatiga");
         }

@@ -151,6 +151,7 @@ class DescansoServiceTest {
     void dormirAcuesta() {
         when(descansoRepo.obtenerOCrear(ID)).thenReturn(despierto());
         when(inventarioRepo.listar(ID)).thenReturn(Map.of());
+        when(personajeRepo.obtenerOCrear(ID)).thenReturn(personaje(0, SALUD_OK));
 
         DescansoService.ResultadoDormir r = servicio.dormir(ID, false, AHORA);
 
@@ -176,6 +177,7 @@ class DescansoServiceTest {
     void hotelCobra() {
         when(descansoRepo.obtenerOCrear(ID)).thenReturn(despierto());
         when(economiaRepo.gastar(eq(ID), eq(Camas.PRECIO_HOTEL), anyString())).thenReturn(true);
+        when(personajeRepo.obtenerOCrear(ID)).thenReturn(personaje(0, SALUD_OK));
 
         DescansoService.ResultadoDormir r = servicio.dormir(ID, true, AHORA);
 
@@ -189,6 +191,7 @@ class DescansoServiceTest {
     void hotelSinSaldo() {
         when(descansoRepo.obtenerOCrear(ID)).thenReturn(despierto());
         when(economiaRepo.gastar(eq(ID), eq(Camas.PRECIO_HOTEL), anyString())).thenReturn(false);
+        when(personajeRepo.obtenerOCrear(ID)).thenReturn(personaje(0, SALUD_OK));
 
         DescansoService.ResultadoDormir r = servicio.dormir(ID, true, AHORA);
 
@@ -256,5 +259,69 @@ class DescansoServiceTest {
         DescansoEstado durmiendo = new DescansoEstado(ID, AHORA.minus(Duration.ofHours(1)),
                 AHORA.minus(Duration.ofHours(30)), 0, null, null);
         assertFalse(DescansoService.tieneFatiga(durmiendo, AHORA));
+    }
+
+    @Test
+    void elDesgloseAvisaDeQueSoloCuentanNueveHoras() {
+        // 4 días dormido en el suelo: solo cuentan 9 h.
+        var d = DescansoService.desglosar(4 * 24 * 60, Camas.SUELO, 100, 13, 0);
+
+        assertTrue(d.recortadoPorHoras());
+        assertEquals(DescansoService.MAX_HORAS * 60, d.minutosContados());
+    }
+
+    @Test
+    void elDesgloseAvisaDeQueSeHaTocadoElTopeDeLaCama() {
+        // 9 h en el suelo dan 90 de bruta, pero el suelo topa la energía TOTAL en 60.
+        var d = DescansoService.desglosar(9 * 60, Camas.SUELO, 100, 13, 0);
+
+        assertTrue(d.topeAlcanzado());
+        assertEquals(47, d.ganada());
+        assertEquals(13, d.energiaAntes());
+        assertEquals(60, d.energiaDespues());
+    }
+
+    @Test
+    void sinTocarTopeNiRecorteNoHayAvisos() {
+        // 2 h en el suelo: 20 de energía, lejos del tope.
+        var d = DescansoService.desglosar(2 * 60, Camas.SUELO, 100, 10, 0);
+
+        assertEquals(20, d.ganada());
+        assertFalse(d.topeAlcanzado());
+        assertFalse(d.recortadoPorHoras());
+        assertFalse(d.penalizadoPorSalud());
+        assertEquals(0, d.bonoResistenciaPct());
+    }
+
+    @Test
+    void elDesgloseReportaLaPenalizacionPorSaludYElBonoDeResistencia() {
+        var d = DescansoService.desglosar(2 * 60, Camas.SUELO, 10, 0, 30);
+
+        assertTrue(d.penalizadoPorSalud());
+        assertEquals(30, d.bonoResistenciaPct());
+        assertEquals(13, d.ganada()); // 20 × 1,30 × 0,5 = 13
+    }
+
+    @Test
+    void yaDescansadoNoGanaNadaPeroAvisaDelTope() {
+        var d = DescansoService.desglosar(9 * 60, Camas.SUELO, 100, 80, 0);
+
+        assertEquals(0, d.ganada());
+        assertTrue(d.topeAlcanzado());
+        assertEquals(80, d.energiaDespues()); // dormir nunca resta
+    }
+
+    @Test
+    @DisplayName("dormir informa de la energia que se tenia al acostarse")
+    void dormirDevuelveLaEnergiaActual() {
+        when(descansoRepo.obtenerOCrear(ID)).thenReturn(despierto());
+        when(inventarioRepo.listar(ID)).thenReturn(Map.of());
+        when(personajeRepo.obtenerOCrear(ID)).thenReturn(personaje(80, SALUD_OK));
+
+        DescansoService.ResultadoDormir r = servicio.dormir(ID, false, AHORA);
+
+        // 80 de energía con tope 60 (suelo): el comando avisa de que ahí no sube nada.
+        assertEquals(80, r.energiaActual());
+        assertEquals(Camas.SUELO, r.cama());
     }
 }

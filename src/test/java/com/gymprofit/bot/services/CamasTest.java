@@ -78,4 +78,21 @@ class CamasTest {
         // Que no se cuele una cama nueva sin pinear aquí sus números.
         assertEquals(10, Camas.CATALOGO.size(), "camas en el catálogo");
     }
+
+    @Test
+    void siguienteMejorDelSueloEsElSaco() {
+        assertEquals("saco_dormir", Camas.siguienteMejor(Camas.SUELO).orElseThrow().itemId());
+    }
+
+    @Test
+    void siguienteMejorSaltaLasCamasDeMismoTope() {
+        // piso y apartamento comparten tope (95): la siguiente mejora real es la casa.
+        Camas piso = Camas.CATALOGO.stream().filter(c -> "piso".equals(c.itemId())).findFirst().orElseThrow();
+        assertEquals("casa", Camas.siguienteMejor(piso).orElseThrow().itemId());
+    }
+
+    @Test
+    void desdeElTopeMaximoNoHayMejora() {
+        assertTrue(Camas.siguienteMejor(Camas.HOTEL).isEmpty());
+    }
 }

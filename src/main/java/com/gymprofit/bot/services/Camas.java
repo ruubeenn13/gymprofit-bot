@@ -2,6 +2,7 @@ package com.gymprofit.bot.services;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Catálogo de sitios donde dormir. Cada cama define cuánta energía se gana por hora y su
@@ -55,6 +56,19 @@ public record Camas(String itemId, int energiaHora, int tope) {
             new Camas("isla", 30, 100),
             new Camas("castillo", 30, 100),
             new Camas("rascacielos", 30, 100));
+
+    /**
+     * La siguiente cama que <b>sube el tope</b> respecto a {@code actual}, o vacío si ya no hay
+     * mejora posible (tope 100).
+     *
+     * <p>Sirve para explicarle al jugador por qué se ha quedado corto y qué comprar: sin esto, un
+     * «tope alcanzado» a secas parece que el bot le esté estafando. Se filtra por <b>tope</b> y no
+     * por energía/hora porque el tope es lo que de verdad le está limitando; por eso salta las camas
+     * de tope idéntico (apartamento tras piso, chalet tras casa): no arreglarían nada.
+     */
+    public static Optional<Camas> siguienteMejor(Camas actual) {
+        return CATALOGO.stream().filter(c -> c.tope() > actual.tope()).findFirst();
+    }
 
     /** La mejor cama que hay en el inventario, o {@link #SUELO} si no hay ninguna. */
     public static Camas mejorDe(Map<String, Integer> inventario) {
