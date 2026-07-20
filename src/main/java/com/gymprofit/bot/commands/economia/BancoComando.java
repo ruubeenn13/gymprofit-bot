@@ -65,7 +65,7 @@ public final class BancoComando implements Comando {
         long id = evento.getUser().getIdLong();
         String sub = evento.getSubcommandName() == null ? "ver" : evento.getSubcommandName();
         if (sub.equals("ver")) {
-            evento.deferReply(true).queue();
+            evento.deferReply(false).queue();
             Vista v = banco.ver(id);
             evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "banco.titulo"),

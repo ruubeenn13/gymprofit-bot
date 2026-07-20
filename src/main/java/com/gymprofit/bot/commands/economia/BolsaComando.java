@@ -94,7 +94,7 @@ public final class BolsaComando implements Comando {
                     p.precio(), t)).append('\n');
         }
         evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
-                Messages.get(locale, "bolsa.titulo"), sb.toString()).build()).setEphemeral(true).queue();
+                Messages.get(locale, "bolsa.titulo"), sb.toString()).build()).queue();
     }
 
     private void invertir(SlashCommandInteractionEvent evento) {
@@ -131,7 +131,7 @@ public final class BolsaComando implements Comando {
 
     private void cartera(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         CarteraVista c = bolsa.cartera(evento.getUser().getIdLong());
         String cuerpo;
         if (c.posiciones().isEmpty()) {

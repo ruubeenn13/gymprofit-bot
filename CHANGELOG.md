@@ -7,6 +7,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Cambiado
+- **Las respuestas del bot se ven en el canal** (antes muchas eran «solo tú puedes ver esto»). Esto
+  es una comunidad: la gracia es que se vea lo que hace la gente, y con las respuestas privadas el
+  chat de economía parecía muerto aunque hubiese diez personas jugando. Pasan a públicas 13
+  respuestas: `/tienda`, `/cofres`, `/monstruos`, `/recetas`, `/misiones`, `/mejoras`,
+  `/mercado ver`, `/mercado retirar`, `/banco ver`, `/bolsa ver`, `/bolsa cartera`, `/gremio ver` y
+  `/gremio salir`. Siguen siendo
+  privadas las sensibles: datos personales (`/privacidad`), moderación, comandos de staff y los
+  errores/cooldowns/validaciones (puro ruido). Queda fijado como **regla 13** de
+  `rules/coding-rules.md`: público por defecto, y la excepción se justifica.
 - **El resto de familias, también agrupadas en subcomandos** (segunda tanda): se consolidan las ocho
   familias que ahorraban 2 o más huecos, y el total baja de **76 a 55** comandos (45 de margen, sitio
   de sobra para los módulos que faltan: consultas a la API, calculadoras, `/frase`, `/trivia`,

@@ -83,6 +83,6 @@ public final class TiendaComando implements Comando {
                     + sb;
             embeds.add(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale, titulo, desc).build());
         }
-        evento.replyEmbeds(embeds).setEphemeral(true).queue();
+        evento.replyEmbeds(embeds).queue();
     }
 }

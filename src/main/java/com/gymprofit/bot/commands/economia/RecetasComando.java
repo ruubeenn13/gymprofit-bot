@@ -40,6 +40,6 @@ public final class RecetasComando implements Comando {
         }
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "recetas.titulo"), sb.toString()).build();
-        evento.replyEmbeds(embed).setEphemeral(true).queue();
+        evento.replyEmbeds(embed).queue();
     }
 }

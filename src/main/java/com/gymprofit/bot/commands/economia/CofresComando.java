@@ -53,7 +53,7 @@ public final class CofresComando implements Comando {
             embeds.add(EmbedFactory.base(EmbedFactory.Tipo.LOGRO, locale, titulo, sb.toString())
                     .build());
         }
-        evento.replyEmbeds(embeds).setEphemeral(true).queue();
+        evento.replyEmbeds(embeds).queue();
     }
 
     /** Describe un premio de la tabla (sin cantidad concreta: muestra el rango). */

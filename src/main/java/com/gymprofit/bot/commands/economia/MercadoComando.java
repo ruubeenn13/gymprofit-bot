@@ -98,7 +98,7 @@ public final class MercadoComando implements Comando {
             cuerpo = sb.toString();
         }
         evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
-                Messages.get(locale, "mercado.titulo"), cuerpo).build()).setEphemeral(true).queue();
+                Messages.get(locale, "mercado.titulo"), cuerpo).build()).queue();
     }
 
     private void publicar(SlashCommandInteractionEvent evento) {
@@ -140,7 +140,7 @@ public final class MercadoComando implements Comando {
     private void retirar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         long anuncio = evento.getOption("anuncio").getAsLong();
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         RetirarEstado r = mercado.retirar(evento.getUser().getIdLong(), anuncio);
         String mensaje = switch (r) {
             case OK -> Messages.get(locale, "retirar.ok");

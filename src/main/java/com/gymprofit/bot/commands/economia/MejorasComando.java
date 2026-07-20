@@ -47,7 +47,7 @@ public final class MejorasComando implements Comando {
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         Set<String> comprados = mejoras.comprados(evento.getUser().getIdLong());
 
         StringBuilder sb = new StringBuilder(Messages.get(locale, "mejoras.leyenda")).append("\n\n");

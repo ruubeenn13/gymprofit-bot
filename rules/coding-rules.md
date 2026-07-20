@@ -27,9 +27,13 @@ Reglas de obligado cumplimiento. La review las verifica ([`review-checklist.md`]
 12. **Una clase por slash command** en `commands/` (subpaquetes por categoría). Las familias van
     agrupadas en **subcomandos** (ADR-011): Discord solo cuenta los comandos de nivel superior
     contra su límite de 100.
-13. **Documentar todo el código.** En **cada archivo**, un comentario de cabecera al
+13. **Respuesta pública por defecto** (`deferReply(false)`, sin `setEphemeral(true)`). Es una
+    comunidad: la gracia es que se vea lo que hace la gente. Va **efímero solo** lo sensible: datos
+    personales (`/privacidad`), moderación, comandos de staff y sus confirmaciones, y los errores,
+    cooldowns y validaciones (ruido). Ante la duda, **público**: la excepción se justifica.
+14. **Documentar todo el código.** En **cada archivo**, un comentario de cabecera al
     principio explicando qué es el archivo y su papel (en clases Java, Javadoc de clase; en
     paquetes, `package-info.java`). Además, **Javadoc** en métodos públicos no triviales y
     **comentarios inline** que expliquen el *porqué* de los bloques de lógica (no narrar lo
     obvio). El mismo criterio aplica a SQL de migraciones, YAML de CI y `pom.xml`.
-14. **Sin dependencias nuevas** sin justificarlas en [`../docs/decisions.md`](../docs/decisions.md).
+15. **Sin dependencias nuevas** sin justificarlas en [`../docs/decisions.md`](../docs/decisions.md).

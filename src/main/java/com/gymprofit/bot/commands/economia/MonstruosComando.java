@@ -87,7 +87,7 @@ public final class MonstruosComando implements Comando {
                     Messages.get(locale, "monstruos.vacio"))).setEphemeral(true).queue();
             return;
         }
-        evento.replyEmbeds(embeds).setEphemeral(true).queue();
+        evento.replyEmbeds(embeds).queue();
     }
 
     /** Botín compacto: emoji de cada ítem con su probabilidad (p. ej. «🍎 50% · 🧥 5%»). */

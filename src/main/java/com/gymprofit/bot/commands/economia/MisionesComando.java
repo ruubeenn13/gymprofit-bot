@@ -41,7 +41,7 @@ public final class MisionesComando implements Comando {
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
 
         StringBuilder sb = new StringBuilder(Messages.get(locale, "misiones.intro")).append("\n\n");
         for (Vista v : misiones.listar(evento.getUser().getIdLong())) {

@@ -101,7 +101,7 @@ public final class GremioComando implements Comando {
 
     private void ver(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         Optional<Info> info = gremios.info(evento.getUser().getIdLong());
         if (info.isEmpty()) {
             responder(evento, locale, Messages.get(locale, "gremio.notienes"));
@@ -160,7 +160,7 @@ public final class GremioComando implements Comando {
     private void salir(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         long usuario = evento.getUser().getIdLong();
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         ResultadoMiembro r = gremios.salir(usuario);
         if (r.estado() == GremioService.EstadoMiembro.OK && evento.getGuild() != null) {
             GremioCanal.quitar(evento.getGuild(), r.gremio().canalId(), usuario);
