@@ -23,13 +23,14 @@ Entra todo el módulo, construido por fases dentro de un mismo plan:
 1. Capa `api/`: cliente REST con login, refresh y reintentos.
 2. `/ejercicios`: consulta paginada del catálogo con ficha de detalle.
 3. `/ejercicio-dia` + `EjercicioDiaJob`: publicación diaria a las 8:00.
+4. `/frase`: el banco de frases, que ya usa el post diario, expuesto como comando.
 
 ## 3. Arquitectura
 
 ```
 api/       ApiClient · TokenManager · AuthApi · EjerciciosApi · dtos/
 services/  EjercicioService (caché + reintento) · EjercicioDiaService (elección diaria)
-commands/consultas/  EjerciciosComando · EjercicioDiaComando
+commands/consultas/  EjerciciosComando · EjercicioDiaComando · FraseComando
 events/    EjerciciosPaginadorListener
 jobs/      EjercicioDiaJob
 db/        EjercicioDiaRepositorio · FraseRepositorio
@@ -92,9 +93,10 @@ siguen funcionando aunque el bot se reinicie. Como el `customId` de Discord admi
 Respuesta **pública** (regla 13 de `rules/coding-rules.md`): consultar el catálogo no tiene nada de
 sensible y así lo aprovecha quien pase por el canal.
 
-Son **dos comandos nuevos de nivel superior** (`/ejercicios` y `/ejercicio-dia`): el total pasa de
-56 a **58**, con 42 huecos libres del límite de 100 de Discord (ADR-011). No se agrupan en una
-familia porque no comparten flujo: uno busca en el catálogo y el otro muestra el post del día.
+Con `/ejercicio-dia` y `/frase` (§5.3) son **tres comandos nuevos de nivel superior**: el total pasa
+de 56 a **59**, con 41 huecos libres del límite de 100 de Discord (ADR-011). No se agrupan en una
+familia porque no comparten flujo: buscar en el catálogo, ver el post del día y soltar una frase son
+tres cosas distintas.
 
 ## 5. Ejercicio del día
 
@@ -133,6 +135,16 @@ más que aporta.
 
 Si la API falla, el job **no publica un post roto**: lo registra y reintenta más tarde.
 
+### 5.3 `/frase`
+
+El banco de frases deja de usarse solo por dentro: `/frase` devuelve una al azar en el idioma de
+quien la pide, con su autor si lo tiene (32 frases ES/EN sembradas en la V2, todas de categoría
+`MOTIVACION`, así que el comando **no lleva opciones**).
+
+Comparte el `FraseRepositorio` con el post diario, de modo que el coste es un comando y su embed.
+Respuesta **pública** y **cooldown de 30 s por usuario** (`util/Cooldown`, el mismo que ya frena el
+XP por mensaje): es un comando barato de repetir y sin freno acabaría empapelando el canal.
+
 ## 6. Errores e i18n
 
 Ante API caída o timeout, embed de aviso amable («el catálogo no responde ahora mismo, inténtalo en
@@ -152,6 +164,8 @@ día.
   el mismo día devuelve siempre el mismo ejercicio.
 - `EjerciciosComandoTest`: construcción de la lista y de la ficha (páginas, botones deshabilitados
   en los extremos, truncado de la búsqueda), sin JDA real.
+- `FraseRepositorio`: cubierto por el test de migraciones (Testcontainers) y por el test del post
+  diario, que necesita una frase para montar el embed.
 - `MigracionesTest` se actualiza al añadir la V24.
 
 ## 8. Fuera de alcance
@@ -160,11 +174,10 @@ día.
   cada miembro de Discord, y además **hoy no hay ninguna rutina en la BD de producción** (0 filas, 0
   predefinidas). Cuando se haga: `/rutinas/predefinidas` + `/rutinas/usuario/{id}`, mostrando las de
   otro usuario **jamás** sin vinculación.
-- **`/frase` como comando**: aquí el banco solo se usa dentro del post diario.
 - **Calculadoras** (`/imc`, `/calorias`, `/macros`, `/rm`): módulo aparte de F1, sin dependencia de
   la API.
 
 ## 9. Despliegue
 
-Al terminar: **reiniciar el bot** (registra los dos comandos nuevos y aplica la V24) y **`/setup`
+Al terminar: **reiniciar el bot** (registra los tres comandos nuevos y aplica la V24) y **`/setup`
 normal** (refresca las intros de canal con los comandos nuevos). No hace falta `desde_cero`.
