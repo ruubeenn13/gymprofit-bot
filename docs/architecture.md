@@ -65,6 +65,10 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
 - **Combate por turnos** con sesiones en memoria (`CombateSesion`) y botones (`CombateListener`);
   otras interacciones con confirmación por botones: duelos (`DueloListener`), trueques
   (`TruequeListener`), y registros en memoria (`TruequeRegistro`).
+- **Reintento tras despertar**: quien bloquea una acción por sueño (currar, minar, pelear,
+  mazmorra) la deja guardada en `events/ReintentoRegistro` (en memoria, una por jugador, caduca a los
+  30 min) y el descanso la **relanza al despertar**. Las acciones devuelven `MessageCreateData` en
+  vez de enviarlo ellas, así el mismo código sirve para la respuesta normal y para el reintento.
 - **Descanso como estado**: la energía se gana **durmiendo** (`DescansoService`), no por goteo. El
   cálculo (energía ganada, bono de resistencia, fatiga) es **puro y estático**, testeable sin BD; el
   tope depende de la cama (`Camas`), que sale del inventario. Trabajo, combate y minería reciben el

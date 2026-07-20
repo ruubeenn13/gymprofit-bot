@@ -21,13 +21,19 @@ import java.util.Locale;
  *
  * <p>El customId es {@code descanso:<accion>:<ownerId>}: el mensaje es público, así que lleva el
  * dueño para que nadie despierte a otro (patrón de {@code CombateListener} / {@code TruequeListener}).
+ *
+ * <p>Al despertar se <b>relanza la acción que quedó bloqueada</b> ({@link ReintentoRegistro}): si
+ * ibas a currar, curras. Levantarse y tener que reescribir el comando era la mitad del trabajo, y
+ * dejaba la sensación de que el botón no había hecho nada.
  */
 public final class DescansoListener extends ListenerAdapter {
 
     private final DescansoService descanso;
+    private final ReintentoRegistro reintentos;
 
-    public DescansoListener(DescansoService descanso) {
+    public DescansoListener(DescansoService descanso, ReintentoRegistro reintentos) {
         this.descanso = descanso;
+        this.reintentos = reintentos;
     }
 
     @Override
@@ -47,6 +53,9 @@ public final class DescansoListener extends ListenerAdapter {
         }
 
         if (seguir) {
+            // Sigue durmiendo: lo que iba a hacer se descarta, o le saltaría al despertar mucho más
+            // tarde sin venir a cuento.
+            reintentos.descartar(evento.getUser().getIdLong());
             // Se quitan los botones: la decisión ya está tomada y el embed no debe poder repulsarse.
             evento.editMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "descansar.sigues"))).setComponents().queue();
@@ -56,8 +65,10 @@ public final class DescansoListener extends ListenerAdapter {
         // Despertar toca BD (energía + estado): se difiere la edición para no agotar los 3 s de
         // Discord, y el resultado se pinta con el mismo embed que /descansar despertar.
         evento.deferEdit().queue();
-        ResultadoDespertar r = descanso.despertar(evento.getUser().getIdLong(), Instant.now());
+        long userId = evento.getUser().getIdLong();
+        ResultadoDespertar r = descanso.despertar(userId, Instant.now());
         evento.getHook().editOriginalEmbeds(DescansoComando.embedDespertar(locale, r))
                 .setComponents().queue();
+        DescansoComando.reintentar(reintentos, userId, locale, evento.getHook());
     }
 }

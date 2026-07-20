@@ -122,6 +122,7 @@ import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.CombateListener;
 import com.gymprofit.bot.events.DescansoListener;
+import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.events.DueloListener;
 import com.gymprofit.bot.events.TruequeListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
@@ -339,13 +340,16 @@ public final class Main {
             // reciben por constructor para bloquear al que lo intente estando dormido.
             DescansoService descansoService = new DescansoService(
                     descansoRepo, personajeRepo, inventarioRepo, economiaRepo, usuarios);
-            comandos.add(new DescansoComando(descansoService));
-            listeners.add(new DescansoListener(descansoService));
+            // Registro compartido de acciones bloqueadas por el sueño: quien bloquea la guarda
+            // (currar, minar, pelear, mazmorra) y el descanso la relanza al despertar.
+            ReintentoRegistro reintentos = new ReintentoRegistro();
+            comandos.add(new DescansoComando(descansoService, reintentos));
+            listeners.add(new DescansoListener(descansoService, reintentos));
 
             // /trabajo agrupa lista, elegir y currar.
             TrabajoService trabajoService =
                     new TrabajoService(personajeRepo, economiaRepo, usuarios, descansoService);
-            comandos.add(new TrabajoComando(trabajoService));
+            comandos.add(new TrabajoComando(trabajoService, reintentos));
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();
@@ -380,7 +384,7 @@ public final class Main {
             comandos.add(new PelearComando(mundoService));
             comandos.add(new MazmorraComando(mundoService));
             comandos.add(new MisionesComando(misionService));
-            listeners.add(new CombateListener(batallaService, inventarioRepo, misionService));
+            listeners.add(new CombateListener(batallaService, inventarioRepo, misionService, reintentos));
 
             // Combate (COMBAT-4c): encantar el arma (nivel + efectos).
             comandos.add(new EncantarComando(
@@ -390,7 +394,7 @@ public final class Main {
             MineriaRepositorio mineriaRepo = new MineriaRepositorio(db.dataSource());
             MineriaService mineriaService = new MineriaService(mineriaRepo,
                     personajeRepo, inventarioRepo, economiaRepo, usuarios, descansoService);
-            comandos.add(new MinarComando(mineriaService));
+            comandos.add(new MinarComando(mineriaService, reintentos));
             comandos.add(new RepararComando(mineriaService));
 
             // Herrería (COMBAT-6 crafting): fabricar equipo con minerales.

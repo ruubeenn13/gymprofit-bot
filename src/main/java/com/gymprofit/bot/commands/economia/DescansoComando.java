@@ -2,6 +2,7 @@ package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.Camas;
 import com.gymprofit.bot.services.DescansoService;
@@ -21,7 +22,9 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
 import java.time.Instant;
 import java.util.Locale;
@@ -44,9 +47,11 @@ public final class DescansoComando implements Comando {
     public static final String BOTON_DESPERTAR = "descanso:despertar";
 
     private final DescansoService descanso;
+    private final ReintentoRegistro reintentos;
 
-    public DescansoComando(DescansoService descanso) {
+    public DescansoComando(DescansoService descanso, ReintentoRegistro reintentos) {
         this.descanso = descanso;
+        this.reintentos = reintentos;
     }
 
     @Override
@@ -107,9 +112,25 @@ public final class DescansoComando implements Comando {
     }
 
     private void despertar(SlashCommandInteractionEvent evento, Locale locale) {
+        long userId = evento.getUser().getIdLong();
         evento.deferReply(false).queue();
-        ResultadoDespertar r = descanso.despertar(evento.getUser().getIdLong(), Instant.now());
+        ResultadoDespertar r = descanso.despertar(userId, Instant.now());
         evento.getHook().sendMessageEmbeds(embedDespertar(locale, r)).queue();
+        reintentar(reintentos, userId, locale, evento.getHook());
+    }
+
+    /**
+     * Relanza la acción que se quedó bloqueada por el sueño, si la hay, como mensaje aparte tras el
+     * de despertar. Va en dos mensajes a propósito: el primero cuenta el descanso y el segundo el
+     * resultado de lo que ibas a hacer; mezclarlos escondería uno de los dos.
+     *
+     * <p>Lo comparte {@code DescansoListener}: se despierte por botón o por comando, se retoma igual.
+     */
+    public static void reintentar(ReintentoRegistro reintentos, long userId, Locale locale,
+                                  InteractionHook hook) {
+        reintentos.tomar(userId, Instant.now()).ifPresent(accion ->
+                hook.sendMessage(MessageCreateBuilder.from(accion.ejecutar(locale))
+                        .setContent(Messages.get(locale, "descansar.reintento")).build()).queue());
     }
 
     /** Embed de despertar; lo reutiliza {@code DescansoListener} desde el botón. */

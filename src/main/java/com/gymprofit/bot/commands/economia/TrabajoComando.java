@@ -2,6 +2,7 @@ package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.services.TrabajoService.ResultadoElegir;
@@ -19,6 +20,8 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -41,9 +44,11 @@ public final class TrabajoComando implements Comando {
     private static final Color COLOR_ROL_TRABAJO = new Color(0x9B59B6);
 
     private final TrabajoService trabajos;
+    private final ReintentoRegistro reintentos;
 
-    public TrabajoComando(TrabajoService trabajos) {
+    public TrabajoComando(TrabajoService trabajos, ReintentoRegistro reintentos) {
         this.trabajos = trabajos;
+        this.reintentos = reintentos;
     }
 
     @Override
@@ -121,15 +126,26 @@ public final class TrabajoComando implements Comando {
     }
 
     private void currar(SlashCommandInteractionEvent evento, Locale locale) {
+        long userId = evento.getUser().getIdLong();
         evento.deferReply(false).queue();
-        ResultadoWork r = trabajos.trabajar(evento.getUser().getIdLong(), Instant.now());
-        // Dormido: en vez de un aviso seco, el embed con botones para seguir durmiendo o despertar.
+        evento.getHook().sendMessage(currar(userId, locale)).queue();
+    }
+
+    /**
+     * Curra un turno y devuelve el mensaje ya montado. Devuelve datos en vez de enviarlos porque lo
+     * reutiliza el <b>reintento</b>: si estabas dormido, esta misma llamada se relanza al despertar
+     * desde el botón (ver {@link ReintentoRegistro}).
+     */
+    private MessageCreateData currar(long userId, Locale locale) {
+        ResultadoWork r = trabajos.trabajar(userId, Instant.now());
+        // Dormido: en vez de un aviso seco, el embed con botones para seguir durmiendo o despertar,
+        // y el turno de trabajo queda guardado para relanzarlo si decide levantarse.
         if (r.estado() == TrabajoService.EstadoWork.DORMIDO) {
-            evento.getHook().sendMessageEmbeds(DescansoComando.embedBloqueado(locale))
-                    .setComponents(DescansoComando.botonesBloqueado(locale,
-                            evento.getUser().getIdLong()))
-                    .queue();
-            return;
+            reintentos.guardar(userId, Instant.now(), loc -> currar(userId, loc));
+            return new MessageCreateBuilder()
+                    .setEmbeds(DescansoComando.embedBloqueado(locale))
+                    .setComponents(DescansoComando.botonesBloqueado(locale, userId))
+                    .build();
         }
         String desc = switch (r.estado()) {
             case OK -> Messages.get(locale, "work.ok", r.pago(), r.energiaRestante());
@@ -140,9 +156,8 @@ public final class TrabajoComando implements Comando {
             // Inalcanzable: DORMIDO sale por el return de arriba (necesita botones, no solo texto).
             case DORMIDO -> throw new IllegalStateException("DORMIDO ya tratado");
         };
-        var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
-                Messages.get(locale, "work.titulo"), desc).build();
-        evento.getHook().sendMessageEmbeds(embed).queue();
+        return new MessageCreateBuilder().setEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA,
+                locale, Messages.get(locale, "work.titulo"), desc).build()).build();
     }
 
     /**

@@ -46,6 +46,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
 
 ### Añadido
+- **Al despertar, el bot retoma lo que ibas a hacer**: si intentas currar (o minar, pelear o entrar a
+  una mazmorra) estando dormido y pulsas **Despertar**, ya no te levanta y te deja ahí mirando —
+  ejecuta la acción y te manda el resultado en un segundo mensaje. Antes había que volver a escribir
+  el comando, que es justo lo que el botón venía a evitar. Si eliges **Seguir durmiendo**, lo
+  pendiente se descarta (no va a saltarte una hora después); y si tardas más de 30 min en despertar,
+  caduca. Nuevo `events/ReintentoRegistro` (en memoria, una acción por jugador) + tests.
 - **El descanso se explica solo**: al despertar, el bot ya no suelta un «+47» a secas — desglosa de
   dónde sale. Ahora dice tu energía **antes → después**, y añade el aviso que toque: que solo
   cuentan las **primeras 9 h** (dormir cuatro días no da cuatro días de energía), que has llegado al

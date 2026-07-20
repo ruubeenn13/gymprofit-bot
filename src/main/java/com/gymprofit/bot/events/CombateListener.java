@@ -15,7 +15,10 @@ import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionE
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -34,13 +37,16 @@ public final class CombateListener extends ListenerAdapter {
     private final BatallaService batalla;
     private final InventarioRepositorio inventario;
     private final com.gymprofit.bot.services.MisionService misiones;
+    private final ReintentoRegistro reintentos;
     private final Map<Long, CombateSesion> sesiones = new ConcurrentHashMap<>();
 
     public CombateListener(BatallaService batalla, InventarioRepositorio inventario,
-                           com.gymprofit.bot.services.MisionService misiones) {
+                           com.gymprofit.bot.services.MisionService misiones,
+                           ReintentoRegistro reintentos) {
         this.batalla = batalla;
         this.inventario = inventario;
         this.misiones = misiones;
+        this.reintentos = reintentos;
     }
 
     @Override
@@ -125,6 +131,9 @@ public final class CombateListener extends ListenerAdapter {
         }
         ResultadoInicio r = batalla.iniciar(ownerId, monstruoId);
         if (r.estado() == BatallaService.InicioEstado.DORMIDO) {
+            // Se guarda el rival ya elegido: al despertar se entra a esa pelea sin repetir el menú.
+            reintentos.guardar(ownerId, Instant.now(),
+                    loc -> iniciarPelea(ownerId, monstruoId, loc));
             bloqueadoPorSueno(evento, ownerId, locale);
             return;
         }
@@ -145,6 +154,8 @@ public final class CombateListener extends ListenerAdapter {
         }
         ResultadoInicio r = batalla.iniciarMazmorra(ownerId, mazmorraId);
         if (r.estado() == BatallaService.InicioEstado.DORMIDO) {
+            reintentos.guardar(ownerId, Instant.now(),
+                    loc -> iniciarMazmorra(ownerId, mazmorraId, loc));
             bloqueadoPorSueno(evento, ownerId, locale);
             return;
         }
@@ -288,6 +299,36 @@ public final class CombateListener extends ListenerAdapter {
                 DescansoComando.botonesBloqueado(locale, ownerId));
     }
 
+    /**
+     * Arranca la pelea guardada y devuelve el mensaje de batalla (con sus botones). Lo llama el
+     * <b>reintento</b> cuando el jugador se levanta desde el botón «Despertar»: la sesión va por
+     * {@code ownerId} y los customId también, así que el combate funciona igual en un mensaje nuevo.
+     */
+    private MessageCreateData iniciarPelea(long ownerId, String monstruoId, Locale locale) {
+        return mensajeInicio(ownerId, batalla.iniciar(ownerId, monstruoId), locale);
+    }
+
+    /** Igual que {@link #iniciarPelea}, para la mazmorra que quedó pendiente. */
+    private MessageCreateData iniciarMazmorra(long ownerId, String mazmorraId, Locale locale) {
+        return mensajeInicio(ownerId, batalla.iniciarMazmorra(ownerId, mazmorraId), locale);
+    }
+
+    /**
+     * Mensaje del intento de empezar combate en un reintento: la batalla con sus botones si sale
+     * bien, o el motivo si no. Un segundo DORMIDO es imposible (se acaba de despertar), pero se
+     * trata como cualquier otro motivo en vez de reventar: quien lo lea entenderá qué pasó.
+     */
+    private MessageCreateData mensajeInicio(long ownerId, ResultadoInicio r, Locale locale) {
+        if (r.estado() != BatallaService.InicioEstado.OK) {
+            return new MessageCreateBuilder().setEmbeds(motivoInicio(locale, r)).build();
+        }
+        sesiones.put(ownerId, r.sesion());
+        return new MessageCreateBuilder()
+                .setEmbeds(PelearComando.embedBatalla(locale, r.sesion(), null))
+                .setComponents(PelearComando.botonesBatalla(ownerId, locale))
+                .build();
+    }
+
     private MessageEmbed motivoInicio(Locale locale, ResultadoInicio r) {
         String msg = switch (r.estado()) {
             case MONSTRUO_NO_EXISTE -> Messages.get(locale, "pelear.rival.noexiste");
@@ -295,8 +336,9 @@ public final class CombateListener extends ListenerAdapter {
             case NIVEL_INSUFICIENTE -> Messages.get(locale, "pelear.nivel", r.detalle());
             case SIN_ENERGIA -> Messages.get(locale, "pelear.sinenergia", r.detalle());
             case EN_COOLDOWN -> Messages.get(locale, "pelear.cooldown", r.detalle());
-            // OK y DORMIDO no llegan aquí: se resuelven antes (DORMIDO, con su embed de botones).
-            case OK, DORMIDO -> "";
+            // En el flujo normal no llegan: OK pinta la batalla y DORMIDO tiene su embed con
+            // botones. Solo caería aquí un DORMIDO de un reintento, que no puede pasar.
+            case OK, DORMIDO -> Messages.get(locale, "descansar.bloqueado.desc");
         };
         return EmbedFactory.aviso(EmbedFactory.Tipo.DUELO, locale, msg);
     }
