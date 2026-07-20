@@ -82,6 +82,9 @@ class MigracionesTest {
                 // V9 aplicada: mejoras existe y arranca vacía.
                 assertEquals(0, contar(st, "SELECT COUNT(*) FROM mejoras"),
                         "mejoras debe existir y arrancar vacía");
+                // V24 aplicada: el histórico del ejercicio del día existe y arranca vacío.
+                assertEquals(0, contar(st, "SELECT COUNT(*) FROM ejercicio_dia"),
+                        "ejercicio_dia debe existir y arrancar vacía");
                 // warns.motivo debe ser TEXT (aloja el texto cifrado en base64).
                 assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_name = 'warns' AND column_name = 'motivo' "
