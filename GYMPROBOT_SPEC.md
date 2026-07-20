@@ -121,7 +121,7 @@ El catálogo es bilingüe: enviar header `Accept-Language` según el idioma del 
 | Ejercicio del día | Job diario 8:00 Europe/Madrid que publica un ejercicio del catálogo en su canal + comando `/ejercicio-dia` |
 | Calculadoras | `/imc`, `/calorias`, `/macros` — **portar la lógica de `CalculadoraNutricional` de la app** (Mifflin-St Jeor + factor actividad + reparto por objetivo). `/rm` (fórmula de Epley, indicar fórmula en el footer) |
 | Frase motivadora | `/frase` + inclusión en el mensaje del ejercicio del día. Banco de frases propio en ES/EN |
-| Auto-mod + warns | Anti-spam (repetición/flood), filtro de insultos configurable, `/warn`, `/warns`, escalado (3 warns → timeout). Registro en BD |
+| Auto-mod + warns | Anti-spam (repetición/flood), filtro de insultos configurable, `/warn poner`, `/warn lista`, escalado (3 warns → timeout). Registro en BD |
 | Tickets | Botón "Abrir ticket" en canal de soporte → canal privado usuario+staff, botón de cierre con transcript simple |
 | Anuncios | `/anunciar` (solo staff): embed de marca para updates de la app (changelog) |
 | Base | `/ayuda` con listado por categorías, `/ping` |
@@ -130,10 +130,10 @@ El catálogo es bilingüe: enviar header `Accept-Language` según el idioma del 
 
 | Módulo | Detalle |
 |---|---|
-| ProCoins | Moneda virtual. Se gana por actividad (XP → coins), retos y eventos. `/balance` |
+| ProCoins | Moneda virtual. Se gana por actividad (XP → coins), retos y eventos. `/perfil balance` |
 | Racha diaria | `/daily`: check-in de entreno, racha con multiplicador de recompensa. Romper racha la resetea |
 | Tienda | `/tienda` + `/comprar`: roles cosméticos (color de nombre), ventajas (ej. multiplicador XP temporal). Catálogo en BD, gestionable por staff |
-| Insignias | Medallas coleccionables por hitos del servidor (no confundir con los logros de la app). `/insignias` |
+| Insignias | Medallas coleccionables por hitos del servidor (no confundir con los logros de la app). `/perfil insignias` |
 | Sugerencias | `/sugerencia`: publica embed en canal dedicado con votación 👍/👎 y estados (pendiente/aceptada/rechazada) gestionados por staff |
 
 ### Fase 3 — Vinculación con la app (toca la API)
@@ -202,7 +202,7 @@ Coherente con el design system de la app (dark mode es el modo por defecto de la
 - Permisos de Discord mínimos necesarios; comandos de staff restringidos con `setDefaultPermissions`.
 - Cooldowns en todos los comandos que escriben en BD o llaman a la API (anti-abuso).
 - Validar siempre el input de comandos (rangos de calculadoras, cantidades de la tienda, etc.).
-- Privacidad (GDPR): comando `/borrar-mis-datos` que elimina todas las filas del usuario en `gymprofit_bot` (y revoca la vinculación vía API si existe), retención mínima de datos y nota de privacidad en el README (qué se guarda y para qué).
+- Privacidad (GDPR): comando `/privacidad borrar` que elimina todas las filas del usuario en `gymprofit_bot` (y revoca la vinculación vía API si existe), retención mínima de datos y nota de privacidad en el README (qué se guarda y para qué).
 
 ## 10. Base de datos del bot (`gymprofit_bot`)
 

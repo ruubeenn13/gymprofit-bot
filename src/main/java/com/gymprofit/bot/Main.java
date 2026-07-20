@@ -8,12 +8,8 @@ import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaResolverComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
-import com.gymprofit.bot.commands.config.PanelComando;
-import com.gymprofit.bot.commands.contenido.AnuncioComando;
-import com.gymprofit.bot.commands.contenido.RedesComando;
-import com.gymprofit.bot.commands.contenido.SorteoComando;
+import com.gymprofit.bot.commands.contenido.PublicarComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
-import com.gymprofit.bot.commands.economia.BalanceComando;
 import com.gymprofit.bot.commands.economia.BancoComando;
 import com.gymprofit.bot.commands.economia.BolsaComando;
 import com.gymprofit.bot.commands.economia.CasinoComando;
@@ -24,11 +20,9 @@ import com.gymprofit.bot.commands.economia.GremioComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
 import com.gymprofit.bot.commands.economia.EquiparComando;
-import com.gymprofit.bot.commands.economia.ElegirTrabajoComando;
 import com.gymprofit.bot.commands.economia.EncantarComando;
 import com.gymprofit.bot.commands.economia.EntrenarComando;
 import com.gymprofit.bot.commands.economia.EstudiarComando;
-import com.gymprofit.bot.commands.economia.InsigniasComando;
 import com.gymprofit.bot.commands.economia.InventarioComando;
 import com.gymprofit.bot.commands.economia.MejorarComando;
 import com.gymprofit.bot.commands.economia.MejorasComando;
@@ -44,39 +38,24 @@ import com.gymprofit.bot.commands.economia.RegalarComando;
 import com.gymprofit.bot.commands.economia.RegalarItemComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
 import com.gymprofit.bot.commands.economia.RobarComando;
-import com.gymprofit.bot.commands.economia.VenderComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.RankComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
 import com.gymprofit.bot.commands.economia.TruequeComando;
-import com.gymprofit.bot.commands.economia.TrabajosComando;
-import com.gymprofit.bot.commands.economia.UsarComando;
-import com.gymprofit.bot.commands.economia.WorkComando;
+import com.gymprofit.bot.commands.economia.TrabajoComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
 import com.gymprofit.bot.commands.moderacion.BanComando;
-import com.gymprofit.bot.commands.moderacion.ClearwarnsComando;
 import com.gymprofit.bot.commands.moderacion.KickComando;
 import com.gymprofit.bot.commands.moderacion.LimpiarComando;
-import com.gymprofit.bot.commands.moderacion.LockComando;
-import com.gymprofit.bot.commands.moderacion.LockdownComando;
+import com.gymprofit.bot.commands.moderacion.CanalComando;
 import com.gymprofit.bot.commands.moderacion.ModlogsComando;
 import com.gymprofit.bot.commands.moderacion.MotivoComando;
-import com.gymprofit.bot.commands.moderacion.MuteComando;
+import com.gymprofit.bot.commands.moderacion.SilenciarComando;
 import com.gymprofit.bot.commands.moderacion.NickComando;
-import com.gymprofit.bot.commands.moderacion.TimeoutComando;
-import com.gymprofit.bot.commands.moderacion.SlowmodeComando;
 import com.gymprofit.bot.commands.moderacion.UnbanComando;
-import com.gymprofit.bot.commands.moderacion.UnlockComando;
-import com.gymprofit.bot.commands.moderacion.UnlockdownComando;
-import com.gymprofit.bot.commands.moderacion.UnmuteComando;
-import com.gymprofit.bot.commands.moderacion.UntimeoutComando;
-import com.gymprofit.bot.commands.moderacion.UnwarnComando;
 import com.gymprofit.bot.commands.moderacion.WarnComando;
-import com.gymprofit.bot.commands.moderacion.WarnsComando;
-import com.gymprofit.bot.commands.privacidad.BorrarMisDatosComando;
-import com.gymprofit.bot.commands.privacidad.MisDatosComando;
 import com.gymprofit.bot.commands.privacidad.PrivacidadComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
@@ -304,14 +283,9 @@ public final class Main {
             SancionRepositorio sancionRepo = new SancionRepositorio(db.dataSource());
             ModeracionService moderacion =
                     new ModeracionService(warnRepo, sancionRepo, usuarios, cifrador);
+            // /warn agrupa poner/lista/quitar/limpiar; /silenciar, mute+timeout; /canal, los bloqueos.
             comandos.add(new WarnComando(moderacion, configService));
-            comandos.add(new WarnsComando(moderacion));
-            comandos.add(new UnwarnComando(moderacion));
-            comandos.add(new ClearwarnsComando(moderacion, configService));
-            comandos.add(new MuteComando(moderacion, configService));
-            comandos.add(new UnmuteComando(moderacion, configService));
-            comandos.add(new TimeoutComando(moderacion, configService));
-            comandos.add(new UntimeoutComando(moderacion, configService));
+            comandos.add(new SilenciarComando(moderacion, configService));
             comandos.add(new KickComando(moderacion, configService));
             comandos.add(new BanComando(moderacion, configService));
             comandos.add(new UnbanComando(moderacion, configService));
@@ -319,26 +293,19 @@ public final class Main {
             comandos.add(new ModlogsComando(moderacion));
             comandos.add(new MotivoComando(moderacion));
             listeners.add(new ModlogsPaginadorListener(moderacion));
-            comandos.add(new LockComando(configService));
-            comandos.add(new UnlockComando(configService));
-            comandos.add(new LockdownComando(configService));
-            comandos.add(new UnlockdownComando(configService));
-            comandos.add(new SlowmodeComando(configService));
+            comandos.add(new CanalComando(configService));
 
             // Privacidad (RGPD): acceso, portabilidad, olvido + job de retención.
             PrivacidadService privacidad =
                     new PrivacidadService(usuarios, warnRepo, sancionRepo, cifrador);
-            comandos.add(new PrivacidadComando());
-            comandos.add(new MisDatosComando(privacidad));
-            comandos.add(new BorrarMisDatosComando());
+            comandos.add(new PrivacidadComando(privacidad));
             listeners.add(new BorrarDatosListener(privacidad));
             new RetencionJob(warnRepo, sancionRepo).iniciar();
 
-            // Contenido (staff): anuncios, redes y sorteos (el job de sorteos arranca en main()).
-            comandos.add(new AnuncioComando());
-            comandos.add(new RedesComando());
-            comandos.add(new SorteoComando(new SorteoService(new SorteoRepositorio(db.dataSource()))));
-            comandos.add(new PanelComando());
+            // Contenido (staff): /publicar agrupa anuncio, redes, panel y sorteo
+            // (el job de sorteos arranca en main()).
+            comandos.add(new PublicarComando(
+                    new SorteoService(new SorteoRepositorio(db.dataSource()))));
 
             // Tickets: panel por botón + canal privado + transcript al cerrar.
             listeners.add(new TicketListener(
@@ -355,15 +322,12 @@ public final class Main {
             EconomiaRepositorio economiaRepo = new EconomiaRepositorio(db.dataSource());
             EconomiaService economiaService =
                     new EconomiaService(economiaRepo, personajeRepo, usuarios);
-            comandos.add(new BalanceComando(economiaService));
             comandos.add(new DailyComando(economiaService));
-            comandos.add(new PerfilComando(economiaService));
             comandos.add(new RankComando(economiaService, usuarios, rangoService));
 
+            // /trabajo agrupa lista, elegir y currar.
             TrabajoService trabajoService = new TrabajoService(personajeRepo, economiaRepo, usuarios);
-            comandos.add(new TrabajosComando());
-            comandos.add(new ElegirTrabajoComando(trabajoService));
-            comandos.add(new WorkComando(trabajoService));
+            comandos.add(new TrabajoComando(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();
@@ -372,10 +336,11 @@ public final class Main {
             InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
             ItemService itemService =
                     new ItemService(economiaRepo, inventarioRepo, personajeRepo, usuarios);
+            VentaService ventaService = new VentaService(inventarioRepo, economiaRepo, usuarios);
             comandos.add(new TiendaComando());
             comandos.add(new ComprarComando(itemService));
-            comandos.add(new InventarioComando(itemService));
-            comandos.add(new UsarComando(itemService));
+            // /inventario agrupa ver, usar y vender.
+            comandos.add(new InventarioComando(itemService, ventaService));
 
             // Combate (COMBAT-1): equipar arma/armadura y poder de combate.
             CombateService combateService =
@@ -410,7 +375,6 @@ public final class Main {
                     personajeRepo, inventarioRepo, economiaRepo, usuarios);
             comandos.add(new MinarComando(mineriaService));
             comandos.add(new RepararComando(mineriaService));
-            comandos.add(new VenderComando(new VentaService(inventarioRepo, economiaRepo, usuarios)));
 
             // Herrería (COMBAT-6 crafting): fabricar equipo con minerales.
             CrafteoService crafteoService = new CrafteoService(inventarioRepo, usuarios);
@@ -424,9 +388,12 @@ public final class Main {
             comandos.add(new CofresComando());
 
             // Progresión (F-ECO-3b): insignias/logros derivados del estado.
-            comandos.add(new InsigniasComando(new InsigniaService(
+            // /perfil (ver + balance + insignias) se registra aquí porque necesita InsigniaService,
+            // que a su vez depende de los repos de minería y mundos creados más arriba.
+            InsigniaService insigniaService = new InsigniaService(
                     new InsigniaRepositorio(db.dataSource()), usuarios, personajeRepo,
-                    mineriaRepo, mundoRepo)));
+                    mineriaRepo, mundoRepo);
+            comandos.add(new PerfilComando(economiaService, insigniaService));
 
             // Economía entre jugadores (F-ECO-4a): regalar coins e ítems.
             RegaloService regaloService = new RegaloService(economiaRepo, inventarioRepo, usuarios);

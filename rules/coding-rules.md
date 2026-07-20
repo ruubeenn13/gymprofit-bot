@@ -24,7 +24,9 @@ Reglas de obligado cumplimiento. La review las verifica ([`review-checklist.md`]
 10. **Permisos mínimos.** Comandos de staff restringidos con `setDefaultPermissions`.
 11. **Resiliencia ante la API:** `deferReply()` + reintento con backoff; ante 429 respetar
     `Retry-After`; mensaje amable si la API no responde.
-12. **Una clase por slash command** en `commands/` (subpaquetes por categoría).
+12. **Una clase por slash command** en `commands/` (subpaquetes por categoría). Las familias van
+    agrupadas en **subcomandos** (ADR-011): Discord solo cuenta los comandos de nivel superior
+    contra su límite de 100.
 13. **Documentar todo el código.** En **cada archivo**, un comentario de cabecera al
     principio explicando qué es el archivo y su papel (en clases Java, Javadoc de clase; en
     paquetes, `package-info.java`). Además, **Javadoc** en métodos públicos no triviales y

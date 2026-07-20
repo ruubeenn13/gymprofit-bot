@@ -1,6 +1,6 @@
 package com.gymprofit.bot.events;
 
-import com.gymprofit.bot.commands.privacidad.BorrarMisDatosComando;
+import com.gymprofit.bot.commands.privacidad.PrivacidadComando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.PrivacidadService;
@@ -24,7 +24,7 @@ public final class BorrarDatosListener extends ListenerAdapter {
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent evento) {
-        if (!BorrarMisDatosComando.BOTON_CONFIRMAR.equals(evento.getComponentId())) {
+        if (!PrivacidadComando.BOTON_CONFIRMAR.equals(evento.getComponentId())) {
             return;
         }
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());

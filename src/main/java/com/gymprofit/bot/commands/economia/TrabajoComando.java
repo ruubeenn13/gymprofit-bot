@@ -5,7 +5,9 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.services.TrabajoService.ResultadoElegir;
+import com.gymprofit.bot.services.TrabajoService.ResultadoWork;
 import com.gymprofit.bot.services.Trabajos;
+import com.gymprofit.bot.util.Duraciones;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
@@ -16,21 +18,31 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 
+import java.awt.Color;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
-/** {@code /elegir-trabajo}: fija tu trabajo actual (si cumples el requisito de nivel). */
-public final class ElegirTrabajoComando implements Comando {
+/**
+ * {@code /trabajo} con subcomandos (lista, elegir, currar). Consolida el empleo en un solo comando
+ * para no gastar cupo de slash commands (límite de 100 de Discord).
+ *
+ * <p>{@code lista} muestra el catálogo por tier con sueldo y requisito; {@code elegir} fija tu empleo
+ * si cumples el nivel y te da su rol cosmético; {@code currar} trabaja un turno (gana coins, gasta
+ * energía, con cooldown). Los tres son <b>públicos</b>: la economía se juega a la vista de todos.
+ */
+public final class TrabajoComando implements Comando {
 
-    private static final String NOMBRE = "elegir-trabajo";
+    private static final String NOMBRE = "trabajo";
     /** Prefijo de los roles cosméticos de trabajo (identifica y limpia el anterior). */
     private static final String PREFIJO_ROL = "💼 ";
-    private static final java.awt.Color COLOR_ROL_TRABAJO = new java.awt.Color(0x9B59B6);
+    private static final Color COLOR_ROL_TRABAJO = new Color(0x9B59B6);
 
     private final TrabajoService trabajos;
 
-    public ElegirTrabajoComando(TrabajoService trabajos) {
+    public TrabajoComando(TrabajoService trabajos) {
         this.trabajos = trabajos;
     }
 
@@ -41,18 +53,56 @@ public final class ElegirTrabajoComando implements Comando {
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.elegirtrabajo.opcion.trabajo"));
 
-        return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.elegirtrabajo.descripcion"))
+        return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.trabajo.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
-                        Messages.get(Messages.ES, "comando.elegirtrabajo.descripcion"))
+                        Messages.get(Messages.ES, "comando.trabajo.familia"))
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
-                        Messages.get(Messages.EN, "comando.elegirtrabajo.descripcion"))
+                        Messages.get(Messages.EN, "comando.trabajo.familia"))
                 .setContexts(InteractionContextType.GUILD)
-                .addOptions(trabajo);
+                .addSubcommands(
+                        sub("lista", "comando.trabajos.descripcion"),
+                        sub("elegir", "comando.elegirtrabajo.descripcion").addOptions(trabajo),
+                        sub("currar", "comando.work.descripcion"));
+    }
+
+    private static SubcommandData sub(String nombre, String claveDesc) {
+        return new SubcommandData(nombre, Messages.get(Messages.ES, claveDesc))
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US, Messages.get(Messages.EN, claveDesc));
     }
 
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
+        String sub = evento.getSubcommandName() == null ? "lista" : evento.getSubcommandName();
+        switch (sub) {
+            case "lista" -> lista(evento, locale);
+            case "elegir" -> elegir(evento, locale);
+            case "currar" -> currar(evento, locale);
+            default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
+        }
+    }
+
+    private void lista(SlashCommandInteractionEvent evento, Locale locale) {
+        StringBuilder sb = new StringBuilder();
+        int tierActual = 0;
+        for (Trabajos t : Trabajos.CATALOGO) {
+            if (t.tier() != tierActual) {
+                tierActual = t.tier();
+                sb.append("\n**").append(Messages.get(locale, "trabajos.tier", tierActual))
+                        .append("**\n");
+            }
+            sb.append(Messages.get(locale, "trabajos.linea",
+                    t.id(), Messages.get(locale, "trabajo." + t.id()), t.sector(),
+                    t.salarioMin(), t.salarioMax(), t.requisitoNivel())).append('\n');
+        }
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, "trabajos.titulo"),
+                Messages.get(locale, "trabajos.intro") + "\n" + sb).build();
+        evento.replyEmbeds(embed).queue();
+    }
+
+    private void elegir(SlashCommandInteractionEvent evento, Locale locale) {
         String id = evento.getOption("trabajo").getAsString();
 
         evento.deferReply(false).queue();
@@ -68,6 +118,21 @@ public final class ElegirTrabajoComando implements Comando {
         };
         evento.getHook().sendMessageEmbeds(
                 EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje)).queue();
+    }
+
+    private void currar(SlashCommandInteractionEvent evento, Locale locale) {
+        evento.deferReply(false).queue();
+        ResultadoWork r = trabajos.trabajar(evento.getUser().getIdLong(), Instant.now());
+        String desc = switch (r.estado()) {
+            case OK -> Messages.get(locale, "work.ok", r.pago(), r.energiaRestante());
+            case SIN_TRABAJO -> Messages.get(locale, "work.sintrabajo");
+            case EN_COOLDOWN -> Messages.get(locale, "work.cooldown",
+                    Duraciones.formatear(r.segundosRestantes()));
+            case SIN_ENERGIA -> Messages.get(locale, "work.sinenergia");
+        };
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, "work.titulo"), desc).build();
+        evento.getHook().sendMessageEmbeds(embed).queue();
     }
 
     /**

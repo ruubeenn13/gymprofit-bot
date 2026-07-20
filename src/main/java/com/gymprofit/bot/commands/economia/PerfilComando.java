@@ -1,11 +1,15 @@
 package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.db.Personaje;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EconomiaService.Perfil;
+import com.gymprofit.bot.services.Encantamiento;
+import com.gymprofit.bot.services.InsigniaService;
+import com.gymprofit.bot.services.InsigniaService.Vista;
 import com.gymprofit.bot.services.Items;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -15,18 +19,29 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 
+import java.util.List;
 import java.util.Locale;
 
-/** {@code /perfil}: muestra el personaje (atributos, energía, salud) y el saldo, tuyo o de otro. */
+/**
+ * {@code /perfil} con subcomandos (ver, balance, insignias). Consolida la ficha del jugador en un solo
+ * comando para no gastar cupo de slash commands (límite de 100 de Discord).
+ *
+ * <p>{@code ver} muestra el personaje (atributos, energía, salud, equipo y poder) y el saldo, tuyo o de
+ * otro; {@code balance} solo el saldo de coins; {@code insignias} los logros conseguidos y los que
+ * faltan, otorgando de paso los recién cumplidos.
+ */
 public final class PerfilComando implements Comando {
 
     private static final String NOMBRE = "perfil";
 
     private final EconomiaService economia;
+    private final InsigniaService insignias;
 
-    public PerfilComando(EconomiaService economia) {
+    public PerfilComando(EconomiaService economia, InsigniaService insignias) {
         this.economia = economia;
+        this.insignias = insignias;
     }
 
     @Override
@@ -36,22 +51,41 @@ public final class PerfilComando implements Comando {
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.perfil.opcion.usuario"));
 
-        return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.perfil.descripcion"))
+        return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.perfil.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
-                        Messages.get(Messages.ES, "comando.perfil.descripcion"))
+                        Messages.get(Messages.ES, "comando.perfil.familia"))
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
-                        Messages.get(Messages.EN, "comando.perfil.descripcion"))
+                        Messages.get(Messages.EN, "comando.perfil.familia"))
                 .setContexts(InteractionContextType.GUILD)
-                .addOptions(usuario);
+                .addSubcommands(
+                        sub("ver", "comando.perfil.descripcion").addOptions(usuario),
+                        sub("balance", "comando.balance.descripcion"),
+                        sub("insignias", "comando.insignias.descripcion"));
+    }
+
+    private static SubcommandData sub(String nombre, String claveDesc) {
+        return new SubcommandData(nombre, Messages.get(Messages.ES, claveDesc))
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US, Messages.get(Messages.EN, claveDesc));
     }
 
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
+        String sub = evento.getSubcommandName() == null ? "ver" : evento.getSubcommandName();
+        switch (sub) {
+            case "ver" -> ver(evento, locale);
+            case "balance" -> balance(evento, locale);
+            case "insignias" -> insignias(evento, locale);
+            default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
+        }
+    }
+
+    private void ver(SlashCommandInteractionEvent evento, Locale locale) {
         User objetivo = evento.getOption("usuario") != null
                 ? evento.getOption("usuario").getAsUser() : evento.getUser();
 
-        evento.deferReply(true).queue();
+        evento.deferReply(false).queue();
         Perfil p = economia.perfil(objetivo.getIdLong());
         String arma = armaTexto(locale, p.personaje());
         String armadura = nombreEquipo(locale, p.personaje().armadura());
@@ -65,8 +99,38 @@ public final class PerfilComando implements Comando {
         evento.getHook().sendMessageEmbeds(embed).queue();
     }
 
+    private void balance(SlashCommandInteractionEvent evento, Locale locale) {
+        evento.deferReply(false).queue();
+        long saldo = economia.saldo(evento.getUser().getIdLong());
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, "balance.titulo"),
+                Messages.get(locale, "balance.saldo", saldo)).build();
+        evento.getHook().sendMessageEmbeds(embed).queue();
+    }
+
+    private void insignias(SlashCommandInteractionEvent evento, Locale locale) {
+        evento.deferReply(false).queue();
+
+        List<Vista> vistas = insignias.listar(evento.getUser().getIdLong());
+        long conseguidas = vistas.stream().filter(Vista::ganada).count();
+
+        StringBuilder sb = new StringBuilder(
+                Messages.get(locale, "insignias.intro", conseguidas, vistas.size())).append("\n\n");
+        for (Vista v : vistas) {
+            String estado = v.ganada() ? "✅" : "🔒";
+            sb.append(estado).append(' ').append(v.insignia().emoji()).append(' ')
+                    .append("**").append(Messages.get(locale, "insignia." + v.insignia().id()))
+                    .append("** — ")
+                    .append(Messages.get(locale, "insignia." + v.insignia().id() + ".desc"))
+                    .append('\n');
+        }
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.LOGRO, locale,
+                Messages.get(locale, "insignias.titulo"), sb.toString()).build();
+        evento.getHook().sendMessageEmbeds(embed).queue();
+    }
+
     /** Arma equipada con su mejora: nombre + «+nivel» + emoji del encantamiento, o «—» si no hay. */
-    private static String armaTexto(Locale locale, com.gymprofit.bot.db.Personaje p) {
+    private static String armaTexto(Locale locale, Personaje p) {
         if (p.arma() == null) {
             return Messages.get(locale, "perfil.sinequipo");
         }
@@ -75,8 +139,7 @@ public final class PerfilComando implements Comando {
             sb.append(" **+").append(p.armaNivel()).append("**");
         }
         if (p.armaEncanto() != null) {
-            com.gymprofit.bot.services.Encantamiento.porId(p.armaEncanto())
-                    .ifPresent(e -> sb.append(' ').append(e.emoji()));
+            Encantamiento.porId(p.armaEncanto()).ifPresent(e -> sb.append(' ').append(e.emoji()));
         }
         return sb.toString();
     }

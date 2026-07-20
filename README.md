@@ -67,10 +67,10 @@ Además: **XP por mensaje** (con cooldown anti-spam de 60 s) que sube de nivel y
 Simulador de vida de ficción sobre la comunidad. **Coins virtuales**, no comprables con dinero real
 ni convertibles. Por bloques:
 
-- **Personaje y progresión:** `/perfil` · `/rank` · `/daily` · `/entrenar` · `/estudiar` ·
-  `/insignias` · rangos automáticos por nivel.
-- **Trabajo y tienda:** `/trabajos` · `/elegir-trabajo` · `/work` · `/tienda` · `/comprar` ·
-  `/inventario` · `/usar` · `/vender` · `/mejoras` · `/mejorar`.
+- **Personaje y progresión:** `/perfil` (ver · balance · insignias) · `/rank` · `/daily` ·
+  `/entrenar` · `/estudiar` · rangos automáticos por nivel.
+- **Trabajo y tienda:** `/trabajo` (lista · elegir · currar) · `/tienda` · `/comprar` ·
+  `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar`.
 - **Combate:** `/mundos` · `/monstruos` · `/pelear` (por turnos, botones) · `/mazmorra` ·
   `/misiones` · `/equipar` · `/encantar`.
 - **Minería y herrería:** `/minar` · `/reparar` · `/recetas` · `/craftear`.
@@ -154,9 +154,9 @@ consultar y paginar. Minimización de datos y **retención automática** (job qu
 revocados > 6 meses y sanciones > 12 meses).
 
 **Tus derechos (base legal: interés legítimo).**
-- `/privacidad` — qué guardamos, para qué y cómo ejercer tus derechos.
-- `/mis-datos` — descarga (efímera) un JSON con todo lo que el bot guarda de ti.
-- `/borrar-mis-datos` — elimina **todas** tus filas del bot (con confirmación) y revoca la
+- `/privacidad info` — qué guardamos, para qué y cómo ejercer tus derechos.
+- `/privacidad exportar` — descarga (efímera) un JSON con todo lo que el bot guarda de ti.
+- `/privacidad borrar` — elimina **todas** tus filas del bot (con confirmación) y revoca la
   vinculación con la app si existe.
 
 Detalles de diseño en [`docs/decisions.md`](docs/decisions.md) (ADR-009) y en el spec de

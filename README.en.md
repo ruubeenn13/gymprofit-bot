@@ -65,10 +65,10 @@ Also: **message XP** (with a 60 s anti-spam cooldown) that levels users up and a
 A fictional life sim on top of the community. **Virtual coins**, not purchasable with real money nor
 convertible. By block:
 
-- **Character & progression:** `/perfil` · `/rank` · `/daily` · `/entrenar` · `/estudiar` ·
-  `/insignias` · automatic level ranks.
-- **Work & shop:** `/trabajos` · `/elegir-trabajo` · `/work` · `/tienda` · `/comprar` ·
-  `/inventario` · `/usar` · `/vender` · `/mejoras` · `/mejorar`.
+- **Character & progression:** `/perfil` (ver · balance · insignias) · `/rank` · `/daily` ·
+  `/entrenar` · `/estudiar` · automatic level ranks.
+- **Work & shop:** `/trabajo` (lista · elegir · currar) · `/tienda` · `/comprar` ·
+  `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar`.
 - **Combat:** `/mundos` · `/monstruos` · `/pelear` (turn-based, buttons) · `/mazmorra` ·
   `/misiones` · `/equipar` · `/encantar`.
 - **Mining & smithing:** `/minar` · `/reparar` · `/recetas` · `/craftear`.
@@ -138,7 +138,7 @@ Health check at `/health`. **Hosting:** the bot can't run free in the same works
 ### Privacy (GDPR)
 
 The bot stores community state (XP, coins, streaks, warns, etc.) in its DB, keyed by your
-`discord_id`. `/borrar-mis-datos` (Phase 1+) deletes all your rows and revokes the app link if
+`discord_id`. `/privacidad borrar` deletes all your rows and revokes the app link if
 present. What is stored and why is detailed in this section as the phases progress.
 
 </details>

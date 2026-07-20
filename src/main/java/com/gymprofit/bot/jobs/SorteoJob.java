@@ -1,6 +1,6 @@
 package com.gymprofit.bot.jobs;
 
-import com.gymprofit.bot.commands.contenido.SorteoComando;
+import com.gymprofit.bot.commands.contenido.PublicarComando;
 import com.gymprofit.bot.db.Sorteo;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.SorteoService;
@@ -78,7 +78,7 @@ public final class SorteoJob {
         }
         Message mensaje = canal.retrieveMessageById(sorteo.mensajeId()).complete();
         List<Long> participantes = mensaje
-                .retrieveReactionUsers(Emoji.fromUnicode(SorteoComando.EMOJI))
+                .retrieveReactionUsers(Emoji.fromUnicode(PublicarComando.EMOJI_SORTEO))
                 .takeAsync(MAX_PARTICIPANTES).join().stream()
                 .filter(u -> !u.isBot())
                 .map(User::getIdLong)

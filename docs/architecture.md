@@ -30,7 +30,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados (`GUILD_MEMBERS`, `MESSAGE_CONTENT`), cache de miembros, presencia |
 | `db/Database` | Pool HikariCP + ejecución de migraciones Flyway; expone el `DataSource` a los repos |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
-| `commands/` | Un archivo por slash command (subpaquetes por categoría). Familias grandes de economía agrupadas en **subcomandos** (`/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord |
+| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 55 de nivel superior (ADR-011) |
 | `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod |
 | `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
 | `api/` | Cliente Retrofit hacia la API GymProFit (interfaces por dominio) |

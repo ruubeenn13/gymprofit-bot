@@ -7,6 +7,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Cambiado
+- **El resto de familias, también agrupadas en subcomandos** (segunda tanda): se consolidan las ocho
+  familias que ahorraban 2 o más huecos, y el total baja de **76 a 55** comandos (45 de margen, sitio
+  de sobra para los módulos que faltan: consultas a la API, calculadoras, `/frase`, `/trivia`,
+  vinculación y el directorio). Discord solo cuenta los comandos de **nivel superior** contra el
+  límite de 100 — los subcomandos son gratis —, así que agrupar no cuesta funcionalidad, solo cambia
+  cómo se teclea (`/warns @x` → `/warn lista @x`):
+  - `/warn` (poner · lista · quitar · limpiar) — antes `/warn`, `/warns`, `/unwarn`, `/clearwarns`.
+  - `/silenciar` (mute · unmute · timeout · untimeout) — las dos formas de callar a alguien juntas.
+  - `/canal` (lock · unlock · lockdown · unlockdown · slowmode) — todo el control de canales.
+  - `/privacidad` (info · exportar · borrar) — antes `/privacidad`, `/mis-datos`, `/borrar-mis-datos`.
+  - `/perfil` (ver · balance · insignias) — tu ficha completa en un sitio.
+  - `/inventario` (ver · usar · vender) — la mochila entera en un sitio.
+  - `/trabajo` (lista · elegir · currar) — antes `/trabajos`, `/elegir-trabajo`, `/work`.
+  - `/publicar` (anuncio · redes · panel · sorteo) — todo lo que publica el staff.
+
+  Los pares que solo ahorraban un hueco (`/tienda`+`/comprar`, `/minar`+`/reparar`,
+  `/equipar`+`/desequipar`…) se dejan sueltos: el hueco no compensa alargar lo que se teclea. Las
+  intros de `/setup` y los textos ES/EN quedan actualizados a la nueva forma.
 - **`/setup` mantiene al día las intros de los canales**: al reejecutarlo, ahora **edita** el mensaje
   fijado de guía de cada canal que ya existe (en vez de dejarlo desfasado), sin duplicar pines; si el
   canal no tenía intro, la publica. Antes la intro solo se ponía al **crear** el canal, así que había

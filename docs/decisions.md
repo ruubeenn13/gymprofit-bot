@@ -195,15 +195,31 @@ cómo se testea el azar y cómo no romper la economía ficticia.
 
 **Estado:** aceptada e implementada (F-ECO-0..6 + combate + extras).
 
-## ADR-011 — Comandos de economía agrupados en subcomandos (límite de 100)
+## ADR-011 — Comandos agrupados en subcomandos (límite de 100)
 
-**Contexto.** Discord limita a **100** los slash commands por servidor. El RPG llegó a 94 comandos
-sueltos; cada feature nueva acercaba al muro (si se rebasa, el registro falla y no carga nada).
+**Contexto.** Discord limita a **100** los slash commands por servidor, pero **solo cuenta los de
+nivel superior**: un comando admite hasta 25 subcomandos sin gastar cupo extra. El RPG llegó a 94
+comandos sueltos; cada feature nueva acercaba al muro (si se rebasa, el registro falla y no carga
+nada). Con los módulos que faltan (consultas a la API, calculadoras, `/frase`, `/trivia`,
+vinculación, directorio…) el margen no daba.
 
-**Decisión.** Agrupar las familias grandes en **un comando con subcomandos** (`SubcommandData` +
-dispatch por `evento.getSubcommandName()`): `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`.
-Bajó el total a 76 (margen 24). Regla: los comandos nuevos de una familia existente se añaden como
-subcomando; vigilar el total < 100. El router no cambia (enruta por el nombre de nivel superior).
+**Decisión.** Agrupar las familias en **un comando con subcomandos** (`SubcommandData` + dispatch
+por `evento.getSubcommandName()`). Se aplicó en dos tandas:
+
+1. Economía: `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino` — 94 → 76.
+2. Resto de familias con ahorro ≥ 2 huecos — 76 → **55** (margen 45):
+   `/warn` (poner·lista·quitar·limpiar), `/silenciar` (mute·unmute·timeout·untimeout),
+   `/canal` (lock·unlock·lockdown·unlockdown·slowmode), `/privacidad` (info·exportar·borrar),
+   `/perfil` (ver·balance·insignias), `/inventario` (ver·usar·vender),
+   `/trabajo` (lista·elegir·currar), `/publicar` (anuncio·redes·panel·sorteo).
+
+No se agruparon los pares de ahorro 1 (`/tienda`+`/comprar`, `/minar`+`/reparar`, `/equipar`+
+`/desequipar`…): el hueco ganado no compensa alargar lo que se teclea.
+
+**Consecuencias.** No se pierde funcionalidad, cambia la forma de invocar (`/warns @x` →
+`/warn lista @x`). El router no cambia (enruta por el nombre de nivel superior). Los listeners de
+botones siguen igual (sus `customId` no dependen del nombre del comando). Regla: los comandos nuevos
+de una familia existente se añaden como subcomando; vigilar el total < 100.
 
 **Estado:** aceptada e implementada.
 
