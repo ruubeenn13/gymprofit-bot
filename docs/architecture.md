@@ -30,14 +30,14 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados (`GUILD_MEMBERS`, `MESSAGE_CONTENT`), cache de miembros, presencia |
 | `db/Database` | Pool HikariCP + ejecución de migraciones Flyway; expone el `DataSource` a los repos |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
-| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 55 de nivel superior (ADR-011) |
+| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 56 de nivel superior (ADR-011) |
 | `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod |
 | `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
 | `api/` | Cliente Retrofit hacia la API GymProFit (interfaces por dominio) |
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |
 | `i18n/` | `Messages` sobre `ResourceBundle` (ES/EN) |
-| `jobs/` | Tareas programadas: `EnergiaJob` (regen de energía cada 30 min), `BolsaJob` (mueve precios de la bolsa cada 12 min), `SorteoJob`, retención de datos |
+| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `SorteoJob`, retención de datos |
 
 ## Flujo de un slash command (objetivo F1)
 
@@ -65,9 +65,13 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
 - **Combate por turnos** con sesiones en memoria (`CombateSesion`) y botones (`CombateListener`);
   otras interacciones con confirmación por botones: duelos (`DueloListener`), trueques
   (`TruequeListener`), y registros en memoria (`TruequeRegistro`).
-- **Migraciones Flyway V6–V22**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Descanso como estado**: la energía se gana **durmiendo** (`DescansoService`), no por goteo. El
+  cálculo (energía ganada, bono de resistencia, fatiga) es **puro y estático**, testeable sin BD; el
+  tope depende de la cama (`Camas`), que sale del inventario. Trabajo, combate y minería reciben el
+  servicio por constructor para bloquear al que esté dormido.
+- **Migraciones Flyway V6–V23**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias.
+  estudios, insignias, descanso.
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

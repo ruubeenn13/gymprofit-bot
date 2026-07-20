@@ -1,5 +1,6 @@
 package com.gymprofit.bot.events;
 
+import com.gymprofit.bot.commands.economia.DescansoComando;
 import com.gymprofit.bot.commands.economia.PelearComando;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.embeds.EmbedFactory;
@@ -123,6 +124,10 @@ public final class CombateListener extends ListenerAdapter {
             return;
         }
         ResultadoInicio r = batalla.iniciar(ownerId, monstruoId);
+        if (r.estado() == BatallaService.InicioEstado.DORMIDO) {
+            bloqueadoPorSueno(evento, ownerId, locale);
+            return;
+        }
         if (r.estado() != BatallaService.InicioEstado.OK) {
             evento.editMessageEmbeds(motivoInicio(locale, r)).setComponents().queue();
             return;
@@ -139,6 +144,10 @@ public final class CombateListener extends ListenerAdapter {
             return;
         }
         ResultadoInicio r = batalla.iniciarMazmorra(ownerId, mazmorraId);
+        if (r.estado() == BatallaService.InicioEstado.DORMIDO) {
+            bloqueadoPorSueno(evento, ownerId, locale);
+            return;
+        }
         if (r.estado() != BatallaService.InicioEstado.OK) {
             evento.editMessageEmbeds(motivoInicio(locale, r)).setComponents().queue();
             return;
@@ -269,6 +278,16 @@ public final class CombateListener extends ListenerAdapter {
         return jugador + monstruo;
     }
 
+    /**
+     * Sustituye el mensaje por el embed de «estás dormido» con sus botones. Se hace aquí y no en
+     * {@link #motivoInicio} porque este caso lleva componentes: el jugador decide en el sitio si
+     * sigue durmiendo o se levanta, y {@code DescansoListener} recoge el botón.
+     */
+    private static void bloqueadoPorSueno(IReplyCallback evento, long ownerId, Locale locale) {
+        editar(evento, DescansoComando.embedBloqueado(locale),
+                DescansoComando.botonesBloqueado(locale, ownerId));
+    }
+
     private MessageEmbed motivoInicio(Locale locale, ResultadoInicio r) {
         String msg = switch (r.estado()) {
             case MONSTRUO_NO_EXISTE -> Messages.get(locale, "pelear.rival.noexiste");
@@ -276,7 +295,8 @@ public final class CombateListener extends ListenerAdapter {
             case NIVEL_INSUFICIENTE -> Messages.get(locale, "pelear.nivel", r.detalle());
             case SIN_ENERGIA -> Messages.get(locale, "pelear.sinenergia", r.detalle());
             case EN_COOLDOWN -> Messages.get(locale, "pelear.cooldown", r.detalle());
-            case OK -> "";
+            // OK y DORMIDO no llegan aquí: se resuelven antes (DORMIDO, con su embed de botones).
+            case OK, DORMIDO -> "";
         };
         return EmbedFactory.aviso(EmbedFactory.Tipo.DUELO, locale, msg);
     }

@@ -1,5 +1,7 @@
 package com.gymprofit.bot.services;
 
+import com.gymprofit.bot.db.DescansoEstado;
+import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.Sancion;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscord;
@@ -12,10 +14,12 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -30,9 +34,15 @@ class PrivacidadServiceTest {
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
     private final WarnRepositorio warns = mock(WarnRepositorio.class);
     private final SancionRepositorio sanciones = mock(SancionRepositorio.class);
+    private final DescansoRepositorio descanso = mock(DescansoRepositorio.class);
     private final Cifrador cifrador = new Cifrador(Cifrador.generarClaveBase64());
     private final PrivacidadService servicio =
-            new PrivacidadService(usuarios, warns, sanciones, cifrador);
+            new PrivacidadService(usuarios, warns, sanciones, descanso, cifrador);
+
+    /** Por defecto nadie tiene fila de descanso; el test que lo necesita la simula. */
+    PrivacidadServiceTest() {
+        when(descanso.buscar(anyLong())).thenReturn(Optional.empty());
+    }
 
     @Test
     void borrarEliminaUsuarioYSanciones() {
@@ -65,6 +75,21 @@ class PrivacidadServiceTest {
     }
 
     @Test
+    void exportarIncluyeElDescanso() {
+        when(usuarios.buscar(anyLong())).thenReturn(Optional.empty());
+        when(warns.listarPorUsuario(anyLong(), anyInt(), anyInt())).thenReturn(List.of());
+        when(sanciones.listarTodasDelUsuario(anyLong(), anyInt())).thenReturn(List.of());
+        when(descanso.buscar(100L)).thenReturn(Optional.of(new DescansoEstado(100L, null,
+                Instant.parse("2026-07-15T08:00:00Z"), 2, LocalDate.of(2026, 7, 15), null)));
+
+        DataObject json = servicio.exportar(100L);
+
+        assertEquals(2, json.getObject("descanso").getInt("consumidos_hoy"));
+        assertEquals("2026-07-15T08:00:00Z",
+                json.getObject("descanso").getString("ultimo_despertar"));
+    }
+
+    @Test
     void exportarSinUsuarioDevuelveColeccionesVacias() {
         when(usuarios.buscar(anyLong())).thenReturn(Optional.empty());
         when(warns.listarPorUsuario(anyLong(), anyInt(), anyInt())).thenReturn(List.of());
@@ -74,5 +99,7 @@ class PrivacidadServiceTest {
 
         assertEquals(0, json.getArray("avisos").length());
         assertEquals(0, json.getArray("sanciones").length());
+        // Quien nunca ha dormido no tiene fila: el export no la inventa (ni la crea).
+        assertFalse(json.hasKey("descanso"));
     }
 }

@@ -67,6 +67,8 @@ convertible. By block:
 
 - **Character & progression:** `/perfil` (ver · balance · insignias) · `/rank` · `/daily` ·
   `/entrenar` · `/estudiar` · automatic level ranks.
+- **Rest:** `/descansar` (dormir · despertar · estado). Energy comes back by **sleeping**, and the
+  better your bed (sleeping bag, mattress, flat, house… or a hotel) the higher you can go.
 - **Work & shop:** `/trabajo` (lista · elegir · currar) · `/tienda` · `/comprar` ·
   `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar`.
 - **Combat:** `/mundos` · `/monstruos` · `/pelear` (turn-based, buttons) · `/mazmorra` ·

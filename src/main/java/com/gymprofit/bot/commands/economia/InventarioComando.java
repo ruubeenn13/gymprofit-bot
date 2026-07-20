@@ -3,6 +3,7 @@ package com.gymprofit.bot.commands.economia;
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
+import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.ItemService;
 import com.gymprofit.bot.services.ItemService.ResultadoUso;
 import com.gymprofit.bot.services.Items;
@@ -131,6 +132,7 @@ public final class InventarioComando implements Comando {
             case NO_EXISTE -> Messages.get(locale, "comprar.noexiste");
             case NO_CONSUMIBLE -> Messages.get(locale, "usar.noconsumible");
             case NO_TIENE -> Messages.get(locale, "usar.notiene", nombre);
+            case LLENO -> Messages.get(locale, "usar.lleno", DescansoService.MAX_CONSUMOS_DIA);
         };
         evento.getHook().sendMessageEmbeds(
                 EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje)).queue();

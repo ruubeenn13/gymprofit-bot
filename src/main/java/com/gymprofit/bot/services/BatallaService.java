@@ -50,7 +50,8 @@ public final class BatallaService {
 
     /** Estado del intento de iniciar una pelea. */
     public enum InicioEstado {
-        OK, MONSTRUO_NO_EXISTE, MUNDO_BLOQUEADO, NIVEL_INSUFICIENTE, SIN_ENERGIA, EN_COOLDOWN
+        OK, MONSTRUO_NO_EXISTE, MUNDO_BLOQUEADO, NIVEL_INSUFICIENTE, SIN_ENERGIA, EN_COOLDOWN,
+        DORMIDO
     }
 
     /**
@@ -106,25 +107,28 @@ public final class BatallaService {
     private final EconomiaRepositorio economia;
     private final XpService xp;
     private final MundoRepositorio mundos;
+    private final DescansoService descanso;
     private final Aleatorio azar;
 
     public BatallaService(PersonajeRepositorio personajes, InventarioRepositorio inventario,
                           UsuarioDiscordRepositorio usuarios, EconomiaRepositorio economia,
-                          XpService xp, MundoRepositorio mundos, Aleatorio azar) {
+                          XpService xp, MundoRepositorio mundos, DescansoService descanso,
+                          Aleatorio azar) {
         this.personajes = personajes;
         this.inventario = inventario;
         this.usuarios = usuarios;
         this.economia = economia;
         this.xp = xp;
         this.mundos = mundos;
+        this.descanso = descanso;
         this.azar = azar;
     }
 
     /** Constructor de producción: azar real ({@link ThreadLocalRandom}). */
     public BatallaService(PersonajeRepositorio personajes, InventarioRepositorio inventario,
                           UsuarioDiscordRepositorio usuarios, EconomiaRepositorio economia,
-                          XpService xp, MundoRepositorio mundos) {
-        this(personajes, inventario, usuarios, economia, xp, mundos,
+                          XpService xp, MundoRepositorio mundos, DescansoService descanso) {
+        this(personajes, inventario, usuarios, economia, xp, mundos, descanso,
                 () -> ThreadLocalRandom.current().nextDouble());
     }
 
@@ -139,6 +143,11 @@ public final class BatallaService {
         }
         Monstruos monstruo = mo.get();
         usuarios.obtenerOCrear(discordId);
+        // Dormido no se pelea: se comprueba antes de gastar energía o mirar cooldowns, para que el
+        // intento salga gratis y el listener pueda ofrecer despertar.
+        if (descanso.estaDormido(discordId)) {
+            return new ResultadoInicio(InicioEstado.DORMIDO, null, 0);
+        }
         Personaje p = personajes.obtenerOCrear(discordId);
 
         // Mundo desbloqueado (jefe del anterior derrotado).
@@ -178,6 +187,10 @@ public final class BatallaService {
             return new ResultadoInicio(InicioEstado.MONSTRUO_NO_EXISTE, null, 0);
         }
         usuarios.obtenerOCrear(discordId);
+        // Misma guarda que en iniciar: dormido no se entra a la mazmorra.
+        if (descanso.estaDormido(discordId)) {
+            return new ResultadoInicio(InicioEstado.DORMIDO, null, 0);
+        }
         Personaje p = personajes.obtenerOCrear(discordId);
         Mundos mundo = Mundos.porId(mz.mundo()).orElseThrow();
         if (!MundoService.estaDesbloqueado(mundo, mundos.completados(discordId))) {

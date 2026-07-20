@@ -119,6 +119,29 @@ public final class PersonajeRepositorio {
                 });
     }
 
+    /**
+     * Suma energía respetando un <b>tope</b> propio de la cama en la que se ha dormido (ver
+     * {@code Camas}: en el suelo no se pasa de 60 aunque se duerman las 9 h).
+     *
+     * <p>Ojo con el {@code GREATEST}, que no es decorativo: sin él, dormir en el suelo (tope 60)
+     * teniendo 80 de energía la <b>bajaría</b> a 60. El resultado es
+     * {@code max(energia, min(tope, energia + cantidad))}, así que dormir nunca resta: como mucho,
+     * no suma.
+     *
+     * @param discordId jugador
+     * @param cantidad  energía a sumar
+     * @param tope      energía máxima alcanzable con esa cama
+     */
+    public void sumarEnergiaConTope(long discordId, int cantidad, int tope) {
+        ejecutar("UPDATE personajes SET energia = GREATEST(energia, LEAST(?, energia + ?)) "
+                        + "WHERE discord_id = ?",
+                ps -> {
+                    ps.setInt(1, tope);
+                    ps.setInt(2, cantidad);
+                    ps.setLong(3, discordId);
+                });
+    }
+
     /** Suma salud a un personaje (tope 100). Para consumibles. */
     public void sumarSalud(long discordId, int cantidad) {
         ejecutar("UPDATE personajes SET salud = LEAST(100, salud + ?) WHERE discord_id = ?",
@@ -128,11 +151,21 @@ public final class PersonajeRepositorio {
                 });
     }
 
-    /** Regenera energía a todos los personajes (job periódico): {@code +cantidad}, tope 100. */
+    /**
+     * Regenera energía a todos los personajes (job periódico): {@code +cantidad}, tope 100.
+     *
+     * <p>Salta a los que están dormidos: esos ya cobran su energía de golpe al despertar
+     * ({@code DescansoService}), así que sumarles también el goteo del job sería doble ración.
+     * El {@code NOT EXISTS} cubre además a quien no tiene fila en {@code descanso} (nunca ha
+     * dormido): sin fila no está dormido, y debe regenerar con normalidad.
+     */
     public int regenerarEnergia(int cantidad) {
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(
-                     "UPDATE personajes SET energia = LEAST(100, energia + ?) WHERE energia < 100")) {
+                     "UPDATE personajes SET energia = LEAST(100, energia + ?) WHERE energia < 100 "
+                             + "AND NOT EXISTS (SELECT 1 FROM descanso d "
+                             + "WHERE d.discord_id = personajes.discord_id "
+                             + "AND d.dormido_desde IS NOT NULL)")) {
             ps.setInt(1, cantidad);
             return ps.executeUpdate();
         } catch (SQLException e) {

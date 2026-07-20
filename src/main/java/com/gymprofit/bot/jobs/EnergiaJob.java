@@ -11,14 +11,22 @@ import java.util.concurrent.TimeUnit;
 /**
  * Regenera la energía de todos los personajes cada {@value #INTERVALO_MIN} minutos
  * ({@code +}{@value #REGEN} hasta 100). Es el freno de ritmo del RPG: trabajar/entrenar gasta
- * energía y esta vuelve poco a poco (recarga completa en varias horas).
+ * energía y esta vuelve poco a poco.
+ *
+ * <p>Este goteo es solo el <b>mínimo vital</b> para quien no juega: el grueso de la energía se gana
+ * durmiendo ({@code /descansar}). Antes regalaba +10 y recargaba solo en ~5 h, lo que equivalía a
+ * más acciones y más coins por día sin participar; el ritmo total se mantiene, pero ahora pasa por
+ * el ciclo de descanso.
+ *
+ * <p>A los dormidos no les regenera: ya cobran su energía al despertar, y sumar las dos vías sería
+ * doble ración (ver {@code PersonajeRepositorio#regenerarEnergia}).
  */
 public final class EnergiaJob {
 
     private static final Logger log = LoggerFactory.getLogger(EnergiaJob.class);
     private static final long INTERVALO_MIN = 30;
-    /** Energía recuperada por tick (recarga total ~5 h). */
-    public static final int REGEN = 10;
+    /** Energía recuperada por tick. La mitad que antes: el resto se gana durmiendo. */
+    public static final int REGEN = 5;
 
     private final PersonajeRepositorio personajes;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {

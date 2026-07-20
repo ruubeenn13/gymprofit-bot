@@ -69,6 +69,8 @@ ni convertibles. Por bloques:
 
 - **Personaje y progresión:** `/perfil` (ver · balance · insignias) · `/rank` · `/daily` ·
   `/entrenar` · `/estudiar` · rangos automáticos por nivel.
+- **Descanso:** `/descansar` (dormir · despertar · estado). La energía se recupera **durmiendo**, y
+  cuanto mejor sea tu cama (saco, colchón, piso, casa… o un hotel) más alto llegas.
 - **Trabajo y tienda:** `/trabajo` (lista · elegir · currar) · `/tienda` · `/comprar` ·
   `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar`.
 - **Combate:** `/mundos` · `/monstruos` · `/pelear` (por turnos, botones) · `/mazmorra` ·
@@ -144,8 +146,8 @@ API (SPEC §14 / ADR-004); ver [`docs/decisions.md`](docs/decisions.md).
 
 **Qué se guarda.** En la BD del bot (`gymprofit_bot` en Aiven MySQL, separada de la de la app) solo
 tu **`discord_id`** (identificador público de Discord) y datos de comunidad: XP, nivel, monedas,
-racha, idioma y, si te han moderado, tus avisos/sanciones. **No** se guardan nombres reales, emails
-ni contraseñas.
+racha, idioma, tu estado de juego (personaje, inventario, descanso…) y, si te han moderado, tus
+avisos/sanciones. **No** se guardan nombres reales, emails ni contraseñas.
 
 **Cómo se protege.** Cifrado en reposo (Aiven) + TLS en tránsito (`sslMode=REQUIRED`). El **texto
 libre** con posible dato personal (motivos de sanción, apodos previos) se guarda **cifrado con

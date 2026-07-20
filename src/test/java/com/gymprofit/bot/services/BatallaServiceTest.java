@@ -11,6 +11,7 @@ import com.gymprofit.bot.services.BatallaService.Botin;
 import com.gymprofit.bot.services.BatallaService.Desenlace;
 import com.gymprofit.bot.services.BatallaService.InicioEstado;
 import com.gymprofit.bot.services.BatallaService.Turno;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -44,10 +45,18 @@ class BatallaServiceTest {
     private final EconomiaRepositorio economia = mock(EconomiaRepositorio.class);
     private final XpService xp = mock(XpService.class);
     private final MundoRepositorio mundos = mock(MundoRepositorio.class);
+    private final DescansoService descanso = mock(DescansoService.class);
+
+    /** Estos tests pelean despiertos: el bloqueo por sueño se prueba aparte. */
+    @BeforeEach
+    void despierto() {
+        when(descanso.estaDormido(anyLong())).thenReturn(false);
+    }
 
     /** Servicio con azar fijo (factor de daño = 1.0). */
     private BatallaService svc(double azar) {
-        return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, () -> azar);
+        return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, descanso,
+                () -> azar);
     }
 
     private static Personaje personaje(int fuerza, int resistencia) {
@@ -77,7 +86,8 @@ class BatallaServiceTest {
     }
 
     private BatallaService svc(BatallaService.Aleatorio azar) {
-        return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, azar);
+        return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, descanso,
+                azar);
     }
 
     // ---------------------- Turnos ----------------------
@@ -311,6 +321,21 @@ class BatallaServiceTest {
                 new UsuarioDiscord(1L, 0, 10, 0, 0, null, null, false)));
         when(personajes.gastarEnergia(1L, BatallaService.ENERGIA_POR_PELEA)).thenReturn(false);
         assertEquals(InicioEstado.SIN_ENERGIA, svc(0.5).iniciar(1L, "lobo").estado()); // bosque, nivel 0 ok
+    }
+
+    @Test
+    void dormidoNoPuedePelear() {
+        when(descanso.estaDormido(1L)).thenReturn(true);
+        assertEquals(InicioEstado.DORMIDO, svc(0.5).iniciar(1L, "lobo").estado());
+        // El intento sale gratis: dormido no se gasta energía.
+        verify(personajes, never()).gastarEnergia(anyLong(), anyInt());
+    }
+
+    @Test
+    void dormidoNoPuedeEntrarEnMazmorra() {
+        when(descanso.estaDormido(1L)).thenReturn(true);
+        assertEquals(InicioEstado.DORMIDO, svc(0.5).iniciarMazmorra(1L, "guarida_lobos").estado());
+        verify(personajes, never()).gastarEnergia(anyLong(), anyInt());
     }
 
     @Test

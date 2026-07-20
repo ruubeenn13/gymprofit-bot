@@ -86,6 +86,9 @@ public record Items(String id, Categoria categoria, String emoji, long precio, E
             new Items("telescopio", Categoria.EQUIPO, "🔭", 2200, Efecto.NINGUNO, 0),
             new Items("dron", Categoria.EQUIPO, "🚁", 4000, Efecto.NINGUNO, 0),
             // --- Bienes (estatus; efectos pasivos en fases posteriores) ---
+            // Camas baratas: primer escalón de descanso antes de poder pagar una vivienda.
+            new Items("saco_dormir", Categoria.BIEN, "🎒", 150, Efecto.NINGUNO, 0),
+            new Items("colchon", Categoria.BIEN, "🛏️", 600, Efecto.NINGUNO, 0),
             new Items("piso", Categoria.BIEN, "🏢", 25000, Efecto.NINGUNO, 0),
             new Items("coche", Categoria.BIEN, "🚗", 35000, Efecto.NINGUNO, 0),
             new Items("casa", Categoria.BIEN, "🏠", 80000, Efecto.NINGUNO, 0),

@@ -1,5 +1,7 @@
 package com.gymprofit.bot.services;
 
+import com.gymprofit.bot.db.DescansoEstado;
+import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.Sancion;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscord;
@@ -17,6 +19,9 @@ import java.util.Optional;
  * Herramientas de privacidad (RGPD): exportar todo lo que el bot guarda de un usuario
  * (acceso/portabilidad) y borrarlo por completo (derecho al olvido). Los motivos cifrados se
  * descifran solo para el propio usuario en el export.
+ *
+ * <p>El borrado no enumera todas las tablas del jugador: basta con {@code usuarios_discord}, porque
+ * el resto (incluido {@code descanso}) cuelga de ella con {@code ON DELETE CASCADE}.
  */
 public final class PrivacidadService {
 
@@ -30,13 +35,16 @@ public final class PrivacidadService {
     private final UsuarioDiscordRepositorio usuarios;
     private final WarnRepositorio warns;
     private final SancionRepositorio sanciones;
+    private final DescansoRepositorio descanso;
     private final Cifrador cifrador;
 
     public PrivacidadService(UsuarioDiscordRepositorio usuarios, WarnRepositorio warns,
-                             SancionRepositorio sanciones, Cifrador cifrador) {
+                             SancionRepositorio sanciones, DescansoRepositorio descanso,
+                             Cifrador cifrador) {
         this.usuarios = usuarios;
         this.warns = warns;
         this.sanciones = sanciones;
+        this.descanso = descanso;
         this.cifrador = cifrador;
     }
 
@@ -84,6 +92,15 @@ public final class PrivacidadService {
                     .put("fecha", s.creadoEn().toString()));
         }
         raiz.put("sanciones", sancionesJson);
+
+        // El descanso también es dato del usuario: derecho de acceso y portabilidad (ADR-009). Se
+        // consulta con buscar() y no con obtenerOCrear(): pedir tus datos no puede crearte una fila.
+        descanso.buscar(discordId).ifPresent(d -> raiz.put("descanso", DataObject.empty()
+                .put("dormido_desde", d.dormidoDesde() == null ? null : d.dormidoDesde().toString())
+                .put("ultimo_despertar",
+                        d.ultimoDespertar() == null ? null : d.ultimoDespertar().toString())
+                .put("consumidos_hoy", d.consumidosHoy())
+                .put("dia_consumos", d.diaConsumos() == null ? null : d.diaConsumos().toString())));
         return raiz;
     }
 

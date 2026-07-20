@@ -123,12 +123,22 @@ public final class TrabajoComando implements Comando {
     private void currar(SlashCommandInteractionEvent evento, Locale locale) {
         evento.deferReply(false).queue();
         ResultadoWork r = trabajos.trabajar(evento.getUser().getIdLong(), Instant.now());
+        // Dormido: en vez de un aviso seco, el embed con botones para seguir durmiendo o despertar.
+        if (r.estado() == TrabajoService.EstadoWork.DORMIDO) {
+            evento.getHook().sendMessageEmbeds(DescansoComando.embedBloqueado(locale))
+                    .setComponents(DescansoComando.botonesBloqueado(locale,
+                            evento.getUser().getIdLong()))
+                    .queue();
+            return;
+        }
         String desc = switch (r.estado()) {
             case OK -> Messages.get(locale, "work.ok", r.pago(), r.energiaRestante());
             case SIN_TRABAJO -> Messages.get(locale, "work.sintrabajo");
             case EN_COOLDOWN -> Messages.get(locale, "work.cooldown",
                     Duraciones.formatear(r.segundosRestantes()));
             case SIN_ENERGIA -> Messages.get(locale, "work.sinenergia");
+            // Inalcanzable: DORMIDO sale por el return de arriba (necesita botones, no solo texto).
+            case DORMIDO -> throw new IllegalStateException("DORMIDO ya tratado");
         };
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "work.titulo"), desc).build();

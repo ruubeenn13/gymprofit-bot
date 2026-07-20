@@ -42,12 +42,22 @@ public final class MinarComando implements Comando {
         evento.deferReply(false).queue();
         Resultado r = mineria.minar(evento.getUser().getIdLong());
 
+        // Dormido: embed con botones (seguir durmiendo / despertar) en vez de un aviso de texto.
+        if (r.estado() == MineriaService.Estado.DORMIDO) {
+            evento.getHook().sendMessageEmbeds(DescansoComando.embedBloqueado(locale))
+                    .setComponents(DescansoComando.botonesBloqueado(locale,
+                            evento.getUser().getIdLong()))
+                    .queue();
+            return;
+        }
         String mensaje = switch (r.estado()) {
             case OK -> mensajeExito(locale, r);
             case SIN_PICO -> Messages.get(locale, "minar.sinpico");
             case PICO_ROTO -> Messages.get(locale, "minar.picoroto");
             case SIN_ENERGIA -> Messages.get(locale, "minar.sinenergia", r.detalle());
             case EN_COOLDOWN -> Messages.get(locale, "minar.cooldown", r.detalle());
+            // Inalcanzable: DORMIDO sale por el return de arriba (necesita botones, no solo texto).
+            case DORMIDO -> throw new IllegalStateException("DORMIDO ya tratado");
         };
         evento.getHook().sendMessageEmbeds(
                 EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje)).queue();

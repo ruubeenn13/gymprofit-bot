@@ -46,6 +46,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
 
 ### Añadido
+- **RPG — descanso y energía**: la energía ya no sube sola: ahora **se duerme**.
+  `/descansar dormir` te acuesta y `/descansar despertar` te levanta dándote energía **según lo que
+  hayas dormido de verdad** — una siesta de 20 min da poco, ocho horas te dejan nuevo (máx. 9 h). La
+  siesta no necesita comando: es dormir poco y ganar poco. Dónde duermes importa: en el suelo no
+  pasas de 60 de energía, con un colchón llegas a 85 y con piso o casa propia a 100, así que **las
+  viviendas por fin sirven para algo**; si aún no tienes, el hotel (200 coins la noche, se cobra al
+  acostarte) te saca del apuro. Tu **resistencia** también cuenta: cada punto te hace descansar un
+  1 % más rápido (hasta +50 %), así que entrenar ya no solo sirve para pelear, aunque no rompe el
+  tope de la cama. Mientras duermes no puedes currar, pelear ni minar: si lo intentas, el bot te
+  pregunta con dos botones si sigues durmiendo o te levantas (nunca te despierta solo). Además:
+  **fatiga** si pasas 24 h sin dormir (recuperas la mitad y cobras un 20 % menos),
+  **saciedad** (máximo 3 consumibles al día, para que no se compre energía infinita) y con la salud
+  por los suelos se duerme peor. La regeneración pasiva baja de +10 a **+5 cada 30 min** y no llega
+  a los dormidos: el ritmo total es parecido, pero ahora se juega. Migración **V23** (tabla
+  `descanso`), ítems nuevos 🎒 saco de dormir (150) y 🛏️ colchón (600), `DescansoService` con el
+  cálculo puro y testeado, y el descanso incluido en el export de `/privacidad exportar` (RGPD).
 - **RPG — robar** (extra, con riesgo): `/robar <usuario>` intenta robarle coins a otro jugador. Con
   suerte te llevas un 15 % de su monedero (con tope); si te pillan, pagas una multa a la víctima (así
   el robo es de suma cero, no infla la economía). Cooldown de 30 min para evitar el spam.

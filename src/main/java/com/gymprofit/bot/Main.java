@@ -16,6 +16,7 @@ import com.gymprofit.bot.commands.economia.CasinoComando;
 import com.gymprofit.bot.commands.economia.CofresComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
+import com.gymprofit.bot.commands.economia.DescansoComando;
 import com.gymprofit.bot.commands.economia.GremioComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
@@ -60,6 +61,7 @@ import com.gymprofit.bot.commands.privacidad.PrivacidadComando;
 import com.gymprofit.bot.config.BotConfig;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
+import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.BancoRepositorio;
@@ -89,6 +91,7 @@ import com.gymprofit.bot.services.DueloService;
 import com.gymprofit.bot.services.GremioService;
 import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.CrafteoService;
+import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
@@ -118,6 +121,7 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.CombateListener;
+import com.gymprofit.bot.events.DescansoListener;
 import com.gymprofit.bot.events.DueloListener;
 import com.gymprofit.bot.events.TruequeListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
@@ -295,9 +299,11 @@ public final class Main {
             listeners.add(new ModlogsPaginadorListener(moderacion));
             comandos.add(new CanalComando(configService));
 
-            // Privacidad (RGPD): acceso, portabilidad, olvido + job de retención.
+            // Privacidad (RGPD): acceso, portabilidad, olvido + job de retención. El repo de
+            // descanso se crea aquí (y se reutiliza abajo) porque el export lo incluye.
+            DescansoRepositorio descansoRepo = new DescansoRepositorio(db.dataSource());
             PrivacidadService privacidad =
-                    new PrivacidadService(usuarios, warnRepo, sancionRepo, cifrador);
+                    new PrivacidadService(usuarios, warnRepo, sancionRepo, descansoRepo, cifrador);
             comandos.add(new PrivacidadComando(privacidad));
             listeners.add(new BorrarDatosListener(privacidad));
             new RetencionJob(warnRepo, sancionRepo).iniciar();
@@ -320,22 +326,33 @@ public final class Main {
             // Economía / RPG: monedero, daily, perfil, trabajos y energía.
             PersonajeRepositorio personajeRepo = new PersonajeRepositorio(db.dataSource());
             EconomiaRepositorio economiaRepo = new EconomiaRepositorio(db.dataSource());
+            // El inventario se crea aquí arriba (y no con la tienda) porque el descanso lo necesita:
+            // la cama sale del inventario y el descanso va antes que trabajo, batalla y minería.
+            InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
             EconomiaService economiaService =
                     new EconomiaService(economiaRepo, personajeRepo, usuarios);
             comandos.add(new DailyComando(economiaService));
             comandos.add(new RankComando(economiaService, usuarios, rangoService));
 
+            // Descanso: dormir es un estado; al despertar se gana energía según cama y tiempo.
+            // Se construye antes que TrabajoService, BatallaService y MineriaService: los tres lo
+            // reciben por constructor para bloquear al que lo intente estando dormido.
+            DescansoService descansoService = new DescansoService(
+                    descansoRepo, personajeRepo, inventarioRepo, economiaRepo, usuarios);
+            comandos.add(new DescansoComando(descansoService));
+            listeners.add(new DescansoListener(descansoService));
+
             // /trabajo agrupa lista, elegir y currar.
-            TrabajoService trabajoService = new TrabajoService(personajeRepo, economiaRepo, usuarios);
+            TrabajoService trabajoService =
+                    new TrabajoService(personajeRepo, economiaRepo, usuarios, descansoService);
             comandos.add(new TrabajoComando(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();
 
             // Tienda e inventario.
-            InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
             ItemService itemService =
-                    new ItemService(economiaRepo, inventarioRepo, personajeRepo, usuarios);
+                    new ItemService(economiaRepo, inventarioRepo, personajeRepo, usuarios, descansoService);
             VentaService ventaService = new VentaService(inventarioRepo, economiaRepo, usuarios);
             comandos.add(new TiendaComando());
             comandos.add(new ComprarComando(itemService));
@@ -355,8 +372,8 @@ public final class Main {
             comandos.add(new MonstruosComando());
 
             // Combate (COMBAT-3): batalla por turnos con botones.
-            BatallaService batallaService = new BatallaService(
-                    personajeRepo, inventarioRepo, usuarios, economiaRepo, xpService, mundoRepo);
+            BatallaService batallaService = new BatallaService(personajeRepo, inventarioRepo,
+                    usuarios, economiaRepo, xpService, mundoRepo, descansoService);
             // Misiones de caza (COMBAT-6a): se completan al vencer en combate.
             MisionService misionService = new MisionService(
                     new MisionRepositorio(db.dataSource()), economiaRepo, xpService, usuarios);
@@ -372,7 +389,7 @@ public final class Main {
             // Minería (COMBAT-5): minar recursos, repararlos picos y venderlos.
             MineriaRepositorio mineriaRepo = new MineriaRepositorio(db.dataSource());
             MineriaService mineriaService = new MineriaService(mineriaRepo,
-                    personajeRepo, inventarioRepo, economiaRepo, usuarios);
+                    personajeRepo, inventarioRepo, economiaRepo, usuarios, descansoService);
             comandos.add(new MinarComando(mineriaService));
             comandos.add(new RepararComando(mineriaService));
 

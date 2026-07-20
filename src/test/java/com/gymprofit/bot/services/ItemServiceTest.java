@@ -19,15 +19,24 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Verifica compra (con/sin saldo) y uso de consumibles (aplican efecto) con repos simulados. */
+/**
+ * Verifica compra (con/sin saldo), uso de consumibles (aplican efecto) y la <b>saciedad</b> (máximo
+ * de consumibles al día) con repos simulados.
+ */
 class ItemServiceTest {
 
     private final EconomiaRepositorio economia = mock(EconomiaRepositorio.class);
     private final InventarioRepositorio inventario = mock(InventarioRepositorio.class);
     private final PersonajeRepositorio personajes = mock(PersonajeRepositorio.class);
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
+    private final DescansoService descanso = mock(DescansoService.class);
     private final ItemService servicio =
-            new ItemService(economia, inventario, personajes, usuarios);
+            new ItemService(economia, inventario, personajes, usuarios, descanso);
+
+    /** Por defecto el jugador tiene hueco: los tests de saciedad lo sobrescriben. */
+    ItemServiceTest() {
+        when(descanso.puedeConsumir(anyLong())).thenReturn(true);
+    }
 
     @Test
     void comprarConSaldoAnadeAlInventario() {
@@ -57,6 +66,31 @@ class ItemServiceTest {
         var r = servicio.usar(1L, "batido");
         assertEquals(EstadoUso.OK, r.estado());
         verify(personajes).sumarEnergia(1L, 25); // batido = +25 energía
+    }
+
+    @Test
+    void usarConsumibleApuntaElConsumoDelDia() {
+        when(inventario.quitar(1L, "batido", 1)).thenReturn(true);
+        servicio.usar(1L, "batido");
+        verify(descanso).registrarConsumo(1L);
+    }
+
+    @Test
+    void saciedadCortaAlCuartoConsumible() {
+        when(descanso.puedeConsumir(1L)).thenReturn(false);
+
+        var r = servicio.usar(1L, "batido");
+
+        assertEquals(EstadoUso.LLENO, r.estado());
+        // No se toca el inventario: el intento sale gratis, no se come el ítem.
+        verify(inventario, never()).quitar(anyLong(), anyString(), anyInt());
+    }
+
+    @Test
+    void laSaciedadNoAfectaALoQueNoSeConsume() {
+        when(descanso.puedeConsumir(1L)).thenReturn(false);
+        // Un ítem de equipo falla por no ser consumible, no por saciedad.
+        assertEquals(EstadoUso.NO_CONSUMIBLE, servicio.usar(1L, "coche").estado());
     }
 
     @Test

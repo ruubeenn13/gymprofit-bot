@@ -8,6 +8,7 @@ import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.services.MineriaService.Estado;
 import com.gymprofit.bot.services.MineriaService.EstadoReparar;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -31,9 +32,17 @@ class MineriaServiceTest {
     private final InventarioRepositorio inventario = mock(InventarioRepositorio.class);
     private final EconomiaRepositorio economia = mock(EconomiaRepositorio.class);
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
+    private final DescansoService descanso = mock(DescansoService.class);
+
+    /** Estos tests minan despiertos: el bloqueo por sueño se prueba aparte. */
+    @BeforeEach
+    void despierto() {
+        when(descanso.estaDormido(anyLong())).thenReturn(false);
+    }
 
     private MineriaService svc(double azar) {
-        return new MineriaService(mineria, personajes, inventario, economia, usuarios, () -> azar);
+        return new MineriaService(mineria, personajes, inventario, economia, usuarios, descanso,
+                () -> azar);
     }
 
     /** Stub: todos los picos a durabilidad completa (devuelve el máximo pasado). */
@@ -47,6 +56,17 @@ class MineriaServiceTest {
         when(inventario.listar(1L)).thenReturn(Map.of("fruta", 3));
         assertEquals(Estado.SIN_PICO, svc(0.4).minar(1L).estado());
         verify(personajes, never()).gastarEnergia(anyLong(), anyInt());
+    }
+
+    @Test
+    void dormidoNoSePuedeMinar() {
+        when(descanso.estaDormido(1L)).thenReturn(true);
+        when(inventario.listar(1L)).thenReturn(Map.of("pico_madera", 1));
+        picosATope();
+        assertEquals(Estado.DORMIDO, svc(0.4).minar(1L).estado());
+        // El intento sale gratis: ni energía ni desgaste del pico.
+        verify(personajes, never()).gastarEnergia(anyLong(), anyInt());
+        verify(mineria, never()).gastarDurabilidad(anyLong(), anyString(), anyInt());
     }
 
     @Test

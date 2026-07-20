@@ -33,7 +33,7 @@ public final class MineriaService {
     public static final long COSTE_REPARAR_POR_PUNTO = 8;
 
     /** Estado del intento de minar. */
-    public enum Estado { OK, SIN_PICO, PICO_ROTO, SIN_ENERGIA, EN_COOLDOWN }
+    public enum Estado { OK, SIN_PICO, PICO_ROTO, SIN_ENERGIA, EN_COOLDOWN, DORMIDO }
 
     /** Estado del intento de reparar. */
     public enum EstadoReparar { OK, NO_ES_PICO, NO_TIENE, YA_REPARADO, SIN_SALDO }
@@ -68,24 +68,27 @@ public final class MineriaService {
     private final InventarioRepositorio inventario;
     private final EconomiaRepositorio economia;
     private final UsuarioDiscordRepositorio usuarios;
+    private final DescansoService descanso;
     private final BatallaService.Aleatorio azar;
 
     public MineriaService(MineriaRepositorio mineria, PersonajeRepositorio personajes,
                           InventarioRepositorio inventario, EconomiaRepositorio economia,
-                          UsuarioDiscordRepositorio usuarios, BatallaService.Aleatorio azar) {
+                          UsuarioDiscordRepositorio usuarios, DescansoService descanso,
+                          BatallaService.Aleatorio azar) {
         this.mineria = mineria;
         this.personajes = personajes;
         this.inventario = inventario;
         this.economia = economia;
         this.usuarios = usuarios;
+        this.descanso = descanso;
         this.azar = azar;
     }
 
     /** Constructor de producción: azar real. */
     public MineriaService(MineriaRepositorio mineria, PersonajeRepositorio personajes,
                           InventarioRepositorio inventario, EconomiaRepositorio economia,
-                          UsuarioDiscordRepositorio usuarios) {
-        this(mineria, personajes, inventario, economia, usuarios,
+                          UsuarioDiscordRepositorio usuarios, DescansoService descanso) {
+        this(mineria, personajes, inventario, economia, usuarios, descanso,
                 () -> ThreadLocalRandom.current().nextDouble());
     }
 
@@ -94,9 +97,17 @@ public final class MineriaService {
         return (long) faltante * COSTE_REPARAR_POR_PUNTO * tier;
     }
 
-    /** Ejecuta un minado: valida pico/durabilidad/cooldown/energía, tira minerales y desgasta el pico. */
+    /**
+     * Ejecuta un minado: valida sueño/pico/durabilidad/cooldown/energía, tira minerales y desgasta el
+     * pico.
+     */
     public Resultado minar(long discordId) {
         usuarios.obtenerOCrear(discordId);
+        // Primera guarda: dormido no se pica. Va antes que todo lo demás para no gastar energía ni
+        // durabilidad al intentarlo, y para que el comando pueda ofrecer despertar.
+        if (descanso.estaDormido(discordId)) {
+            return fallo(Estado.DORMIDO, 0);
+        }
         List<Picos> propios = picosPropios(discordId);
         if (propios.isEmpty()) {
             return fallo(Estado.SIN_PICO, 0);
