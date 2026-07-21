@@ -85,6 +85,15 @@ class MigracionesTest {
                 // V24 aplicada: el histórico del ejercicio del día existe y arranca vacío.
                 assertEquals(0, contar(st, "SELECT COUNT(*) FROM ejercicio_dia"),
                         "ejercicio_dia debe existir y arrancar vacía");
+                // V25 aplicada: las ranuras de pasivos existen y arrancan vacías.
+                assertEquals(0, contar(st, "SELECT COUNT(*) FROM pasivos_equipados"),
+                        "pasivos_equipados debe existir y arrancar vacía");
+                // El UNIQUE que impide el mismo ítem en dos ranuras debe existir en el esquema (el
+                // service lo comprueba antes para dar un error bonito, pero la garantía dura es esta).
+                assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.statistics "
+                                + "WHERE table_name = 'pasivos_equipados' "
+                                + "AND index_name = 'uq_pasivos_item' AND seq_in_index = 1"),
+                        "pasivos_equipados debe tener el UNIQUE (discord_id, item_id)");
                 // warns.motivo debe ser TEXT (aloja el texto cifrado en base64).
                 assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_name = 'warns' AND column_name = 'motivo' "
