@@ -60,6 +60,7 @@ public final class EmbedFactory {
         ANUNCIO("📣", Categoria.MARCA),
         EJERCICIO("🏋️", Categoria.MARCA),
         BIENVENIDA("👋", Categoria.MARCA),
+        FRASE("💬", Categoria.MARCA),
         LOGRO("🏆", Categoria.LOGROS),
         RACHA("🔥", Categoria.LOGROS),
         ECONOMIA("🪙", Categoria.ECONOMIA),

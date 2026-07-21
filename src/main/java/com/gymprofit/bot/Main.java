@@ -8,6 +8,7 @@ import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaResolverComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
+import com.gymprofit.bot.commands.consultas.FraseComando;
 import com.gymprofit.bot.commands.contenido.PublicarComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
 import com.gymprofit.bot.commands.economia.BancoComando;
@@ -75,6 +76,7 @@ import com.gymprofit.bot.db.MisionRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
+import com.gymprofit.bot.db.FraseRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.SorteoRepositorio;
 import com.gymprofit.bot.db.SugerenciaRepositorio;
@@ -323,6 +325,11 @@ public final class Main {
                     new SugerenciaService(new SugerenciaRepositorio(db.dataSource()), usuarios);
             comandos.add(new SugerenciaComando(sugerenciaService));
             comandos.add(new SugerenciaResolverComando(sugerenciaService));
+
+            // Consultas (F1): el banco de frases solo necesita BD (los seeds de la V2).
+            FraseRepositorio fraseRepo = new FraseRepositorio(db.dataSource());
+            comandos.add(new FraseComando(fraseRepo,
+                    new Cooldown(java.time.Duration.ofSeconds(30))));
 
             // Economía / RPG: monedero, daily, perfil, trabajos y energía.
             PersonajeRepositorio personajeRepo = new PersonajeRepositorio(db.dataSource());

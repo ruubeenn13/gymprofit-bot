@@ -46,6 +46,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
 
 ### Añadido
+- **Nuevo comando `/frase`: tu dosis de motivación al momento**. El banco bilingüe sembrado en la
+  migración V2 (32 frases ES/EN) dejaba de ser algo interno: `/frase` devuelve una al azar en el
+  idioma de quien la pide, con el autor si lo tiene. Respuesta pública —es contenido que aporta al
+  canal— con cooldown de 30 s por usuario para que nadie empapele el chat. Nuevo tipo de embed
+  `FRASE` (💬, naranja de marca) y repositorio de solo lectura `db/FraseRepositorio`.
 - **El bot ya sabe hablar con la app de GymProFit**: nueva capa `api/` (Retrofit2 + OkHttp3 +
   Gson) con `ApiClient` —Bearer de la cuenta de servicio por interceptor, renovación transparente
   ante 401 con refresh serializado y caída a login, timeouts de 60 s porque Render free duerme, y
