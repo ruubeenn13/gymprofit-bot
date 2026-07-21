@@ -1,8 +1,8 @@
 package com.gymprofit.bot.events;
 
-import com.gymprofit.bot.api.ApiException;
 import com.gymprofit.bot.api.dtos.EjercicioDTO;
 import com.gymprofit.bot.api.dtos.PaginaDTO;
+import com.gymprofit.bot.commands.consultas.ConsultaAsincrona;
 import com.gymprofit.bot.commands.consultas.EjerciciosComando;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
@@ -11,9 +11,10 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.GenericComponentInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -24,6 +25,11 @@ import java.util.concurrent.ExecutorService;
  * propio con {@code deferEdit()} previo (la API puede tardar en despertar).
  */
 public final class EjerciciosPaginadorListener extends ListenerAdapter {
+
+    private static final Logger log = LoggerFactory.getLogger(EjerciciosPaginadorListener.class);
+    /** Etiquetas para los logs de {@link ConsultaAsincrona} (qué control falló). */
+    private static final String ETIQUETA_NAV = "/ejercicios (navegación)";
+    private static final String ETIQUETA_SEL = "/ejercicios (ficha)";
 
     private final EjercicioService ejercicios;
     private final ExecutorService executor;
@@ -48,7 +54,10 @@ public final class EjerciciosPaginadorListener extends ListenerAdapter {
         if (prefijo == null) {
             return; // botón de otro comando
         }
-        var filtros = EjerciciosComando.Filtros.parsear(id, prefijo);
+        var filtros = parsear(id, prefijo);
+        if (filtros == null) {
+            return; // customId ilegible (ver parsear): ya se registró
+        }
         // El aviso de «no es tuyo» es una respuesta propia: comprobar ANTES de deferEdit(),
         // porque a una interacción solo se le puede responder una vez.
         if (!esDueno(evento, filtros.ownerId())) {
@@ -56,19 +65,17 @@ public final class EjerciciosPaginadorListener extends ListenerAdapter {
         }
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         evento.deferEdit().queue();
-        CompletableFuture.runAsync(() -> {
-            try {
-                PaginaDTO<EjercicioDTO> pagina = ejercicios.buscar(filtros.busqueda(),
-                        filtros.grupo(), filtros.dificultad(), filtros.pagina(),
-                        locale.getLanguage());
-                evento.getHook().editOriginalEmbeds(
-                                EjerciciosComando.construirLista(locale, pagina, filtros))
-                        .setComponents(EjerciciosComando.construirComponentes(locale, pagina, filtros))
-                        .queue();
-            } catch (ApiException e) {
-                avisarError(evento, locale);
-            }
-        }, executor);
+        ConsultaAsincrona.ejecutar(evento, locale, executor, EmbedFactory.Tipo.STATS,
+                ConsultaAsincrona.Aviso.MANTENER_ORIGINAL, ETIQUETA_NAV, () -> {
+                    PaginaDTO<EjercicioDTO> pagina = ejercicios.buscar(filtros.busqueda(),
+                            filtros.grupo(), filtros.dificultad(), filtros.pagina(),
+                            locale.getLanguage());
+                    evento.getHook().editOriginalEmbeds(
+                                    EjerciciosComando.construirLista(locale, pagina))
+                            .setComponents(
+                                    EjerciciosComando.construirComponentes(locale, pagina, filtros))
+                            .queue(null, ConsultaAsincrona.fallo(ETIQUETA_NAV));
+                });
     }
 
     /** Menú desplegable: convierte el mismo mensaje en la ficha del ejercicio elegido. */
@@ -78,25 +85,51 @@ public final class EjerciciosPaginadorListener extends ListenerAdapter {
         if (!id.startsWith(EjerciciosComando.PREFIJO_SEL)) {
             return;
         }
-        var filtros = EjerciciosComando.Filtros.parsear(id, EjerciciosComando.PREFIJO_SEL);
+        var filtros = parsear(id, EjerciciosComando.PREFIJO_SEL);
+        if (filtros == null) {
+            return;
+        }
         if (!esDueno(evento, filtros.ownerId())) {
             return;
         }
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
-        // El value de la opción es el id del ejercicio (lo puso construirComponentes).
-        int ejercicioId = Integer.parseInt(evento.getValues().get(0));
+        // El value de la opción es el id del ejercicio (lo puso construirComponentes). Se parsea
+        // dentro del try por el mismo motivo que el customId: un menú viejo no debe dejar la
+        // interacción sin confirmar.
+        int ejercicioId;
+        try {
+            ejercicioId = Integer.parseInt(evento.getValues().get(0));
+        } catch (RuntimeException e) {
+            log.info("Opción de /ejercicios ilegible ({}): se ignora", evento.getValues());
+            return;
+        }
         evento.deferEdit().queue();
-        CompletableFuture.runAsync(() -> {
-            try {
-                EjercicioDTO ficha = ejercicios.porId(ejercicioId, locale.getLanguage());
-                evento.getHook().editOriginalEmbeds(
-                                EjerciciosComando.construirFicha(locale, ficha))
-                        .setComponents(EjerciciosComando.construirBotonVolver(locale, filtros))
-                        .queue();
-            } catch (ApiException e) {
-                avisarError(evento, locale);
-            }
-        }, executor);
+        ConsultaAsincrona.ejecutar(evento, locale, executor, EmbedFactory.Tipo.STATS,
+                ConsultaAsincrona.Aviso.MANTENER_ORIGINAL, ETIQUETA_SEL, () -> {
+                    EjercicioDTO ficha = ejercicios.porId(ejercicioId, locale.getLanguage());
+                    evento.getHook().editOriginalEmbeds(
+                                    EjerciciosComando.construirFicha(locale, ficha))
+                            .setComponents(EjerciciosComando.construirBotonVolver(locale, filtros))
+                            .queue(null, ConsultaAsincrona.fallo(ETIQUETA_SEL));
+                });
+    }
+
+    /**
+     * Parsea el estado del {@code customId} tolerando basura. Un id malformado o de una versión
+     * anterior del bot hacía saltar {@code NumberFormatException} /
+     * {@code ArrayIndexOutOfBoundsException} <b>antes</b> del {@code deferEdit()}: los eventos de
+     * componente no pasan por el guard de {@code RouterComandos}, así que la interacción se
+     * quedaba sin confirmar y el usuario veía «La aplicación no responde».
+     *
+     * @return el estado, o {@code null} si el id no es legible (ya registrado en el log)
+     */
+    private static EjerciciosComando.Filtros parsear(String customId, String prefijo) {
+        try {
+            return EjerciciosComando.Filtros.parsear(customId, prefijo);
+        } catch (RuntimeException e) {
+            log.info("customId de /ejercicios ilegible ({}): se ignora la interacción", customId);
+            return null;
+        }
     }
 
     /** Solo el dueño usa sus controles (como en el resto del bot); el aviso va efímero. */
@@ -108,11 +141,5 @@ public final class EjerciciosPaginadorListener extends ListenerAdapter {
         evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.STATS, locale,
                 Messages.get(locale, "ejercicios.noestuyo"))).setEphemeral(true).queue();
         return false;
-    }
-
-    /** El mensaje original se queda como está; el error va en followup efímero (regla 13). */
-    private static void avisarError(GenericComponentInteractionCreateEvent evento, Locale locale) {
-        evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.STATS, locale,
-                Messages.get(locale, "ejercicios.error"))).setEphemeral(true).queue();
     }
 }

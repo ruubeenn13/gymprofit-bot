@@ -1,6 +1,5 @@
 package com.gymprofit.bot.commands.consultas;
 
-import com.gymprofit.bot.api.ApiException;
 import com.gymprofit.bot.api.dtos.EjercicioDTO;
 import com.gymprofit.bot.api.dtos.PaginaDTO;
 import com.gymprofit.bot.commands.Comando;
@@ -22,7 +21,6 @@ import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -129,21 +127,16 @@ public final class EjerciciosComando implements Comando {
         // deferReply antes de tocar la API: Render puede tardar ~50 s en despertar y Discord
         // solo da 3 s sin defer. La llamada va al executor propio, nunca al hilo del gateway.
         evento.deferReply().queue();
-        CompletableFuture.runAsync(() -> {
-            try {
-                PaginaDTO<EjercicioDTO> pagina = ejercicios.buscar(filtros.busqueda(),
-                        filtros.grupo(), filtros.dificultad(), 0, locale.getLanguage());
-                evento.getHook().editOriginalEmbeds(construirLista(locale, pagina, filtros))
-                        .setComponents(construirComponentes(locale, pagina, filtros))
-                        .queue();
-            } catch (ApiException e) {
-                // El «pensando…» público se borra y el aviso va efímero (regla 13).
-                evento.getHook().deleteOriginal().queue();
-                evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.STATS,
-                                locale, Messages.get(locale, "ejercicios.error")))
-                        .setEphemeral(true).queue();
-            }
-        }, executor);
+        // Errores (API caída o cualquier otro) los gestiona ConsultaAsincrona: aquí solo va el
+        // camino feliz, y ningún fallo puede dejar el «pensando…» colgado.
+        ConsultaAsincrona.ejecutar(evento, locale, executor, EmbedFactory.Tipo.STATS,
+                ConsultaAsincrona.Aviso.BORRAR_ORIGINAL, "/" + NOMBRE, () -> {
+                    PaginaDTO<EjercicioDTO> pagina = ejercicios.buscar(filtros.busqueda(),
+                            filtros.grupo(), filtros.dificultad(), 0, locale.getLanguage());
+                    evento.getHook().editOriginalEmbeds(construirLista(locale, pagina))
+                            .setComponents(construirComponentes(locale, pagina, filtros))
+                            .queue(null, ConsultaAsincrona.fallo("/" + NOMBRE));
+                });
     }
 
     /** Valor de una opción opcional, con "" como «sin filtro» (lo que espera {@link Filtros}). */
@@ -153,8 +146,7 @@ public final class EjerciciosComando implements Comando {
     }
 
     /** Embed de una página de la lista (azul de consulta). Estático para test y listener. */
-    public static MessageEmbed construirLista(Locale locale, PaginaDTO<EjercicioDTO> pagina,
-                                              Filtros filtros) {
+    public static MessageEmbed construirLista(Locale locale, PaginaDTO<EjercicioDTO> pagina) {
         EmbedBuilder builder = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                 Messages.get(locale, "ejercicios.titulo"));
         if (pagina.content().isEmpty()) {
@@ -167,7 +159,7 @@ public final class EjerciciosComando implements Comando {
         // ve de un vistazo por dónde va uno cuando hay 100+ páginas.
         int n = pagina.page() * EjercicioService.TAMANO_PAGINA + 1;
         for (EjercicioDTO e : pagina.content()) {
-            desc.append("\n**").append(n++).append(". ").append(e.nombre()).append("**")
+            desc.append("\n**").append(n++).append(". ").append(nombreDe(e)).append("**")
                     .append(" — ").append(capitalizar(e.grupoMuscular()))
                     .append(" · ").append(capitalizar(e.dificultad()));
         }
@@ -193,15 +185,16 @@ public final class EjerciciosComando implements Comando {
                 .setPlaceholder(Messages.get(locale, "ejercicios.menu"));
         for (EjercicioDTO e : pagina.content()) {
             // El label admite 100 chars; los nombres del catálogo caben, pero por si acaso.
-            String nombre = e.nombre().length() > 100 ? e.nombre().substring(0, 100) : e.nombre();
-            menu.addOption(nombre, String.valueOf(e.id()));
+            String nombre = nombreDe(e);
+            menu.addOption(nombre.length() > 100 ? nombre.substring(0, 100) : nombre,
+                    String.valueOf(e.id()));
         }
         return List.of(ActionRow.of(anterior, siguiente), ActionRow.of(menu.build()));
     }
 
     /** Ficha completa de un ejercicio (imagen grande + campos). Estática para el listener. */
     public static MessageEmbed construirFicha(Locale locale, EjercicioDTO e) {
-        EmbedBuilder builder = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale, e.nombre());
+        EmbedBuilder builder = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale, nombreDe(e));
         if (e.descripcion() != null && !e.descripcion().isBlank()) {
             builder.setDescription(e.descripcion());
         }
@@ -235,6 +228,16 @@ public final class EjerciciosComando implements Comando {
     public static List<ActionRow> construirBotonVolver(Locale locale, Filtros filtros) {
         return List.of(ActionRow.of(Button.secondary(filtros.codificar(PREFIJO_VOLVER),
                 Messages.get(locale, "ejercicios.volver"))));
+    }
+
+    /**
+     * Nombre del ejercicio, garantizando texto no vacío. El resto de campos del DTO ya se
+     * comprobaban contra null y este no: un nombre nulo reventaba la lista con un NPE y, peor,
+     * uno vacío tumbaba la respuesta entera con el {@code IllegalArgumentException} que lanza
+     * {@code StringSelectMenu} al exigir label no vacío. Un guion es mejor que no responder.
+     */
+    static String nombreDe(EjercicioDTO e) {
+        return e.nombre() == null || e.nombre().isBlank() ? "—" : e.nombre();
     }
 
     /** {@code "PECHO"} → {@code "Pecho"} (los enums de la API gritan; el embed no). */

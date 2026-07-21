@@ -1,6 +1,5 @@
 package com.gymprofit.bot.commands.consultas;
 
-import com.gymprofit.bot.api.ApiException;
 import com.gymprofit.bot.api.dtos.EjercicioDTO;
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.db.EjercicioDia;
@@ -19,7 +18,6 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -58,21 +56,18 @@ public final class EjercicioDiaComando implements Comando {
     public void ejecutar(SlashCommandInteractionEvent evento) {
         Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         evento.deferReply().queue(); // la API puede estar despertando (~50 s)
-        // Todo el trabajo (API + BD) va al executor propio: nunca en el hilo del gateway.
-        CompletableFuture.runAsync(() -> {
-            try {
-                EjercicioDia dia = eleccion.deHoy();
-                EjercicioDTO ficha = ejercicios.porId(dia.ejercicioId(), locale.getLanguage());
-                Frase frase = frases.aleatoria().orElse(null);
-                evento.getHook().editOriginalEmbeds(construirEmbed(locale, ficha, frase)).queue();
-            } catch (ApiException e) {
-                // El «pensando…» público se borra y el aviso va efímero (regla 13).
-                evento.getHook().deleteOriginal().queue();
-                evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.EJERCICIO,
-                                locale, Messages.get(locale, "ejercicios.error")))
-                        .setEphemeral(true).queue();
-            }
-        }, executor);
+        // Todo el trabajo (API + BD) va al executor propio: nunca en el hilo del gateway. Aquí hay
+        // más que llamadas a la API —el sorteo del día puede perder la carrera del insert y las
+        // frases son JDBC—, así que el manejo de errores completo de ConsultaAsincrona es lo que
+        // impide que un fallo de BD deje el «pensando…» público colgado para siempre.
+        ConsultaAsincrona.ejecutar(evento, locale, executor, EmbedFactory.Tipo.EJERCICIO,
+                ConsultaAsincrona.Aviso.BORRAR_ORIGINAL, "/" + NOMBRE, () -> {
+                    EjercicioDia dia = eleccion.deHoy();
+                    EjercicioDTO ficha = ejercicios.porId(dia.ejercicioId(), locale.getLanguage());
+                    Frase frase = frases.aleatoria().orElse(null);
+                    evento.getHook().editOriginalEmbeds(construirEmbed(locale, ficha, frase))
+                            .queue(null, ConsultaAsincrona.fallo("/" + NOMBRE));
+                });
     }
 
     /**
@@ -94,7 +89,7 @@ public final class EjercicioDiaComando implements Comando {
                 + Messages.get(locale, "ejerciciodia.titulo"));
         // El nombre del ejercicio deja de ser el título, así que encabeza la descripción para no
         // perderse: el título ahora identifica el post, no el ejercicio.
-        builder.setDescription("## " + ejercicio.nombre()
+        builder.setDescription("## " + EjerciciosComando.nombreDe(ejercicio)
                 + (ficha.getDescription() == null ? "" : "\n" + ficha.getDescription()));
         if (frase != null) {
             String cita = "*«" + frase.texto(locale) + "»*";

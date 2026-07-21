@@ -6,6 +6,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin publicar]
 
+### Corregido
+- **Consultas — el bot ya no se queda «pensando» para siempre**: `/ejercicios`, `/ejercicio-dia` y
+  las flechas/ficha del catálogo hacían su trabajo en segundo plano capturando **solo** los fallos
+  de la API. Cualquier otro (la BD de frases, el sorteo del día perdiendo la carrera del insert, un
+  ejercicio sin nombre en el catálogo) se perdía en silencio: ni línea de log ni respuesta, y el
+  «pensando…» público se quedaba colgado. Ahora todo el módulo pasa por un punto único
+  (`ConsultaAsincrona`): API dormida → aviso amable de siempre; cualquier otro fallo → aviso
+  genérico al usuario y traza de error en el log.
+- **Consultas — ejercicios sin nombre**: un nombre nulo o vacío tumbaba la lista entera (y el menú
+  desplegable, que Discord no acepta con etiqueta vacía); ahora se pinta un guion como en el resto
+  de campos.
+- **Consultas — botones viejos**: un `customId` ilegible (de una versión anterior del bot o
+  manipulado) dejaba la interacción sin confirmar y Discord mostraba «la aplicación no responde»;
+  ahora se ignora y se registra.
+- **Consultas — interacciones caducadas**: si la consulta tarda más de los 15 min que Discord da
+  para editar una respuesta diferida, el fallo era un *stack trace* en el log; ahora es una línea
+  informativa.
+- **Ejercicio del día — nada de posts de madrugada**: si la API estaba caída a las 8:00, la cadena
+  de reintentos cada 30 min podía cruzar la medianoche y publicar el ejercicio del día
+  **siguiente** a las 00:30 (y luego saltarse el post real de las 8:00 por «ya publicado»). La
+  cadena queda atada al día en que empezó y se abandona al cambiar la fecha.
+
 ### Cambiado
 - **Las guías fijadas de los canales dejan de mentir**: 🗺️ cómo-funciona seguía prometiendo «muy
   pronto: frase, retos y economía» cuando las tres llevan tiempo funcionando — ahora explica el

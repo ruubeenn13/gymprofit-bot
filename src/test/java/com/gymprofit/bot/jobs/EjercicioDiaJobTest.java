@@ -28,6 +28,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -93,5 +94,36 @@ class EjercicioDiaJobTest {
         job.publicar();
         job.publicar(); // simula el reintento del mismo día
         verify(canal, times(1)).sendMessageEmbeds(any(MessageEmbed.class));
+    }
+
+    /**
+     * Una cadena de reintentos que cruza la medianoche se abandona: si no, a las 00:30 sortearía
+     * y publicaría el ejercicio del día siguiente, y el tick real de las 8:00 se saltaría todos
+     * los servidores por «ya publicados hoy».
+     */
+    @Test
+    void elReintentoDeAyerSeAbandonaAlCambiarElDia() {
+        EjercicioDiaService eleccion = mock(EjercicioDiaService.class);
+        ConfigServidorRepositorio configs = mock(ConfigServidorRepositorio.class);
+        EjercicioDiaJob job = new EjercicioDiaJob(mock(JDA.class), eleccion,
+                mock(EjercicioService.class), mock(FraseRepositorio.class), configs);
+
+        job.reintentar(LocalDate.now(MADRID).minusDays(1));
+
+        verifyNoInteractions(eleccion, configs); // ni sorteo ni publicación
+    }
+
+    /** El reintento del mismo día sí publica (la guarda no puede matar el caso normal). */
+    @Test
+    void elReintentoDelMismoDiaSiPublica() {
+        EjercicioDiaService eleccion = mock(EjercicioDiaService.class);
+        when(eleccion.deHoy()).thenReturn(new EjercicioDia(LocalDate.now(MADRID), 7, 1));
+        ConfigServidorRepositorio configs = mock(ConfigServidorRepositorio.class);
+        when(configs.listarConEjercicioDia()).thenReturn(List.of());
+
+        new EjercicioDiaJob(mock(JDA.class), eleccion, mock(EjercicioService.class),
+                mock(FraseRepositorio.class), configs).reintentar(LocalDate.now(MADRID));
+
+        verify(eleccion).deHoy();
     }
 }

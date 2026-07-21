@@ -82,8 +82,7 @@ class EjerciciosComandoTest {
 
     @Test
     void elEmbedDeListaResumeYNumera() {
-        MessageEmbed embed = EjerciciosComando.construirLista(Messages.ES,
-                pagina(0, 110, false), new EjerciciosComando.Filtros(1L, 0, "", "", ""));
+        MessageEmbed embed = EjerciciosComando.construirLista(Messages.ES, pagina(0, 110, false));
         assertTrue(embed.getDescription().contains("Ejercicio 1"));
         assertTrue(embed.getDescription().contains("873"));
     }
@@ -97,11 +96,33 @@ class EjerciciosComandoTest {
                 .anyMatch(f -> "Pectoral mayor".equals(f.getValue())));
     }
 
+    /**
+     * Un nombre nulo o vacío en el catálogo no puede tumbar la respuesta: sin la guarda, la lista
+     * hacía NPE y el menú lanzaba IllegalArgumentException (Discord exige label no vacío).
+     */
+    @Test
+    void unNombreNuloOVacioNoRompeLaListaNiElMenu() {
+        EjercicioDTO sinNombre = new EjercicioDTO(1, null, "d", "PECHO", null, "INTERMEDIO",
+                null, null, null, 8, null, true);
+        EjercicioDTO vacio = new EjercicioDTO(2, "  ", "d", "PECHO", null, "INTERMEDIO",
+                null, null, null, 8, null, true);
+        PaginaDTO<EjercicioDTO> pagina = new PaginaDTO<>(List.of(sinNombre, vacio), 0, 8, 2, 1, true);
+        var filtros = new EjerciciosComando.Filtros(1L, 0, "", "", "");
+
+        assertTrue(EjerciciosComando.construirLista(Messages.ES, pagina).getDescription()
+                .contains("—"));
+        StringSelectMenu menu = (StringSelectMenu) EjerciciosComando
+                .construirComponentes(Messages.ES, pagina, filtros).get(1).getComponents().get(0);
+        assertEquals(2, menu.getOptions().size());
+        assertEquals("—", menu.getOptions().get(0).getLabel());
+        assertTrue(EjerciciosComando.construirFicha(Messages.ES, sinNombre).getTitle()
+                .contains("—"));
+    }
+
     @Test
     void listaVaciaAvisaSinComponentes() {
         PaginaDTO<EjercicioDTO> vacia = new PaginaDTO<>(List.of(), 0, 8, 0, 0, true);
-        MessageEmbed embed = EjerciciosComando.construirLista(Messages.ES, vacia,
-                new EjerciciosComando.Filtros(1L, 0, "", "", "zzz"));
+        MessageEmbed embed = EjerciciosComando.construirLista(Messages.ES, vacia);
         assertTrue(embed.getDescription().contains(Messages.get(Messages.ES, "ejercicios.vacio")));
         assertTrue(EjerciciosComando.construirComponentes(Messages.ES, vacia,
                 new EjerciciosComando.Filtros(1L, 0, "", "", "zzz")).isEmpty());

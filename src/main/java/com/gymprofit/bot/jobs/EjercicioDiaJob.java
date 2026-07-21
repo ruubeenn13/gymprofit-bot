@@ -36,7 +36,8 @@ import java.util.concurrent.TimeUnit;
  * <p>Se reprograma a sí mismo tras cada ejecución calculando las próximas 8:00 en hora local
  * (aguanta los cambios de horario). Si la API falla, no publica un post roto: lo registra y
  * reintenta a los 30 min; los servidores ya publicados hoy no se repiten (idempotencia por
- * guild en memoria + fila única por fecha en BD).</p>
+ * guild en memoria + fila única por fecha en BD). La cadena de reintentos está atada al día en
+ * que empezó: al cruzar la medianoche se abandona (ver {@link #reintentar(LocalDate)}).</p>
  */
 public final class EjercicioDiaJob {
 
@@ -135,11 +136,31 @@ public final class EjercicioDiaJob {
             }
         } catch (ApiException e) {
             // API caída/despertando: nada de posts rotos; reintento con la misma idempotencia.
+            // La cadena queda atada a `hoy`: ver reintentar().
             log.warn("La API no respondió para el ejercicio del día; reintento en {} min",
                     REINTENTO_MIN, e);
-            scheduler.schedule(this::publicar, REINTENTO_MIN, TimeUnit.MINUTES);
+            scheduler.schedule(() -> reintentar(hoy), REINTENTO_MIN, TimeUnit.MINUTES);
         } catch (RuntimeException e) {
             log.error("Fallo publicando el ejercicio del día", e);
         }
+    }
+
+    /**
+     * Reintento atado al día en que arrancó la cadena. Sin esta guarda, una cadena que siguiera
+     * viva pasada la medianoche sorteaba y publicaba el ejercicio del día <i>siguiente</i> a las
+     * 00:30, y después el tick real de las 8:00 se saltaba todos los servidores por «ya
+     * publicados». Además impide que la cadena del día 1 y la del día 2 convivan si la API lleva
+     * caída desde ayer: la vieja se abandona en cuanto cambia la fecha.
+     *
+     * @param diaDeLaCadena fecha (Europe/Madrid) en la que se programó el primer reintento
+     */
+    void reintentar(LocalDate diaDeLaCadena) {
+        LocalDate ahora = LocalDate.now(EjercicioDiaService.ZONA);
+        if (!diaDeLaCadena.equals(ahora)) {
+            log.info("Reintento del ejercicio del día abandonado: la cadena era del {} y ya es {}",
+                    diaDeLaCadena, ahora);
+            return;
+        }
+        publicar();
     }
 }
