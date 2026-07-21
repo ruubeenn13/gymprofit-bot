@@ -169,7 +169,7 @@ public static final Map<Tipo, Double> TOPES;   // el tope global de cada tipo
 | `SUELDO` | % extra sobre el pago de `/trabajo currar` | **+30 %** |
 | `COOLDOWN_WORK` | recorta el cooldown de 60 min de `/trabajo currar` | **−25 %** (mínimo 45 min) |
 | `XP` | % extra de XP de **cualquier** fuente | **+20 %** |
-| `ENERGIA_REGEN` | energía extra en cada tick de `EnergiaJob` | **+10** |
+| `ENERGIA_REGEN` | energía extra en cada tick de `EnergiaJob` | **+5** |
 | `MINERIA_CANTIDAD` | minerales extra por `/minar` | **+3** |
 | `MINERIA_DURABILIDAD` | probabilidad de **no** gastar durabilidad del pico | **40 %** |
 | `COMBATE_ATAQUE` | ataque plano en batalla | **+12** |
@@ -293,7 +293,7 @@ Reglas que cumple el catálogo, y que hay que mantener si algún día se toca:
 | 4 | `uniforme` | 🦺 | 500 | Sueldo +4 %, Defensa +1 | Vas de uniforme: te pagan mejor y el chaleco algo protege |
 | 5 | `auriculares` | 🎧 | 500 | XP +3 % | Con música entrenas más y mejor |
 | 6 | `movil` | 📱 | 600 | Sueldo +3 %, XP +2 % | Te organizas: turnos y rutinas siempre a mano |
-| 7 | `zapatillas` | 👟 | 600 | Energía +2, Defensa +2 | Buen calzado, menos castigo en las piernas |
+| 7 | `zapatillas` | 👟 | 600 | Energía +1, Defensa +2 | Buen calzado, menos castigo en las piernas |
 | 8 | `mancuernas` | 🏋️ | 700 | Ataque +3, Energía +1 | Hierro en casa: pegas más fuerte y aguantas más |
 | 9 | `herramientas` | 🧰 | 800 | Sueldo +5 %, Durabilidad 5 % | Con tu propio juego rindes más y rompes menos |
 | 10 | `consola` | 🎮 | 800 | XP +4 % | Reflejos, competitividad y horas de práctica |
@@ -314,13 +314,13 @@ Reglas que cumple el catálogo, y que hay que mantener si algún día se toca:
 |---|---|---|---|---|---|
 | 21 | `coche` | 🚗 | 35 000 | Cooldown −9 %, Sueldo +4 % | El primer vehículo de verdad: cambia tu día entero |
 | 22 | `furgoneta` | 🚐 | 45 000 | Cooldown −7 %, Minería cantidad +1 | Cabe todo: herramienta, material y lo que saques |
-| 23 | `moto_agua` | 🚤 | 60 000 | Energía +3, XP +3 % | Ocio de verdad: desconectas y vuelves entero |
+| 23 | `moto_agua` | 🚤 | 60 000 | Energía +2, XP +3 % | Ocio de verdad: desconectas y vuelves entero |
 | 24 | `camion` | 🚚 | 90 000 | Minería cantidad +2, Sueldo +6 %, Durabilidad 8 % | Trabajo pesado: mueves tonelaje y cobras por ello |
 | 25 | `coche_lujo` | 🏎️ | 200 000 | Sueldo +7 %, Crítico +2 %, Defensa +2 | Deportivo blindado: impone y protege |
 | 26 | `helicoptero` | 🚁 | 350 000 | Cooldown −10 %, Durabilidad 12 %, Ataque +3 | Apoyo aéreo: llegas a la veta y a la pelea desde arriba |
-| 27 | `avioneta` | 🛩️ | 400 000 | Sueldo +9 %, XP +6 %, Energía +2 | Vuelas a donde haga falta y aprendes por el camino |
+| 27 | `avioneta` | 🛩️ | 400 000 | Sueldo +9 %, XP +6 %, Energía +1 | Vuelas a donde haga falta y aprendes por el camino |
 | 28 | `jet` | 🛫 | 700 000 | Sueldo +11 %, Cooldown −11 %, XP +6 % | Jet privado: el mejor paquete de trabajo del juego |
-| 29 | `yate` | 🛥️ | 900 000 | Energía +4, XP +7 %, Sueldo +7 % | Descanso de lujo: vuelves nuevo y con contactos |
+| 29 | `yate` | 🛥️ | 900 000 | Energía +3, XP +7 %, Sueldo +7 % | Descanso de lujo: vuelves nuevo y con contactos |
 | 30 | `cohete` | 🚀 | 3 000 000 | Ataque +5, Defensa +4, Crítico +3 % | El tope absoluto del catálogo. La única pieza sci-fi: es la que rompe el techo en combate |
 
 ### Fuentes por tipo (resumen)
@@ -330,7 +330,7 @@ Reglas que cumple el catálogo, y que hay que mantener si algún día se toca:
 | `SUELDO` | jet 11 · avioneta 9 · traje 8 · coche_lujo 7 · yate 7 · portatil 6 · camion 6 · herramientas 5 · uniforme 4 · reloj 4 · coche 4 · movil 3 · moto 3 |
 | `COOLDOWN_WORK` | jet 11 · helicoptero 10 · coche 9 · moto 8 · furgoneta 7 · bici 6 · patinete 4 |
 | `XP` | yate 7 · jet 6 · avioneta 6 · reloj 5 · guitarra 5 · consola 4 · portatil 4 · auriculares 3 · camara 3 · moto_agua 3 · gorra 2 · movil 2 |
-| `ENERGIA_REGEN` | yate 4 · moto_agua 3 · zapatillas 2 · avioneta 2 · bici 1 · mancuernas 1 |
+| `ENERGIA_REGEN` | yate 3 · moto_agua 2 · zapatillas 1 · avioneta 1 · bici 1 · mancuernas 1 |
 | `MINERIA_CANTIDAD` | dron 2 · camion 2 · mochila 1 · camara 1 · telescopio 1 · furgoneta 1 |
 | `MINERIA_DURABILIDAD` | helicoptero 12 · dron 10 · telescopio 8 · camion 8 · herramientas 5 |
 | `COMBATE_ATAQUE` | cohete 5 · mancuernas 3 · helicoptero 3 |
@@ -351,7 +351,7 @@ gastar las 4 ranuras en un solo tipo, renunciando a todo lo demás).
 | `SUELDO` | jet + avioneta + traje + coche_lujo | 11+9+8+7 = **+35 %** | +30 % | Sí → +30 % |
 | `COOLDOWN_WORK` | jet + helicoptero + coche + moto | 11+10+9+8 = **−38 %** | −25 % | Sí → −25 % |
 | `XP` | yate + jet + avioneta + reloj | 7+6+6+5 = **+24 %** | +20 % | Sí → +20 % |
-| `ENERGIA_REGEN` | yate + moto_agua + zapatillas + avioneta | 4+3+2+2 = **+11** | +10 | Sí → +10 |
+| `ENERGIA_REGEN` | yate + moto_agua + zapatillas + avioneta | 3+2+1+1 = **+7** | +5 | Sí → +5 |
 | `MINERIA_CANTIDAD` | dron + camion + mochila + camara | 2+2+1+1 = **+6** | +3 | Sí → +3 |
 | `MINERIA_DURABILIDAD` | helicoptero + dron + telescopio + camion | 12+10+8+8 = **38 %** | 40 % | **No** — el tope no llega a tocarse |
 | `COMBATE_ATAQUE` | cohete + mancuernas + helicoptero (solo hay 3) | 5+3+3 = **+11** | +12 | **No** |
@@ -360,7 +360,8 @@ gastar las 4 ranuras en un solo tipo, renunciando a todo lo demás).
 
 Todos los máximos están **en el tope o por debajo**. Ningún tipo se pasa después del topado, por
 definición, y —lo importante— **ningún ítem suelto llega al tope de nada**: el que más se acerca es
-`jet` con 11 de 30 en sueldo (37 % del tope). El sistema siempre exige combinar.
+`yate` con 3 de 5 en energía (60 % del tope), y en sueldo el `jet` se queda en 11 de 30 (37 %). El
+sistema siempre exige combinar.
 
 Que cuatro tipos **no lleguen** a su tope es deliberado: deja margen para añadir ítems o subir
 magnitudes en el futuro sin tener que retocar los topes (y sin que un jugador note una bajada, que es
@@ -372,7 +373,7 @@ Los topes de arriba son máximos **aislados**. Con solo 4 ranuras, maximizar un 
 renunciar a los demás. Un build realista de nivel 50 «trabajador puro» sería:
 
 > `jet` + `avioneta` + `traje` + `coche_lujo` → Sueldo **+30 % (tope)**, Cooldown −11 %, XP +12 %,
-> Energía +2, Crítico +2 %
+> Energía +1, Crítico +2 %
 
 y un «minero puro»:
 
@@ -615,12 +616,13 @@ Puntos a respetar:
   desde `Pasivos`, nunca se escriben ids a mano en el SQL.
 - **Coste real: una consulta más cada 30 minutos.** No es un rediseño del job.
 
-**Corrección respecto al enunciado del diseño:** `EnergiaJob.REGEN` vale hoy **5**, no 10 — se bajó a
-la mitad en la spec de descanso porque el grueso de la energía se gana durmiendo. El tope de +10 del
-pasivo es, por tanto, **el triple del goteo base** (5 → 15), no un +100 %. Es un bono potente y hay que
-verlo como tal, pero sigue siendo mucho menos que lo que da una noche de sueño (hasta 100 de energía),
-así que **no rompe el diseño del descanso**: el pasivo ayuda al que no puede conectarse a dormir, no
-sustituye al ciclo.
+**Por qué el tope es +5:** `EnergiaJob.REGEN` vale hoy **5**, no 10 — se bajó a la mitad en la spec de
+descanso porque el grueso de la energía se gana durmiendo. Con el tope en **+5**, el pasivo **como
+mucho duplica** el goteo base (5 → 10) y solo si el jugador quema ranuras en ello. Está puesto
+**deliberadamente por debajo de lo que da una noche de sueño** (hasta 100 de energía): dormir sigue
+siendo la vía principal para recuperar energía y el pasivo solo suaviza la espera del que no puede
+conectarse a dormir. Un tope de +10 habría **triplicado** el goteo (5 → 15) y habría competido con el
+ciclo de descanso, que es justo lo que ese módulo existe para empujar.
 
 ---
 
@@ -871,8 +873,9 @@ Se dejan escritas para que quien implemente no se sorprenda:
 1. **No existe el canal `🌳・mejoras`.** «🌳 Mejoras» es una sección dentro de `intro.economia.desc`.
    La intro va a **`💰・economía`** (justificado arriba).
 2. **`EnergiaJob.REGEN` vale 5, no 10.** Se bajó a la mitad en la spec de descanso (2026-07-15). El
-   tope de `ENERGIA_REGEN` (+10) triplica el goteo base, no lo duplica. Se mantiene el +10 porque
-   sigue siendo mucho menos que una noche de sueño, pero conviene saberlo.
+   diseño de partida daba por hecho un goteo de 10 y ponía el tope de `ENERGIA_REGEN` en +10; con el
+   valor real eso habría **triplicado** el goteo. El tope se ha bajado a **+5** (duplica como mucho) y
+   las magnitudes de energía de los seis ítems se han reescalado en consecuencia.
 3. **`BatallaService.nuevaSesion` es `private`.** El snapshot existe y es el sitio correcto, pero para
    testear los bonos de combate habrá que exponer una función pura auxiliar o inyectar el
    `PasivoService` en el constructor del service (que ya recibe un `Aleatorio` inyectable, así que el
