@@ -53,6 +53,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
 
 ### Añadido
+- **El ejercicio del día se publica solo cada mañana a las 8:00**. Nuevo `EjercicioDiaJob`: a las
+  8:00 de `Europe/Madrid` publica el ejercicio de hoy en el canal 🗓️・ejercicio-del-día de cada
+  servidor que lo tenga configurado (`/setup`), en el idioma del servidor y sin mención de rol (un
+  ping diario quema). Se reprograma en **hora local**, así que los cambios de horario no lo
+  descolocan; si la API de Render está dormida no publica un post roto: lo registra y reintenta a
+  los 30 min sin repetir los servidores que ya tienen el suyo. De regalo, despierta la API cada
+  mañana. Nueva consulta `ConfigServidorRepositorio.listarConEjercicioDia()`.
 - **Nuevos comandos `/ejercicios` y `/ejercicio-dia`: el catálogo de la app, dentro de Discord**.
   `/ejercicios` explora los 873 ejercicios reales de GymProFit filtrando por grupo muscular,
   dificultad o nombre: lista paginada de 8 con flechas ◀ ▶ y menú desplegable que abre la ficha

@@ -88,6 +88,7 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.BolsaJob;
+import com.gymprofit.bot.jobs.EjercicioDiaJob;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.ApuestaService;
 import com.gymprofit.bot.services.BancoService;
@@ -207,10 +208,23 @@ public final class Main {
             new SorteoJob(jda, new SorteoService(new SorteoRepositorio(db.dataSource()))).iniciar();
         }
 
+        // Publicación diaria del ejercicio (8:00 Europe/Madrid). Requiere BD + JDA + API.
+        EjercicioDiaJob ejercicioDiaJob = (db == null || jda == null || capaApi == null) ? null
+                : new EjercicioDiaJob(jda, capaApi.eleccion(), capaApi.ejercicios(),
+                        new FraseRepositorio(db.dataSource()),
+                        new ConfigServidorRepositorio(db.dataSource()));
+        if (ejercicioDiaJob != null) {
+            ejercicioDiaJob.iniciar();
+        }
+
         // Cierre ordenado ante SIGTERM (Render lo envía en cada deploy): stats → JDA → BD → health.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             if (stats != null) {
                 stats.detener();
+            }
+            // El job del ejercicio del día usa la capa API: se para antes de cerrar su cliente.
+            if (ejercicioDiaJob != null) {
+                ejercicioDiaJob.detener();
             }
             if (jda != null) {
                 jda.shutdown();

@@ -45,6 +45,13 @@ class ConfigServidorRepositorioTest {
                 assertEquals(100L, leida.canalBienvenida());
                 assertEquals(200L, leida.rolObjetivoFuerza());
                 assertNull(leida.canalLogros());
+
+                // listarConEjercicioDia: solo salen los servidores con el canal fijado.
+                assertEquals(0, repo.listarConEjercicioDia().size());
+                repo.guardar(new ConfigServidor(42L, "en", 100L, 555L, null, null, null, null,
+                        200L, null, null, null));
+                assertEquals(1, repo.listarConEjercicioDia().size());
+                assertEquals(555L, repo.listarConEjercicioDia().get(0).canalEjercicioDia());
             }
         }
     }

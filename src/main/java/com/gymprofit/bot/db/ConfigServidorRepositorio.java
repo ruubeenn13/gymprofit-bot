@@ -5,6 +5,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -33,6 +35,25 @@ public final class ConfigServidorRepositorio {
             }
         } catch (SQLException e) {
             throw new DatabaseException("Error buscando la config del servidor " + guildId, e);
+        }
+    }
+
+    /** Servidores con canal de ejercicio del día configurado (los destinos del job diario). */
+    public List<ConfigServidor> listarConEjercicioDia() {
+        String sql = "SELECT guild_id, idioma, canal_bienvenida, canal_ejercicio_dia, "
+                + "canal_logros, canal_sugerencias, canal_soporte, canal_bot_logs, "
+                + "rol_objetivo_fuerza, rol_objetivo_cardio, rol_objetivo_perdida_peso, "
+                + "rol_objetivo_general FROM config_servidor WHERE canal_ejercicio_dia IS NOT NULL";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            List<ConfigServidor> lista = new ArrayList<>();
+            while (rs.next()) {
+                lista.add(mapear(rs));
+            }
+            return lista;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error listando servidores con ejercicio del día", e);
         }
     }
 
