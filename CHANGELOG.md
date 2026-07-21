@@ -53,6 +53,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   sistema. La funcionalidad no cambia; solo la forma de invocarla (p. ej. `/banco depositar`).
 
 ### Añadido
+- **Nuevos comandos `/ejercicios` y `/ejercicio-dia`: el catálogo de la app, dentro de Discord**.
+  `/ejercicios` explora los 873 ejercicios reales de GymProFit filtrando por grupo muscular,
+  dificultad o nombre: lista paginada de 8 con flechas ◀ ▶ y menú desplegable que abre la ficha
+  completa (imagen, músculo primario, dificultad, calorías, equipo e instrucciones) con botón de
+  volver. El estado de la búsqueda viaja en el `customId` (patrón `/modlogs`), así que los botones
+  siguen funcionando tras un reinicio del bot. `/ejercicio-dia` muestra el ejercicio elegido para
+  hoy —y lo elige él mismo si el job aún no ha corrido, con `INSERT IGNORE` sobre la PK por fecha
+  para que comando y publicación coincidan siempre— en naranja de marca y con una frase motivadora
+  al pie. Nueva tabla `ejercicio_dia` (V24) con su repositorio y `EjercicioDiaService` (sorteo por
+  rondas: no repite hasta agotar el catálogo). Si faltan `GYMPROFIT_API_URL` o las credenciales de
+  la cuenta de servicio, el bot arranca igual sin estos dos comandos (arranque degradado).
 - **Nuevo comando `/frase`: tu dosis de motivación al momento**. El banco bilingüe sembrado en la
   migración V2 (32 frases ES/EN) dejaba de ser algo interno: `/frase` devuelve una al azar en el
   idioma de quien la pide, con el autor si lo tiene. Respuesta pública —es contenido que aporta al

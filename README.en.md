@@ -57,6 +57,8 @@ GymProBot turns the community server into a gamified gym and wires it to the app
 | `/setup [desde_cero]` | Set up the server structure (roles, channels, permissions) and auto-config; `desde_cero` wipes everything first (admin only) |
 | `/limpiar <amount>` | Delete the latest N messages in the channel (staff only) |
 | `/frase` | Drops a random motivational quote from the bilingual bank (30 s cooldown) |
+| `/ejercicios [group] [difficulty] [search]` | Browse the app's exercise catalog: paginated list with arrows and a full card per exercise |
+| `/ejercicio-dia` | Today's chosen exercise, with its motivational quote |
 
 Also: **message XP** (with a 60 s anti-spam cooldown) that levels users up and announces it, and
 **welcome + auto-roles** (embed on member join with a goal menu that assigns the role).

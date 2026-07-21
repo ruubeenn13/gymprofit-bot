@@ -1,5 +1,6 @@
 package com.gymprofit.bot;
 
+import com.gymprofit.bot.api.ApiClient;
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.commands.RouterComandos;
 import com.gymprofit.bot.commands.admin.SetupComando;
@@ -8,6 +9,8 @@ import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaResolverComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
+import com.gymprofit.bot.commands.consultas.EjercicioDiaComando;
+import com.gymprofit.bot.commands.consultas.EjerciciosComando;
 import com.gymprofit.bot.commands.consultas.FraseComando;
 import com.gymprofit.bot.commands.contenido.PublicarComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
@@ -76,6 +79,7 @@ import com.gymprofit.bot.db.MisionRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
+import com.gymprofit.bot.db.EjercicioDiaRepositorio;
 import com.gymprofit.bot.db.FraseRepositorio;
 import com.gymprofit.bot.db.SancionRepositorio;
 import com.gymprofit.bot.db.SorteoRepositorio;
@@ -95,6 +99,8 @@ import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.EconomiaService;
+import com.gymprofit.bot.services.EjercicioDiaService;
+import com.gymprofit.bot.services.EjercicioService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
 import com.gymprofit.bot.services.InsigniaService;
@@ -127,6 +133,7 @@ import com.gymprofit.bot.events.DescansoListener;
 import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.events.DueloListener;
 import com.gymprofit.bot.events.TruequeListener;
+import com.gymprofit.bot.events.EjerciciosPaginadorListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.TicketListener;
@@ -177,7 +184,10 @@ public final class Main {
         log.info("Health server escuchando en http://0.0.0.0:{}/health", BotConfig.port());
 
         Database db = iniciarBaseDeDatos();
-        JDA jda = iniciarDiscord(db);
+        // La capa API se construye una sola vez aquí: la comparten los comandos de consulta y
+        // (fase siguiente) el job del ejercicio del día, que necesita JDA ya conectado.
+        CapaApi capaApi = iniciarCapaApi(db);
+        JDA jda = iniciarDiscord(db, capaApi);
 
         // Job de contadores en vivo (categoría SERVER STATS). XP repartido y Nº1 salen de la BD
         // (si la hay); boosts y gente en voz, de la caché estándar. El primer tick espera un poco a
@@ -204,6 +214,11 @@ public final class Main {
             }
             if (jda != null) {
                 jda.shutdown();
+            }
+            // El cliente HTTP de la API tiene executor y pool propios: sin cerrarlos, sus hilos
+            // mantendrían viva la JVM tras el SIGTERM.
+            if (capaApi != null) {
+                capaApi.cliente().cerrar();
             }
             if (db != null) {
                 db.close();
@@ -239,6 +254,33 @@ public final class Main {
         return db;
     }
 
+    /** Piezas de la capa API construidas una sola vez y compartidas por comandos y job. */
+    private record CapaApi(ApiClient cliente, EjercicioService ejercicios,
+                           EjercicioDiaService eleccion) { }
+
+    /**
+     * Construye la capa de consultas a la API GymProFit (F1). Devuelve {@code null} si falta la
+     * BD (la elección del día se persiste) o las credenciales de la cuenta de servicio: en ese
+     * caso el bot arranca sin {@code /ejercicios} ni {@code /ejercicio-dia} (arranque degradado,
+     * mismo patrón que BD/JDA).
+     *
+     * @param db la BD ya conectada, o {@code null} si se arrancó sin BD
+     */
+    private static CapaApi iniciarCapaApi(Database db) {
+        if (db == null || BotConfig.apiUrl().isBlank() || BotConfig.botServiceUser().isBlank()
+                || BotConfig.botServicePassword().isBlank()) {
+            log.warn("Sin BD o sin GYMPROFIT_API_URL / BOT_SERVICE_USER / BOT_SERVICE_PASSWORD: "
+                    + "/ejercicios y /ejercicio-dia deshabilitados.");
+            return null;
+        }
+        ApiClient cliente = new ApiClient(BotConfig.apiUrl(), BotConfig.botServiceUser(),
+                BotConfig.botServicePassword());
+        EjercicioService ejercicios = new EjercicioService(cliente.ejercicios());
+        EjercicioDiaService eleccion = new EjercicioDiaService(
+                new EjercicioDiaRepositorio(db.dataSource()), ejercicios);
+        return new CapaApi(cliente, ejercicios, eleccion);
+    }
+
     /**
      * Construye y conecta JDA con sus comandos y listeners. Devuelve {@code null} si no hay
      * {@code DISCORD_TOKEN} (arranque degradado solo con health server).
@@ -246,9 +288,10 @@ public final class Main {
      * <p>Los comandos y el listener de XP que dependen de la BD solo se registran si hay BD; sin
      * ella queda disponible {@code /ping}.</p>
      *
-     * @param db la BD ya conectada, o {@code null} si se arrancó sin BD
+     * @param db      la BD ya conectada, o {@code null} si se arrancó sin BD
+     * @param capaApi la capa de consultas a la API, o {@code null} si no está configurada
      */
-    private static JDA iniciarDiscord(Database db) {
+    private static JDA iniciarDiscord(Database db, CapaApi capaApi) {
         if (BotConfig.discordToken().isBlank()) {
             log.warn("DISCORD_TOKEN no presente: JDA no se conectará (solo health server).");
             return null;
@@ -330,6 +373,17 @@ public final class Main {
             FraseRepositorio fraseRepo = new FraseRepositorio(db.dataSource());
             comandos.add(new FraseComando(fraseRepo,
                     new Cooldown(java.time.Duration.ofSeconds(30))));
+
+            // Consultas a la API (F1): catálogo y ejercicio del día. Solo si la capa API se pudo
+            // construir (URL + credenciales de la cuenta de servicio).
+            if (capaApi != null) {
+                comandos.add(new EjerciciosComando(capaApi.ejercicios(),
+                        capaApi.cliente().executor()));
+                comandos.add(new EjercicioDiaComando(capaApi.eleccion(), capaApi.ejercicios(),
+                        fraseRepo, capaApi.cliente().executor()));
+                listeners.add(new EjerciciosPaginadorListener(capaApi.ejercicios(),
+                        capaApi.cliente().executor()));
+            }
 
             // Economía / RPG: monedero, daily, perfil, trabajos y energía.
             PersonajeRepositorio personajeRepo = new PersonajeRepositorio(db.dataSource());
