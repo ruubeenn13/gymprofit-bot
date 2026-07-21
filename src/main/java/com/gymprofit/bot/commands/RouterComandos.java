@@ -3,6 +3,7 @@ package com.gymprofit.bot.commands;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
+import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
@@ -74,6 +75,26 @@ public final class RouterComandos extends ListenerAdapter {
             } else {
                 evento.replyEmbeds(embed).setEphemeral(true).queue();
             }
+        }
+    }
+
+    /**
+     * Enruta el autocompletado a los comandos que lo implementan y aísla sus errores.
+     *
+     * <p>Discord <b>exige</b> una respuesta en 3 s y no admite diferirla: si el comando revienta, se
+     * contesta con una lista vacía en vez de dejar la interacción colgada.
+     */
+    @Override
+    public void onCommandAutoCompleteInteraction(CommandAutoCompleteInteractionEvent evento) {
+        Comando comando = comandosPorNombre.get(evento.getName());
+        if (!(comando instanceof ComandoAutocompletable autocompletable)) {
+            return;
+        }
+        try {
+            autocompletable.autocompletar(evento);
+        } catch (RuntimeException e) {
+            log.error("Error autocompletando /{}", evento.getName(), e);
+            evento.replyChoices(List.of()).queue();
         }
     }
 }

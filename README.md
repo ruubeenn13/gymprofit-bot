@@ -75,7 +75,8 @@ ni convertibles. Por bloques:
 - **Descanso:** `/descansar` (dormir · despertar · estado). La energía se recupera **durmiendo**, y
   cuanto mejor sea tu cama (saco, colchón, piso, casa… o un hotel) más alto llegas.
 - **Trabajo y tienda:** `/trabajo` (lista · elegir · currar) · `/tienda` · `/comprar` ·
-  `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar`.
+  `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar` ·
+  `/pasivos` (ver · equipar · quitar).
 - **Combate:** `/mundos` · `/monstruos` · `/pelear` (por turnos, botones) · `/mazmorra` ·
   `/misiones` · `/equipar` · `/encantar`.
 - **Minería y herrería:** `/minar` · `/reparar` · `/recetas` · `/craftear`.

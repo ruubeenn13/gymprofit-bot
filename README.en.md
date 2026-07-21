@@ -73,7 +73,8 @@ convertible. By block:
 - **Rest:** `/descansar` (dormir · despertar · estado). Energy comes back by **sleeping**, and the
   better your bed (sleeping bag, mattress, flat, house… or a hotel) the higher you can go.
 - **Work & shop:** `/trabajo` (lista · elegir · currar) · `/tienda` · `/comprar` ·
-  `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar`.
+  `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar` ·
+  `/pasivos` (ver · equipar · quitar).
 - **Combat:** `/mundos` · `/monstruos` · `/pelear` (turn-based, buttons) · `/mazmorra` ·
   `/misiones` · `/equipar` · `/encantar`.
 - **Mining & smithing:** `/minar` · `/reparar` · `/recetas` · `/craftear`.

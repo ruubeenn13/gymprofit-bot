@@ -43,6 +43,7 @@ import com.gymprofit.bot.commands.economia.RegalarComando;
 import com.gymprofit.bot.commands.economia.RegalarItemComando;
 import com.gymprofit.bot.commands.economia.RepararComando;
 import com.gymprofit.bot.commands.economia.RobarComando;
+import com.gymprofit.bot.commands.economia.PasivosComando;
 import com.gymprofit.bot.commands.economia.PerfilComando;
 import com.gymprofit.bot.commands.economia.RankComando;
 import com.gymprofit.bot.commands.economia.TiendaComando;
@@ -77,6 +78,7 @@ import com.gymprofit.bot.db.MercadoRepositorio;
 import com.gymprofit.bot.db.MineriaRepositorio;
 import com.gymprofit.bot.db.MisionRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
+import com.gymprofit.bot.db.PasivoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.EjercicioDiaRepositorio;
@@ -113,6 +115,7 @@ import com.gymprofit.bot.services.TruequeRegistro;
 import com.gymprofit.bot.services.TruequeService;
 import com.gymprofit.bot.services.MineriaService;
 import com.gymprofit.bot.services.MisionService;
+import com.gymprofit.bot.services.PasivoService;
 import com.gymprofit.bot.services.ModeracionService;
 import com.gymprofit.bot.services.MundoService;
 import com.gymprofit.bot.services.RangoService;
@@ -317,6 +320,13 @@ public final class Main {
 
         if (db != null) {
             UsuarioDiscordRepositorio usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+            // El inventario y las ranuras de pasivos se crean aquí arriba (antes que XpService)
+            // porque los efectos pasivos entran en TODOS los sistemas, incluida la XP por mensaje:
+            // el bono de XP se aplicará dentro de XpService.ganarXp, el único punto por el que pasa
+            // toda la XP del bot.
+            InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
+            PasivoService pasivoService = new PasivoService(
+                    new PasivoRepositorio(db.dataSource()), inventarioRepo, usuarios);
             XpService xpService = new XpService(usuarios);
             RangoService rangoService = new RangoService();
             comandos.add(new NivelComando(usuarios));
@@ -402,9 +412,10 @@ public final class Main {
             // Economía / RPG: monedero, daily, perfil, trabajos y energía.
             PersonajeRepositorio personajeRepo = new PersonajeRepositorio(db.dataSource());
             EconomiaRepositorio economiaRepo = new EconomiaRepositorio(db.dataSource());
-            // El inventario se crea aquí arriba (y no con la tienda) porque el descanso lo necesita:
-            // la cama sale del inventario y el descanso va antes que trabajo, batalla y minería.
-            InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
+            // (inventarioRepo y pasivoService se crean más arriba, antes que XpService: los
+            // necesitan la XP por mensaje, el descanso —la cama sale del inventario— y todo lo que
+            // va después.)
+            comandos.add(new PasivosComando(pasivoService, usuarios));
             EconomiaService economiaService =
                     new EconomiaService(economiaRepo, personajeRepo, usuarios);
             comandos.add(new DailyComando(economiaService));
