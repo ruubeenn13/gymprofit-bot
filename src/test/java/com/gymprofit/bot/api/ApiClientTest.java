@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -41,6 +42,7 @@ class ApiClientTest {
 
     @AfterEach
     void parar() throws Exception {
+        cliente.cerrar(); // libera executor y pools: si no, cada test los deja vivos
         servidor.shutdown();
     }
 
@@ -52,10 +54,10 @@ class ApiClientTest {
         EjercicioDTO e = cliente.ejercicios().porId(1, "es").execute().body();
         assertEquals("Sentadilla", e.nombre());
 
-        RecordedRequest login = servidor.takeRequest();
+        RecordedRequest login = servidor.takeRequest(5, TimeUnit.SECONDS);
         assertTrue(login.getPath().endsWith("/auth/login"));
         assertNull(login.getHeader("Authorization")); // el login va limpio
-        RecordedRequest ficha = servidor.takeRequest();
+        RecordedRequest ficha = servidor.takeRequest(5, TimeUnit.SECONDS);
         assertEquals("Bearer acc1", ficha.getHeader("Authorization"));
         assertEquals("es", ficha.getHeader("Accept-Language"));
     }
@@ -70,10 +72,26 @@ class ApiClientTest {
         EjercicioDTO e = cliente.ejercicios().porId(1, "es").execute().body();
         assertEquals("Sentadilla", e.nombre());
 
-        servidor.takeRequest(); // login
-        servidor.takeRequest(); // porId con acc1 → 401
-        assertTrue(servidor.takeRequest().getPath().endsWith("/auth/refresh"));
-        assertEquals("Bearer acc2", servidor.takeRequest().getHeader("Authorization"));
+        servidor.takeRequest(5, TimeUnit.SECONDS); // login
+        servidor.takeRequest(5, TimeUnit.SECONDS); // porId con acc1 → 401
+        assertTrue(servidor.takeRequest(5, TimeUnit.SECONDS).getPath().endsWith("/auth/refresh"));
+        assertEquals("Bearer acc2", servidor.takeRequest(5, TimeUnit.SECONDS).getHeader("Authorization"));
+    }
+
+    @Test
+    void renuevaAunqueHayaHabidoUnRedirectAntesDel401() throws Exception {
+        servidor.enqueue(new MockResponse().setBody(LOGIN_OK));
+        // Render (o un http→https, o una barra final) puede colar un redirect antes del 401:
+        // ese 401 ya llega con priorResponse != null y el token debe renovarse igual.
+        servidor.enqueue(new MockResponse().setResponseCode(302)
+                .setHeader("Location", "/api/ejercicios/1?idioma=es"));
+        servidor.enqueue(new MockResponse().setResponseCode(401));
+        servidor.enqueue(new MockResponse().setBody(REFRESH_OK));
+        servidor.enqueue(new MockResponse().setBody(EJERCICIO));
+
+        EjercicioDTO e = cliente.ejercicios().porId(1, "es").execute().body();
+        assertEquals("Sentadilla", e.nombre());
+        assertEquals(5, servidor.getRequestCount());
     }
 
     @Test

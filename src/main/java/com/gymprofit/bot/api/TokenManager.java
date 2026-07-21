@@ -45,13 +45,19 @@ public final class TokenManager {
 
     /**
      * Renueva el token que acaba de recibir un 401. Si el vigente ya no es ese, otro hilo se
-     * adelantó y se devuelve sin tocar la red. Intenta refresh; si el refresh también está
-     * caducado, login completo.
+     * adelantó y se devuelve sin tocar la red. Intenta refresh (si hay uno guardado); si el
+     * refresh también está caducado, login completo.
      *
      * @param tokenCaducado el token con el que la petición recibió el 401
      */
     public synchronized String renovar(String tokenCaducado) {
         if (token != null && !token.equals(tokenCaducado)) {
+            return token;
+        }
+        if (refreshToken == null) {
+            // Sin refresh que ofrecer, el POST solo gastaría un viaje (y con Render dormido eso
+            // son ~50 s) para recibir el 400 de rigor: se va directo al login.
+            login();
             return token;
         }
         try {

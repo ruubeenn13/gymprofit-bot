@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
+import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,7 +51,7 @@ class TokenManagerTest {
         assertEquals("acc1", tokens.obtenerToken());
         assertEquals("acc1", tokens.obtenerToken()); // segunda llamada: sin red
         assertEquals(1, servidor.getRequestCount());
-        assertTrue(servidor.takeRequest().getPath().endsWith("/auth/login"));
+        assertTrue(servidor.takeRequest(5, TimeUnit.SECONDS).getPath().endsWith("/auth/login"));
     }
 
     @Test
@@ -58,8 +60,8 @@ class TokenManagerTest {
         tokens.obtenerToken();
         servidor.enqueue(new MockResponse().setBody(REFRESH_OK));
         assertEquals("acc2", tokens.renovar("acc1"));
-        servidor.takeRequest(); // login
-        assertTrue(servidor.takeRequest().getPath().endsWith("/auth/refresh"));
+        servidor.takeRequest(5, TimeUnit.SECONDS); // login
+        assertTrue(servidor.takeRequest(5, TimeUnit.SECONDS).getPath().endsWith("/auth/refresh"));
         assertEquals("acc2", tokens.obtenerToken());
     }
 

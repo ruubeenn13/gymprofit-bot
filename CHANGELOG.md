@@ -50,8 +50,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   Gson) con `ApiClient` —Bearer de la cuenta de servicio por interceptor, renovación transparente
   ante 401 con refresh serializado y caída a login, timeouts de 60 s porque Render free duerme, y
   executor propio para no tocar el hilo del gateway— más `EjercicioService` con caché de 5 min por
-  consulta+idioma y reintentos con espera creciente (un 429 respeta su `Retry-After`). Primer paso
-  para ver el catálogo de ejercicios (873) desde Discord. Todo testeado con `MockWebServer`.
+  consulta+idioma y reintentos con espera creciente (un 429 respeta su `Retry-After`). La capa
+  aguanta el despertar de la API: si la conexión se cae **mientras el bot inicia sesión** también
+  se reintenta, la espera nunca pasa de 10 s (detrás hay alguien mirando Discord) y diez personas
+  preguntando lo mismo a la vez generan **una sola** consulta, no diez. Primer paso para ver el
+  catálogo de ejercicios (873) desde Discord. Todo testeado con `MockWebServer`.
 - **Al despertar, el bot retoma lo que ibas a hacer**: si intentas currar (o minar, pelear o entrar a
   una mazmorra) estando dormido y pulsas **Despertar**, ya no te levanta y te deja ahí mirando —
   ejecuta la acción y te manda el resultado en un segundo mensaje. Antes había que volver a escribir
