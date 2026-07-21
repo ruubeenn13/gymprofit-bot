@@ -33,7 +33,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 56 de nivel superior (ADR-011) |
 | `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod |
 | `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
-| `api/` | Cliente Retrofit hacia la API GymProFit (interfaces por dominio) |
+| `api/` | Cliente Retrofit2+OkHttp3 hacia la API GymProFit: `ApiClient` (Bearer por interceptor, renovación ante 401, timeouts 60 s por Render free, executor propio de 4 hilos daemon), `TokenManager` (refresh serializado con caída a login), interfaces por dominio (`AuthApi`, `EjerciciosApi`) y DTOs como records. Lo consume `services/EjercicioService` (caché TTL 5 min por consulta+idioma + reintentos con backoff, 429 respeta `Retry-After`) |
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |
 | `i18n/` | `Messages` sobre `ResourceBundle` (ES/EN) |
@@ -82,9 +82,11 @@ Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate C
 
 ## Autenticación bot → API
 
-Ver ADR en [`decisions.md`](decisions.md). Resumen: cuenta de servicio con login `/auth` +
-refresh; el **access token se cachea** y solo se renueva ante 401; ante 429 se respeta
-`Retry-After` con backoff. Objetivo F3: rol `BOT` / endpoints `/bot/**` acotados.
+Ver ADR en [`decisions.md`](decisions.md). Implementado en `api/`: cuenta de servicio con
+login `/auth` + refresh; el **access token se cachea** (`TokenManager`) y solo se renueva ante
+401 —renovación **serializada** y con caída a login si el refresh también caduca—; ante 429,
+`services/EjercicioService` respeta `Retry-After` con backoff y cachea las respuestas 5 min.
+Objetivo F3: rol `BOT` / endpoints `/bot/**` acotados.
 
 ## Hosting y observabilidad
 
