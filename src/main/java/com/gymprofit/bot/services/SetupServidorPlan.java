@@ -246,7 +246,8 @@ public final class SetupServidorPlan {
                     texto("🎧・off-topic", null, "intro.offtopic")
                             .conTopic("Todo lo que no encaje en el resto de canales."))),
             new CategoriaPlan("▬▬ 🏋️ FITNESS ▬▬", false, false, List.of(
-                    texto("🗓️・ejercicio-del-día", TipoCanal.EJERCICIO_DIA)
+                    // El job diario publica aquí a las 08:00; la intro explica el horario y /ejercicio-dia.
+                    texto("🗓️・ejercicio-del-día", TipoCanal.EJERCICIO_DIA, "intro.ejerciciodia")
                             .conTopic("El ejercicio o reto del día. ¡A moverse! 🗓️"),
                     media("📈・progresos", null, "Antes/Después", "Marca (PR)", "Medidas", "Otro")
                             .conTopic("Comparte tus progresos y marcas (antes/después). Una foto por publicación."),

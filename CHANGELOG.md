@@ -9,10 +9,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ### Cambiado
 - **Las guías fijadas de los canales dejan de mentir**: 🗺️ cómo-funciona seguía prometiendo «muy
   pronto: frase, retos y economía» cuando las tres llevan tiempo funcionando — ahora explica el
-  simulador de vida y `/frase`, y la lista de «muy pronto» solo tiene lo que de verdad falta
-  (catálogo de ejercicios, ejercicio del día, trivia y vincular tu cuenta). 🎫 soporte decía que los
-  tickets llegarían «en breve» aunque el panel con botón ya está: ahora explica cómo abrir uno y
-  que el histórico se guarda al cerrarlo. Y 🤖 comandos-bot sugiere también `/frase` y `/perfil ver`.
+  simulador de vida, el catálogo de ejercicios (`/ejercicios`, `/ejercicio-dia`) y `/frase`, y la
+  lista de «muy pronto» solo tiene lo que de verdad falta (trivia y vincular tu cuenta). 🎫 soporte
+  decía que los tickets llegarían «en breve» aunque el panel con botón ya está: ahora explica cómo
+  abrir uno y que el histórico se guarda al cerrarlo. Y 🤖 comandos-bot sugiere también
+  `/ejercicios`, `/ejercicio-dia`, `/frase` y `/perfil ver`. Además, 🗓️・ejercicio-del-día estrena
+  su propia guía fijada (explica el post automático de las 8:00 y cómo pedirlo con `/ejercicio-dia`).
   Se actualizan en ES y EN; basta con reejecutar `/setup` para que reescriba los mensajes fijados.
 - **Las respuestas del bot se ven en el canal** (antes muchas eran «solo tú puedes ver esto»). Esto
   es una comunidad: la gracia es que se vea lo que hace la gente, y con las respuestas privadas el

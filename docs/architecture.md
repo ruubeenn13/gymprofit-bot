@@ -30,14 +30,14 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados (`GUILD_MEMBERS`, `MESSAGE_CONTENT`), cache de miembros, presencia |
 | `db/Database` | Pool HikariCP + ejecución de migraciones Flyway; expone el `DataSource` a los repos |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
-| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 56 de nivel superior (ADR-011) |
-| `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod |
+| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 59 de nivel superior (ADR-011). `commands/consultas` agrupa lo que lee de la API/contenido de la app: `/ejercicios`, `/ejercicio-dia` y `/frase` |
+| `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod, `EjerciciosPaginadorListener` (flechas y ficha del catálogo, con el estado codificado en el customId) |
 | `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
 | `api/` | Cliente Retrofit2+OkHttp3 hacia la API GymProFit: `ApiClient` (Bearer por interceptor, renovación ante 401 —contando 401 en la cadena, no cualquier `priorResponse`—, timeouts 60 s por Render free más `callTimeout` de la llamada completa, executor propio de 4 hilos daemon y `cerrar()` que los libera), `TokenManager` (refresh serializado con caída a login), interfaces por dominio (`AuthApi`, `EjerciciosApi`) y DTOs como records. Lo consume `services/EjercicioService` (caché TTL 5 min acotada y de vuelo único por consulta+idioma + reintentos con backoff acotado, 429 respeta `Retry-After`) |
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |
 | `i18n/` | `Messages` sobre `ResourceBundle` (ES/EN) |
-| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `SorteoJob`, retención de datos |
+| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `SorteoJob`, retención de datos |
 
 ## Flujo de un slash command (objetivo F1)
 
