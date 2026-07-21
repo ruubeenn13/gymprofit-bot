@@ -89,7 +89,13 @@ public final class MinarComando implements Comando {
         }
         String pico = Items.porId(r.picoId()).map(i -> i.emoji() + " "
                 + Messages.get(locale, "item." + i.id())).orElse(r.picoId());
-        return Messages.get(locale, "minar.ok", botin.toString().strip(), r.nivelNuevo(),
-                pico, r.durabilidad(), r.durabilidadMax());
+        StringBuilder cuerpo = new StringBuilder(Messages.get(locale, "minar.ok",
+                botin.toString().strip(), r.nivelNuevo(), pico, r.durabilidad(),
+                r.durabilidadMax()));
+        if (r.durabilidadAhorrada()) {
+            // Si no se dice, el jugador no se entera de que su pasivo está funcionando.
+            cuerpo.append('\n').append(Messages.get(locale, "minar.durabilidad.ahorrada"));
+        }
+        return cuerpo.toString();
     }
 }

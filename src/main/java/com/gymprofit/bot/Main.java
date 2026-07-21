@@ -327,7 +327,7 @@ public final class Main {
             InventarioRepositorio inventarioRepo = new InventarioRepositorio(db.dataSource());
             PasivoService pasivoService = new PasivoService(
                     new PasivoRepositorio(db.dataSource()), inventarioRepo, usuarios);
-            XpService xpService = new XpService(usuarios);
+            XpService xpService = new XpService(usuarios, pasivoService);
             RangoService rangoService = new RangoService();
             comandos.add(new NivelComando(usuarios));
             comandos.add(new TopComando(usuarios));
@@ -433,8 +433,10 @@ public final class Main {
             listeners.add(new DescansoListener(descansoService, reintentos));
 
             // /trabajo agrupa lista, elegir y currar.
-            TrabajoService trabajoService =
-                    new TrabajoService(personajeRepo, economiaRepo, usuarios, descansoService);
+            // pasivoService entra aquí: los pasivos de SUELDO suben la nómina y los de COOLDOWN_WORK
+            // recortan la espera entre turnos.
+            TrabajoService trabajoService = new TrabajoService(
+                    personajeRepo, economiaRepo, usuarios, descansoService, pasivoService);
             comandos.add(new TrabajoComando(trabajoService, reintentos));
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));
@@ -478,8 +480,11 @@ public final class Main {
 
             // Minería (COMBAT-5): minar recursos, repararlos picos y venderlos.
             MineriaRepositorio mineriaRepo = new MineriaRepositorio(db.dataSource());
+            // pasivoService entra aquí: los pasivos de MINERIA_CANTIDAD suben el botín (y su tope)
+            // y los de MINERIA_DURABILIDAD dan opción a que el pico no se desgaste.
             MineriaService mineriaService = new MineriaService(mineriaRepo,
-                    personajeRepo, inventarioRepo, economiaRepo, usuarios, descansoService);
+                    personajeRepo, inventarioRepo, economiaRepo, usuarios, descansoService,
+                    pasivoService);
             comandos.add(new MinarComando(mineriaService, reintentos));
             comandos.add(new RepararComando(mineriaService));
 

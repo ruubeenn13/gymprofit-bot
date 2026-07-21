@@ -8,12 +8,18 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Random;
 
 /**
  * Lógica de trabajo y energía: elegir trabajo (con requisito de nivel), trabajar un turno (gana
  * coins, gasta energía, con cooldown) y entrenar atributos (gasta energía). La regeneración de
  * energía la hace {@code EnergiaJob}. Progresión lenta: cooldowns amplios y ganancias contenidas.
+ *
+ * <p>Los <b>efectos pasivos</b> ({@link PasivoService}) entran en dos sitios: el bono de
+ * {@code SUELDO} sube el pago y el de {@code COOLDOWN_WORK} recorta la espera entre turnos. El orden
+ * de la tubería del sueldo es estudios → pasivos → fatiga y <b>no se toca</b>: la fatiga recorta el
+ * sueldo final, no el base (ver {@link #conPenalizacionFatiga}).
  */
 public final class TrabajoService {
 
@@ -43,14 +49,26 @@ public final class TrabajoService {
     private final EconomiaRepositorio economia;
     private final UsuarioDiscordRepositorio usuarios;
     private final DescansoService descanso;
+    /** Efectos pasivos del jugador. {@code null} en los tests y arranques que no los usan. */
+    private final PasivoService pasivos;
     private final Random aleatorio = new Random();
 
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
-                          UsuarioDiscordRepositorio usuarios, DescansoService descanso) {
+                          UsuarioDiscordRepositorio usuarios, DescansoService descanso,
+                          PasivoService pasivos) {
         this.personajes = personajes;
         this.economia = economia;
         this.usuarios = usuarios;
         this.descanso = descanso;
+        this.pasivos = pasivos;
+    }
+
+    /**
+     * Constructor sin pasivos (tests y arranques degradados): equivale a no tener nada equipado.
+     */
+    public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
+                          UsuarioDiscordRepositorio usuarios, DescansoService descanso) {
+        this(personajes, economia, usuarios, descanso, null);
     }
 
     /** Asigna un trabajo si existe y el usuario cumple el requisito de nivel. */
@@ -80,8 +98,14 @@ public final class TrabajoService {
         if (p.trabajo() == null) {
             return new ResultadoWork(EstadoWork.SIN_TRABAJO, 0, p.energia(), 0);
         }
+        // Un único viaje a los pasivos por turno: se necesitan dos tipos de bono (cooldown y sueldo)
+        // y cada llamada a bonosDe son tres consultas, así que se leen juntos y se reparten.
+        Map<Pasivos.Tipo, Double> bonos = bonosDe(discordId);
         if (p.ultimoWork() != null) {
-            long restante = COOLDOWN_WORK.getSeconds() - Duration.between(p.ultimoWork(), ahora).getSeconds();
+            // El cooldown ya no es una constante: los pasivos de COOLDOWN_WORK lo recortan hasta un
+            // suelo de 45 min.
+            Duration cooldown = cooldownEfectivo(bono(bonos, Pasivos.Tipo.COOLDOWN_WORK));
+            long restante = cooldown.getSeconds() - Duration.between(p.ultimoWork(), ahora).getSeconds();
             if (restante > 0) {
                 return new ResultadoWork(EstadoWork.EN_COOLDOWN, 0, p.energia(), restante);
             }
@@ -93,9 +117,11 @@ public final class TrabajoService {
         int base = calcularPago(t.salarioMin(), t.salarioMax(), aleatorio);
         // La fatiga (>24 h sin dormir) se aplica la última, sobre el pago ya bonificado: es un
         // recorte del sueldo final, no del base, para que empuje al ciclo diario de dormir sin
-        // anular el bono de estudios que el jugador se ha ganado.
+        // anular los bonos (estudios y pasivos) que el jugador se ha ganado.
         boolean fatiga = DescansoService.tieneFatiga(descanso.estadoDe(discordId), ahora);
-        int pago = conPenalizacionFatiga(conBonoEstudios(base, p.estudios()), fatiga);
+        int pago = conPenalizacionFatiga(
+                conBonoPasivos(conBonoEstudios(base, p.estudios()), bono(bonos, Pasivos.Tipo.SUELDO)),
+                fatiga);
         economia.ingresar(discordId, pago, "work");
         return new ResultadoWork(EstadoWork.OK, pago, p.energia() - t.energiaCoste(), 0);
     }
@@ -132,5 +158,48 @@ public final class TrabajoService {
      */
     public static int conPenalizacionFatiga(int base, boolean fatiga) {
         return fatiga ? Math.max(1, (int) Math.round(base * PENAL_FATIGA)) : base;
+    }
+
+    /**
+     * Aplica el bono de sueldo de los efectos pasivos al pago <b>ya bonificado por estudios</b>.
+     * <b>Puro.</b>
+     *
+     * <p>Es multiplicativo respecto al bono de estudios ({@code base × 1,25 × 1,30}), no aditivo:
+     * mantiene los dos topes independientes y evita que un sistema eclipse al otro. Satura en
+     * {@code Pasivos.TOPES.get(SUELDO)} (+30 %), igual que {@link #conBonoEstudios} con el suyo.
+     *
+     * @param base pago ya bonificado por estudios
+     * @param bono bono de sueldo de los pasivos (fracción; ya viene topado del service, pero se
+     *             vuelve a topar aquí para que la función sea segura por sí sola)
+     * @return el pago con el bono aplicado
+     */
+    public static int conBonoPasivos(int base, double bono) {
+        double aplicado = Math.min(Pasivos.TOPES.get(Pasivos.Tipo.SUELDO), Math.max(0, bono));
+        return (int) Math.round(base * (1 + aplicado));
+    }
+
+    /**
+     * Cooldown efectivo de currar con el bono de pasivos aplicado. <b>Puro.</b>
+     *
+     * <p>{@link #COOLDOWN_WORK} sigue siendo el valor base de 60 min y no se toca ni se renombra;
+     * el bono es una <b>reducción</b> topada al 25 %, así que el suelo son <b>45 minutos</b> y nunca
+     * puede salir un cooldown negativo por muchos vehículos que se acumulen.
+     *
+     * @param bono reducción de los pasivos (fracción positiva); valores negativos se ignoran
+     * @return el cooldown a respetar entre turnos
+     */
+    public static Duration cooldownEfectivo(double bono) {
+        double aplicado = Math.min(Pasivos.TOPES.get(Pasivos.Tipo.COOLDOWN_WORK), Math.max(0, bono));
+        return Duration.ofSeconds(Math.round(COOLDOWN_WORK.getSeconds() * (1 - aplicado)));
+    }
+
+    /** Bonos pasivos del jugador, o el mapa vacío si el service no está inyectado. */
+    private Map<Pasivos.Tipo, Double> bonosDe(long discordId) {
+        return pasivos == null ? Map.of() : pasivos.bonosDe(discordId);
+    }
+
+    /** Lectura defensiva de un tipo concreto del mapa de bonos. */
+    private static double bono(Map<Pasivos.Tipo, Double> bonos, Pasivos.Tipo tipo) {
+        return bonos.getOrDefault(tipo, 0.0);
     }
 }

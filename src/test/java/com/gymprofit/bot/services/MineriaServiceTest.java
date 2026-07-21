@@ -9,12 +9,14 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.services.MineriaService.Estado;
 import com.gymprofit.bot.services.MineriaService.EstadoReparar;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -40,9 +42,21 @@ class MineriaServiceTest {
         when(descanso.estaDormido(anyLong())).thenReturn(false);
     }
 
+    /**
+     * Servicio con azar fijo y <b>sin</b> pasivos: un mock sin stubs devuelve el mapa vacío en
+     * {@code bonosDe}, así que estos tests se comportan igual que antes de existir los pasivos.
+     */
     private MineriaService svc(double azar) {
         return new MineriaService(mineria, personajes, inventario, economia, usuarios, descanso,
-                () -> azar);
+                mock(PasivoService.class), () -> azar);
+    }
+
+    /** Servicio con azar fijo y un único bono de pasivos activo. */
+    private MineriaService svc(double azar, Pasivos.Tipo tipo, double bono) {
+        PasivoService pasivos = mock(PasivoService.class);
+        when(pasivos.bonosDe(anyLong())).thenReturn(Map.of(tipo, bono));
+        return new MineriaService(mineria, personajes, inventario, economia, usuarios, descanso,
+                pasivos, () -> azar);
     }
 
     /** Stub: todos los picos a durabilidad completa (devuelve el máximo pasado). */
@@ -131,6 +145,77 @@ class MineriaServiceTest {
         when(mineria.durabilidad(1L, "pico_madera", 30)).thenReturn(0); // roto
         assertEquals(Estado.PICO_ROTO, svc(0.4).minar(1L).estado());
         verify(personajes, never()).gastarEnergia(anyLong(), anyInt());
+    }
+
+    // ---------------------- Efectos pasivos ----------------------
+
+    @Test
+    @DisplayName("bonoCantidad y ahorraDurabilidad topan, y un bono negativo nunca resta")
+    void funcionesPurasDeLosPasivos() {
+        assertEquals(0, MineriaService.bonoCantidad(0.0));
+        assertEquals(2, MineriaService.bonoCantidad(2.0), "el dron: +2 minerales");
+        assertEquals(3, MineriaService.bonoCantidad(9.0), "satura en el tope de +3");
+        assertEquals(0, MineriaService.bonoCantidad(-5.0), "un bono negativo no quita minerales");
+
+        assertFalse(MineriaService.ahorraDurabilidad(0.0, 0.0),
+                "sin bono no se ahorra nunca, ni con la tirada más baja posible");
+        assertTrue(MineriaService.ahorraDurabilidad(0.11, 0.12));
+        assertFalse(MineriaService.ahorraDurabilidad(0.12, 0.12), "el borde no entra");
+        assertTrue(MineriaService.ahorraDurabilidad(0.39, 0.90),
+                "un bono bruto del 90 % satura en el tope del 40 %");
+        assertFalse(MineriaService.ahorraDurabilidad(0.41, 0.90));
+        assertFalse(MineriaService.ahorraDurabilidad(0.0, -1.0),
+                "un bono negativo no se convierte en probabilidad");
+    }
+
+    @Test
+    @DisplayName("MINERIA_CANTIDAD suma minerales Y sube el tope duro del minado")
+    void bonoDeCantidadSubeTambienElTope() {
+        picosATope();
+        when(inventario.listar(1L)).thenReturn(Map.of("pico_mithril", 1));
+        when(personajes.gastarEnergia(anyLong(), anyInt())).thenReturn(true);
+        // Nivel de minería alto: sin bono ya estaría clavado en CANTIDAD_MAX = 5.
+        when(mineria.obtenerOCrear(1L)).thenReturn(new MineriaEstado(1L, 200, null));
+
+        int sinBono = svc(0.4).minar(1L).minerales().values().stream()
+                .mapToInt(Integer::intValue).sum();
+        assertEquals(MineriaService.CANTIDAD_MAX, sinBono, "sin bono, clavado en el tope");
+
+        int conBono = svc(0.4, Pasivos.Tipo.MINERIA_CANTIDAD, 2.0)
+                .minar(1L).minerales().values().stream().mapToInt(Integer::intValue).sum();
+        assertEquals(MineriaService.CANTIDAD_MAX + 2, conBono,
+                "el tope sube con el bono; si no, el dron no serviría de nada al que ya topa");
+    }
+
+    @Test
+    @DisplayName("MINERIA_DURABILIDAD: con la tirada favorable el pico NO se gasta")
+    void bonoDeDurabilidadAhorraElPico() {
+        picosATope();
+        when(inventario.listar(1L)).thenReturn(Map.of("pico_hierro", 1));
+        when(personajes.gastarEnergia(anyLong(), anyInt())).thenReturn(true);
+        when(mineria.obtenerOCrear(1L)).thenReturn(new MineriaEstado(1L, 0, null));
+
+        // azar = 0.0 < 0.12 → se ahorra la durabilidad.
+        var r = svc(0.0, Pasivos.Tipo.MINERIA_DURABILIDAD, 0.12).minar(1L);
+        assertEquals(Estado.OK, r.estado());
+        assertTrue(r.durabilidadAhorrada(), "hay que decírselo al jugador o no verá el pasivo");
+        assertEquals(r.durabilidadMax(), r.durabilidad(), "el pico sigue como estaba");
+        verify(mineria, never()).gastarDurabilidad(anyLong(), anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("MINERIA_DURABILIDAD: con la tirada desfavorable el pico sí se gasta")
+    void sinSuerteElPicoSeGasta() {
+        picosATope();
+        when(inventario.listar(2L)).thenReturn(Map.of("pico_hierro", 1));
+        when(personajes.gastarEnergia(anyLong(), anyInt())).thenReturn(true);
+        when(mineria.obtenerOCrear(2L)).thenReturn(new MineriaEstado(2L, 0, null));
+
+        // azar = 0.99, muy por encima del 0.12 del bono.
+        var r = svc(0.99, Pasivos.Tipo.MINERIA_DURABILIDAD, 0.12).minar(2L);
+        assertEquals(Estado.OK, r.estado());
+        assertFalse(r.durabilidadAhorrada());
+        verify(mineria).gastarDurabilidad(anyLong(), anyString(), anyInt());
     }
 
     // ---------------------- Reparar ----------------------
