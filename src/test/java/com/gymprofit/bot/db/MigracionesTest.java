@@ -94,6 +94,13 @@ class MigracionesTest {
                                 + "WHERE table_name = 'pasivos_equipados' "
                                 + "AND index_name = 'uq_pasivos_item' AND seq_in_index = 1"),
                         "pasivos_equipados debe tener el UNIQUE (discord_id, item_id)");
+                // V26 aplicada: el progreso de carrera existe y arranca vacío.
+                assertEquals(0, contar(st, "SELECT COUNT(*) FROM carreras"),
+                        "carreras nace vacía: sin fila = tier de entrada de la rama");
+                // V26 aplicada: personajes tiene la antigüedad en el puesto.
+                assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
+                                + "WHERE table_name = 'personajes' AND column_name = 'turnos_puesto'"),
+                        "personajes.turnos_puesto debe existir tras V26");
                 // warns.motivo debe ser TEXT (aloja el texto cifrado en base64).
                 assertEquals(1, contar(st, "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_name = 'warns' AND column_name = 'motivo' "
