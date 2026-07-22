@@ -54,7 +54,7 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
 
 - **Catálogos en código** (no en BD): `Items`, `Trabajos`, `Mundos`, `Monstruos`, `Mazmorras`,
   `Recetas`, `Cofres`, `Encantamiento`, `Habilidad`, `Misiones`, `Insignias`, `Acciones`, `Picos`,
-  `Minerales`, `Rango`. La BD guarda solo el **estado del jugador** (personaje, inventario, progreso,
+  `Minerales`, `Rango`, `Pasivos`. La BD guarda solo el **estado del jugador** (personaje, inventario, progreso,
   cartera, gremios…).
 - **Services testeables** con el **azar inyectable** (`BatallaService.Aleatorio`) para que combate,
   minería, cofres, casino y bolsa tengan tests deterministas.
@@ -73,9 +73,19 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   cálculo (energía ganada, bono de resistencia, fatiga) es **puro y estático**, testeable sin BD; el
   tope depende de la cama (`Camas`), que sale del inventario. Trabajo, combate y minería reciben el
   servicio por constructor para bloquear al que esté dormido.
-- **Migraciones Flyway V6–V23**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Efectos pasivos con ranuras**: el equipo y los vehículos dan bonos permanentes (sueldo,
+  cooldown de trabajo, XP, energía, minería y combate) al equiparlos en ranuras que se desbloquean
+  a los niveles 0/10/25/50. El catálogo vive en `Pasivos` (satélite de `Items`, como `Camas`); la
+  tabla `pasivos_equipados` guarda solo la **referencia**, y `PasivoService` **recalcula contra el
+  inventario** en cada consulta: vender, regalar, publicar en el mercado o trocar el ítem apaga su
+  bono sin necesidad de hooks en `VentaService`, `RegaloService`, `MercadoService`,
+  `TruequeService` ni `RoboService`. La suma y el topado son una función pura; los topes son
+  **globales por tipo y saturantes**. Los bonos de combate entran en el **snapshot** de
+  `BatallaService.nuevaSesion` (valen toda la pelea, sin consultas por turno) y la energía extra es
+  un **segundo `UPDATE`** en `EnergiaJob`, sin tocar el pase masivo.
+- **Migraciones Flyway V6–V25**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias, descanso.
+  estudios, insignias, descanso, pasivos equipados.
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

@@ -234,3 +234,31 @@ override del miembro; al disolver se borra el canal. Requiere que el bot tenga *
 es best-effort (si falla, el gremio sigue en BD y se registra el fallo).
 
 **Estado:** aceptada e implementada (F-ECO-5a).
+
+## ADR-013 — Catálogo satélite y ranuras para los efectos pasivos
+
+**Contexto.** 30 ítems del catálogo (20 `EQUIPO` + 10 vehículos `BIEN`) se compraban y no hacían
+nada, entre 200 y 3 000 000 de coins. La tienda mentía, el late-game no tenía destino y la
+progresión se aplanaba.
+
+**Decisión.**
+1. Los bonos viven en un **catálogo paralelo** `services/Pasivos`, emparejado por `itemId`, y
+   `Items` no se toca. Precedente triple: `Picos`, `Camas`, `Cofres`. Meterlos en `Items` obligaría
+   a ampliar un record de 8 componentes con campos nulos en 79 de 109 filas, y sus precios son
+   carga estructural probada por `RarezaTest` y `Camas`.
+2. **Ranuras** (1/2/3/4 a niveles 0/10/25/50) en vez de «basta con tenerlo»: sin ranuras el sistema
+   se resolvería el día que terminas de comprar y no habría ninguna decisión que tomar nunca más.
+3. La fila de `pasivos_equipados` es una **referencia, no un derecho**: el bono se recalcula contra
+   el inventario en cada consulta. Eso cierra a la vez los exploits de vender, regalar, publicar en
+   el mercado y trocar, y evita hooks de limpieza en cinco services.
+4. **Topes globales por tipo, saturantes.** Se topa la suma, nunca cada bono. Sin topes, cuatro
+   ranuras de sueldo romperían la economía lenta (ADR-010).
+5. Las **10 camas quedan fuera**: ya tienen efecto vía `Camas` y darles además un pasivo sería
+   doble recompensa por la misma compra.
+
+**Consecuencias.** Un comando más que aprender (`/pasivos`), compensado con `/pasivos ver` y la
+intro del canal. El combate queda por debajo del +6 % del poder en el peor caso realista, así que
+no hay que rebalancear el bestiario. Queda pendiente en el backlog el coste de mantenimiento de los
+vehículos (sumidero con su propio job y su propio diseño).
+
+**Estado:** aceptada e implementada.

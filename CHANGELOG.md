@@ -6,6 +6,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin publicar]
 
+### Añadido
+- **Efectos pasivos de equipo y bienes** (`/pasivos ver` · `equipar` · `quitar`): los 20 ítems de
+  equipo y los 10 vehículos dejan de ser decoración y dan bonos permanentes de sueldo, cooldown de
+  trabajo, XP, energía, minería (cantidad y durabilidad) y combate (ataque, defensa y crítico). Se
+  equipan en **ranuras** que se desbloquean a los niveles 0, 10, 25 y 50 —los mismos umbrales que
+  los rangos— y el ítem **nunca se consume**. Cada tipo tiene un **tope global** que satura, y el
+  bono cuenta **solo mientras tengas el ítem**: si lo vendes, lo regalas o lo publicas en el
+  mercado, la ranura se queda pero deja de contar (`/pasivos ver` lo marca con ⚠️). `/perfil ver`
+  enseña el resumen. Migración `V25__pasivos_equipados`. Las camas no cambian.
+
 ### Corregido
 - **Consultas — el bot ya no se queda «pensando» para siempre**: `/ejercicios`, `/ejercicio-dia` y
   las flechas/ficha del catálogo hacían su trabajo en segundo plano capturando **solo** los fallos

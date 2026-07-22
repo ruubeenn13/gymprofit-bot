@@ -283,7 +283,7 @@ public final class SetupServidorPlan {
                     info("📖・cómo-jugar", null, "intro.simulador")
                             .conTopic("Cómo funciona el simulador de vida: personaje, dinero y trabajos."),
                     texto("💰・economía", null, "intro.economia")
-                            .conTopic("Tu vida en el servidor: /perfil, /daily, /balance y más. 🪙"),
+                            .conTopic("Tu vida en el servidor: /perfil, /daily, /balance, /pasivos y más. 🪙"),
                     // Aventura (COMBAT): equipo, mundos desbloqueables y bestiario.
                     texto("⚔️・combate", null, "intro.combate")
                             .conTopic("Equípate y prepárate para la aventura: /equipar, /mundos, /monstruos. ⚔️"),
