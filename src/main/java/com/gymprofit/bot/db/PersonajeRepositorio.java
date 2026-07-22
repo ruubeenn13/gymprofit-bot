@@ -37,8 +37,8 @@ public final class PersonajeRepositorio {
     /** Personaje por id, si existe. */
     public Optional<Personaje> buscar(long discordId) {
         String sql = "SELECT discord_id, fuerza, resistencia, carisma, energia, salud, trabajo, "
-                + "ultimo_work, arma, armadura, ultimo_combate, arma_nivel, arma_encanto, estudios "
-                + "FROM personajes WHERE discord_id = ?";
+                + "ultimo_work, arma, armadura, ultimo_combate, arma_nivel, arma_encanto, estudios, "
+                + "turnos_puesto FROM personajes WHERE discord_id = ?";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, discordId);
@@ -52,20 +52,23 @@ public final class PersonajeRepositorio {
 
     /** Fija el trabajo actual del personaje ({@code null} = en paro). */
     public void fijarTrabajo(long discordId, String trabajo) {
-        ejecutar("UPDATE personajes SET trabajo = ? WHERE discord_id = ?", ps -> {
+        // Cambiar de puesto (elegir o ascender) resetea la antigüedad: los turnos son DEL puesto.
+        ejecutar("UPDATE personajes SET trabajo = ?, turnos_puesto = 0 WHERE discord_id = ?", ps -> {
             ps.setString(1, trabajo);
             ps.setLong(2, discordId);
         });
     }
 
     /**
-     * Aplica un turno de trabajo: descuenta {@code energia} y marca {@code ultimo_work = NOW()}, solo
-     * si hay energía suficiente. Devuelve {@code true} si se aplicó.
+     * Aplica un turno de trabajo: descuenta {@code energia}, marca {@code ultimo_work = NOW()} y
+     * suma 1 a {@code turnos_puesto} (antigüedad para los ascensos), solo si hay energía
+     * suficiente. Devuelve {@code true} si se aplicó.
      */
     public boolean trabajar(long discordId, int energiaCoste) {
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(
-                     "UPDATE personajes SET energia = energia - ?, ultimo_work = NOW() "
+                     "UPDATE personajes SET energia = energia - ?, ultimo_work = NOW(), "
+                             + "turnos_puesto = turnos_puesto + 1 "
                              + "WHERE discord_id = ? AND energia >= ?")) {
             ps.setInt(1, energiaCoste);
             ps.setLong(2, discordId);
@@ -310,6 +313,7 @@ public final class PersonajeRepositorio {
                 rs.getString("trabajo"), uw == null ? null : uw.toInstant(),
                 rs.getString("arma"), rs.getString("armadura"),
                 uc == null ? null : uc.toInstant(),
-                rs.getInt("arma_nivel"), rs.getString("arma_encanto"), rs.getInt("estudios"));
+                rs.getInt("arma_nivel"), rs.getString("arma_encanto"), rs.getInt("estudios"),
+                rs.getInt("turnos_puesto"));
     }
 }

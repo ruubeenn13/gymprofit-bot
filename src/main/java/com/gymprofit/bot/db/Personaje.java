@@ -21,9 +21,10 @@ import java.time.Instant;
  * @param armaNivel     nivel de mejora del arma equipada (+daño en combate)
  * @param armaEncanto   id del encantamiento del arma (catálogo Encantamiento), o {@code null}
  * @param estudios      nivel de estudios (bono al sueldo); sube con /estudiar
+ * @param turnosPuesto  turnos currados en el puesto actual; se resetea al cambiar de puesto
  */
 public record Personaje(long discordId, int fuerza, int resistencia, int carisma,
                         int energia, int salud, String trabajo, Instant ultimoWork,
                         String arma, String armadura, Instant ultimoCombate,
-                        int armaNivel, String armaEncanto, int estudios) {
+                        int armaNivel, String armaEncanto, int estudios, int turnosPuesto) {
 }

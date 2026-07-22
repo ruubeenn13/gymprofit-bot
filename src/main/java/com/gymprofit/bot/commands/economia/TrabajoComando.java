@@ -120,6 +120,8 @@ public final class TrabajoComando implements Comando {
             case NO_EXISTE -> Messages.get(locale, "elegirtrabajo.noexiste");
             case REQUISITO -> Messages.get(locale, "elegirtrabajo.requisito",
                     Trabajos.porId(id).map(Trabajos::requisitoNivel).orElse(0));
+            // Los puestos por encima del tier de entrada de su rama ya no se eligen: se ascienden.
+            case TIER -> Messages.get(locale, "elegirtrabajo.tier");
         };
         evento.getHook().sendMessageEmbeds(
                 EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje)).queue();

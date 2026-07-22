@@ -143,7 +143,7 @@ class DescansoServiceTest {
      * Orden del record: discordId, fuerza, resistencia, carisma, energia, salud, …
      */
     private static Personaje personaje(int energia, int salud) {
-        return new Personaje(ID, 10, 0, 10, energia, salud, null, null, null, null, null, 0, null, 0);
+        return new Personaje(ID, 10, 0, 10, energia, salud, null, null, null, null, null, 0, null, 0, 0);
     }
 
     @Test

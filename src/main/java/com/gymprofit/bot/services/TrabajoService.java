@@ -1,5 +1,6 @@
 package com.gymprofit.bot.services;
 
+import com.gymprofit.bot.db.CarreraRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.Personaje;
 import com.gymprofit.bot.db.PersonajeRepositorio;
@@ -20,6 +21,12 @@ import java.util.Random;
  * {@code SUELDO} sube el pago y el de {@code COOLDOWN_WORK} recorta la espera entre turnos. El orden
  * de la tubería del sueldo es estudios → pasivos → fatiga y <b>no se toca</b>: la fatiga recorta el
  * sueldo final, no el base (ver {@link #conPenalizacionFatiga}).
+ *
+ * <p><b>Ascensos de carrera</b> ({@link Ascensos}): los puestos por encima del tier de entrada de
+ * su rama ya no se eligen, se ganan con {@link #ascender}. Cada salto exige cuatro requisitos
+ * (antigüedad en el puesto, estudios, la stat dominante de la rama y coins) y los coins se
+ * <b>queman</b> — gasto sin contrapartida, sumidero antiinflación. El tier alcanzado se guarda por
+ * rama en {@link CarreraRepositorio} y nunca baja.
  */
 public final class TrabajoService {
 
@@ -36,7 +43,9 @@ public final class TrabajoService {
 
     public enum EstadoWork { OK, SIN_TRABAJO, EN_COOLDOWN, SIN_ENERGIA, DORMIDO }
 
-    public enum ResultadoElegir { OK, NO_EXISTE, REQUISITO }
+    public enum ResultadoElegir { OK, NO_EXISTE, REQUISITO, TIER }
+
+    public enum EstadoAscenso { OK, SIN_TRABAJO, NO_EXISTE, DESTINO, TOPE, NIVEL, TURNOS, ESTUDIOS, STAT, COINS }
 
     public enum ResultadoEntrenar { OK, SIN_ENERGIA }
 
@@ -45,21 +54,34 @@ public final class TrabajoService {
                                 long segundosRestantes) {
     }
 
+    /**
+     * Resultado de un intento de ascenso.
+     *
+     * @param estado   resultado
+     * @param requisito requisitos del salto intentado (para pintar cuánto falta), o {@code null}
+     * @param actual   valor actual del requisito incumplido (turnos/estudios/stat), o 0
+     */
+    public record ResultadoAscenso(EstadoAscenso estado, Ascensos.Requisitos requisito, int actual) {
+    }
+
     private final PersonajeRepositorio personajes;
     private final EconomiaRepositorio economia;
     private final UsuarioDiscordRepositorio usuarios;
     private final DescansoService descanso;
+    /** Tier alcanzado por rama: la memoria de la carrera de cada jugador. */
+    private final CarreraRepositorio carreras;
     /** Efectos pasivos del jugador. {@code null} en los tests y arranques que no los usan. */
     private final PasivoService pasivos;
     private final Random aleatorio = new Random();
 
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
                           UsuarioDiscordRepositorio usuarios, DescansoService descanso,
-                          PasivoService pasivos) {
+                          CarreraRepositorio carreras, PasivoService pasivos) {
         this.personajes = personajes;
         this.economia = economia;
         this.usuarios = usuarios;
         this.descanso = descanso;
+        this.carreras = carreras;
         this.pasivos = pasivos;
     }
 
@@ -67,11 +89,15 @@ public final class TrabajoService {
      * Constructor sin pasivos (tests y arranques degradados): equivale a no tener nada equipado.
      */
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
-                          UsuarioDiscordRepositorio usuarios, DescansoService descanso) {
-        this(personajes, economia, usuarios, descanso, null);
+                          UsuarioDiscordRepositorio usuarios, DescansoService descanso,
+                          CarreraRepositorio carreras) {
+        this(personajes, economia, usuarios, descanso, carreras, null);
     }
 
-    /** Asigna un trabajo si existe y el usuario cumple el requisito de nivel. */
+    /**
+     * Asigna un trabajo si existe, el usuario cumple el requisito de nivel y el puesto es
+     * alcanzable: o es del tier de entrada de su rama, o el jugador ya tiene ese tier por carrera.
+     */
     public ResultadoElegir elegir(long discordId, String trabajoId) {
         var trabajo = Trabajos.porId(trabajoId);
         if (trabajo.isEmpty()) {
@@ -82,8 +108,74 @@ public final class TrabajoService {
         if (u.nivel() < trabajo.get().requisitoNivel()) {
             return ResultadoElegir.REQUISITO;
         }
+        // El tier ya no es libre: o es la entrada de la rama, o lo tienes alcanzado por carrera.
+        Ascensos.Rama rama = Ascensos.ramaDe(trabajo.get().sector());
+        int alcanzado = Math.max(Ascensos.tierEntrada(rama), carreras.tierAlcanzado(discordId, rama.name()));
+        if (trabajo.get().tier() > alcanzado) {
+            return ResultadoElegir.TIER;
+        }
         personajes.fijarTrabajo(discordId, trabajoId);
         return ResultadoElegir.OK;
+    }
+
+    /**
+     * Asciende al puesto indicado del siguiente tier de la rama del trabajo actual. Valida en orden:
+     * destino (existe, misma rama, tier correcto), nivel de servidor, antigüedad, estudios, stat y
+     * por último el cobro <b>atómico</b> (gastar solo si todo lo demás cumple: nunca se cobra un
+     * ascenso fallido). Los coins se queman: gasto sin contrapartida en el ledger.
+     */
+    public ResultadoAscenso ascender(long discordId, String puestoId) {
+        Personaje p = personajes.obtenerOCrear(discordId);
+        if (p.trabajo() == null) {
+            return new ResultadoAscenso(EstadoAscenso.SIN_TRABAJO, null, 0);
+        }
+        var destino = Trabajos.porId(puestoId);
+        if (destino.isEmpty()) {
+            return new ResultadoAscenso(EstadoAscenso.NO_EXISTE, null, 0);
+        }
+        Trabajos actual = Trabajos.porId(p.trabajo()).orElseThrow();
+        Ascensos.Rama rama = Ascensos.ramaDe(actual.sector());
+        int tierActual = Math.max(Ascensos.tierEntrada(rama),
+                carreras.tierAlcanzado(discordId, rama.name()));
+        var siguiente = Ascensos.siguienteTier(rama, tierActual);
+        if (siguiente.isEmpty()) {
+            return new ResultadoAscenso(EstadoAscenso.TOPE, null, 0);
+        }
+        if (Ascensos.ramaDe(destino.get().sector()) != rama
+                || destino.get().tier() != siguiente.get()) {
+            return new ResultadoAscenso(EstadoAscenso.DESTINO, null, 0);
+        }
+        Ascensos.Requisitos req = Ascensos.requisitosPara(siguiente.get());
+        UsuarioDiscord u = usuarios.obtenerOCrear(discordId);
+        if (u.nivel() < destino.get().requisitoNivel()) {
+            return new ResultadoAscenso(EstadoAscenso.NIVEL, req, u.nivel());
+        }
+        if (p.turnosPuesto() < req.turnos()) {
+            return new ResultadoAscenso(EstadoAscenso.TURNOS, req, p.turnosPuesto());
+        }
+        if (p.estudios() < req.estudios()) {
+            return new ResultadoAscenso(EstadoAscenso.ESTUDIOS, req, p.estudios());
+        }
+        int stat = statDelPersonaje(p, Ascensos.statDe(rama));
+        if (stat < req.stat()) {
+            return new ResultadoAscenso(EstadoAscenso.STAT, req, stat);
+        }
+        if (!economia.gastar(discordId, req.coins(), "ascenso")) {
+            return new ResultadoAscenso(EstadoAscenso.COINS, req, 0);
+        }
+        carreras.fijarTier(discordId, rama.name(), siguiente.get());
+        personajes.fijarTrabajo(discordId, puestoId); // resetea también la antigüedad
+        return new ResultadoAscenso(EstadoAscenso.OK, req, 0);
+    }
+
+    /** Valor de la stat dominante de la rama en este personaje. */
+    private static int statDelPersonaje(Personaje p, String stat) {
+        return switch (stat) {
+            case "fuerza" -> p.fuerza();
+            case "resistencia" -> p.resistencia();
+            case "carisma" -> p.carisma();
+            default -> throw new IllegalArgumentException("stat desconocida: " + stat);
+        };
     }
 
     /** Trabaja un turno: valida sueño, trabajo, cooldown y energía; paga y descuenta energía. */

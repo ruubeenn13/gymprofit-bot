@@ -1,11 +1,15 @@
 package com.gymprofit.bot.services;
 
+import com.gymprofit.bot.db.CarreraRepositorio;
 import com.gymprofit.bot.db.DescansoEstado;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.Personaje;
 import com.gymprofit.bot.db.PersonajeRepositorio;
+import com.gymprofit.bot.db.UsuarioDiscord;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
+import com.gymprofit.bot.services.TrabajoService.EstadoAscenso;
 import com.gymprofit.bot.services.TrabajoService.EstadoWork;
+import com.gymprofit.bot.services.TrabajoService.ResultadoElegir;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,18 +28,22 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Verifica el pago por turno, el bloqueo por sueño y la coherencia del catálogo de trabajos. */
+/**
+ * Verifica el pago por turno, el bloqueo por sueño, la coherencia del catálogo de trabajos y el
+ * sistema de ascensos (gate de elegir por tier y validación en orden de {@code ascender}).
+ */
 class TrabajoServiceTest {
 
     private final PersonajeRepositorio personajes = mock(PersonajeRepositorio.class);
     private final EconomiaRepositorio economia = mock(EconomiaRepositorio.class);
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
     private final DescansoService descanso = mock(DescansoService.class);
+    private final CarreraRepositorio carreras = mock(CarreraRepositorio.class);
 
     @Test
     void dormidoNoSePuedeCurrar() {
         when(descanso.estaDormido(1L)).thenReturn(true);
-        TrabajoService svc = new TrabajoService(personajes, economia, usuarios, descanso);
+        TrabajoService svc = new TrabajoService(personajes, economia, usuarios, descanso, carreras);
 
         assertEquals(EstadoWork.DORMIDO, svc.trabajar(1L, Instant.now()).estado());
         // El intento sale gratis: no cobra ni gasta energía.
@@ -119,7 +127,7 @@ class TrabajoServiceTest {
         // Currado hace 30 min: con el cooldown base de 60 min quedan ~30 min por delante.
         Personaje p = personaje(ahora.minus(Duration.ofMinutes(30)));
         when(personajes.obtenerOCrear(1L)).thenReturn(p);
-        TrabajoService svc = new TrabajoService(personajes, economia, usuarios, descanso);
+        TrabajoService svc = new TrabajoService(personajes, economia, usuarios, descanso, carreras);
 
         var r = svc.trabajar(1L, ahora);
         assertEquals(EstadoWork.EN_COOLDOWN, r.estado());
@@ -140,18 +148,136 @@ class TrabajoServiceTest {
         when(pasivos.bonosDe(1L)).thenReturn(Map.of(
                 Pasivos.Tipo.COOLDOWN_WORK, 0.25, Pasivos.Tipo.SUELDO, 0.30));
         when(personajes.trabajar(anyLong(), anyInt())).thenReturn(true);
-        TrabajoService svc = new TrabajoService(personajes, economia, usuarios, descanso, pasivos);
+        TrabajoService svc =
+                new TrabajoService(personajes, economia, usuarios, descanso, carreras, pasivos);
 
         assertEquals(EstadoWork.OK, svc.trabajar(1L, ahora).estado());
         // Un solo viaje a los pasivos por turno aunque se usen dos tipos de bono distintos.
         verify(pasivos).bonosDe(1L);
     }
 
+    // ------------------------------------------------------------------ ascensos de carrera
+
+    @Test
+    @DisplayName("elegir: el tier de entrada de la rama es libre; un tier superior exige carrera")
+    void elegirRespetaLaCarrera() {
+        nivelServidor(50); // nivel de servidor sobrado: aquí se prueba el gate de tier, no el de nivel
+        when(carreras.tierAlcanzado(anyLong(), anyString())).thenReturn(0);
+        assertEquals(ResultadoElegir.OK, svc().elegir(1L, "camarero"), "t1: entrada libre");
+        assertEquals(ResultadoElegir.TIER, svc().elegir(1L, "cocinero"),
+                "t2 sin carrera: hay que ascender, no elegir");
+
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(2);
+        assertEquals(ResultadoElegir.OK, svc().elegir(1L, "cocinero"),
+                "con t2 alcanzado en la rama, el t2 se elige libremente");
+    }
+
+    @Test
+    @DisplayName("elegir: la rama de arte entra por t2 (no tiene t1)")
+    void entradaDeRamaSinT1() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(anyLong(), anyString())).thenReturn(0);
+        assertEquals(ResultadoElegir.OK, svc().elegir(1L, "disenador"),
+                "t2 es la entrada de ARTE: libre aunque no haya carrera");
+    }
+
+    @Test
+    @DisplayName("ascender: valida los 4 requisitos en orden y devuelve qué falta")
+    void ascenderValidaRequisitos() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+
+        // Cada requisito que falla, en orden: turnos, estudios, stat, coins.
+        assertEquals(EstadoAscenso.TURNOS, svcConPersonaje(camarero(9, 5, 10)).ascender(1L, "cocinero").estado());
+        assertEquals(EstadoAscenso.ESTUDIOS, svcConPersonaje(camarero(10, 4, 10)).ascender(1L, "cocinero").estado());
+        assertEquals(EstadoAscenso.STAT, svcConPersonaje(camarero(10, 5, 9)).ascender(1L, "cocinero").estado());
+        when(economia.gastar(1L, 500L, "ascenso")).thenReturn(false);
+        assertEquals(EstadoAscenso.COINS, svcConPersonaje(camarero(10, 5, 10)).ascender(1L, "cocinero").estado());
+    }
+
+    @Test
+    @DisplayName("ascender OK: quema los coins, fija el tier de la rama y cambia el puesto")
+    void ascenderOkQuemaYFija() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+        when(economia.gastar(1L, 500L, "ascenso")).thenReturn(true);
+
+        var r = svcConPersonaje(camarero(10, 5, 10)).ascender(1L, "cocinero");
+        assertEquals(EstadoAscenso.OK, r.estado());
+        verify(economia).gastar(1L, 500L, "ascenso");
+        verify(carreras).fijarTier(1L, "HOSTELERIA", 2);
+        verify(personajes).fijarTrabajo(1L, "cocinero"); // fijarTrabajo ya resetea la antigüedad
+    }
+
+    @Test
+    @DisplayName("ascender rechaza destino de otra rama, de tier equivocado o sin trabajo actual")
+    void ascenderRechazaDestinosInvalidos() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(anyLong(), anyString())).thenReturn(0);
+        assertEquals(EstadoAscenso.SIN_TRABAJO, svcConPersonaje(sinTrabajo()).ascender(1L, "cocinero").estado());
+        assertEquals(EstadoAscenso.DESTINO, svcConPersonaje(camarero(99, 99, 99)).ascender(1L, "policia").estado(),
+                "policia es de SERVICIOS, no de la rama del camarero");
+        assertEquals(EstadoAscenso.DESTINO, svcConPersonaje(camarero(99, 99, 99)).ascender(1L, "panadero").estado(),
+                "panadero es t1: no es el siguiente tier");
+    }
+
+    @Test
+    @DisplayName("ascender en el tope de la rama devuelve TOPE")
+    void ascenderEnElTope() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(1L, "ARTE")).thenReturn(3);
+        assertEquals(EstadoAscenso.TOPE, svcConPersonaje(conTrabajo("actor", 99, 99, 99)).ascender(1L, "actor").estado());
+    }
+
+    @Test
+    @DisplayName("ascender con nivel de servidor insuficiente devuelve NIVEL sin cobrar")
+    void ascenderSinNivelDeServidor() {
+        nivelServidor(0); // cocinero pide nivel 5
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+
+        var r = svcConPersonaje(camarero(99, 99, 99)).ascender(1L, "cocinero");
+        assertEquals(EstadoAscenso.NIVEL, r.estado());
+        verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
+    }
+
+    /** Service con el montaje completo de mocks (sin pasivos: aquí no pintan nada). */
+    private TrabajoService svc() {
+        return new TrabajoService(personajes, economia, usuarios, descanso, carreras);
+    }
+
+    /** Service cuyo {@code obtenerOCrear} devuelve el personaje dado. */
+    private TrabajoService svcConPersonaje(Personaje p) {
+        when(personajes.obtenerOCrear(1L)).thenReturn(p);
+        return svc();
+    }
+
+    /** Stubea el usuario 1L con el nivel de servidor indicado (el resto da igual aquí). */
+    private void nivelServidor(int nivel) {
+        when(usuarios.obtenerOCrear(1L)).thenReturn(
+                new UsuarioDiscord(1L, 0, nivel, 0, 0, null, null, false));
+    }
+
+    /** Personaje con el puesto dado y los tres valores que miran los ascensos. */
+    private static Personaje conTrabajo(String trabajo, int turnosPuesto, int estudios, int carisma) {
+        return new Personaje(1L, 5, 5, carisma, 100, 100, trabajo, null, null, null,
+                null, 0, null, estudios, turnosPuesto);
+    }
+
+    /** Camarero (t1 Hostelería): el punto de partida canónico de los tests de ascenso. */
+    private static Personaje camarero(int turnosPuesto, int estudios, int carisma) {
+        return conTrabajo("camarero", turnosPuesto, estudios, carisma);
+    }
+
+    /** Personaje en paro: sin puesto no hay carrera que ascender. */
+    private static Personaje sinTrabajo() {
+        return conTrabajo(null, 0, 0, 5);
+    }
+
     /** Personaje de pruebas con trabajo asignado, energía de sobra y el último turno en {@code ultimoWork}. */
     private static Personaje personaje(Instant ultimoWork) {
         String trabajo = Trabajos.CATALOGO.get(0).id();
         return new Personaje(1L, 5, 5, 5, 100, 100, trabajo, ultimoWork, null, null,
-                null, 0, null, 0);
+                null, 0, null, 0, 0);
     }
 
     /** Estado de descanso despierto y recién levantado: sin fatiga, para no ensuciar el pago. */
