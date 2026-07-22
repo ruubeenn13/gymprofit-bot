@@ -17,10 +17,12 @@ Set-Location $root
 $env:JAVA_HOME = "$HOME\.jdks\ms-21.0.11"
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 
-# Compilar el fat-jar salvo que se pida saltarlo.
+# Compilar el fat-jar salvo que se pida saltarlo. SIEMPRE con clean: sin él, el
+# maven-shade-plugin intenta re-shadear su propio jar de un build anterior y
+# revienta con "ZipException: invalid LOC header".
 if (-not $SkipBuild) {
     Write-Host "==> Compilando el jar..." -ForegroundColor Cyan
-    .\mvnw.cmd -DskipTests package
+    .\mvnw.cmd -DskipTests clean package
     if ($LASTEXITCODE -ne 0) { throw "Fallo al compilar (revisa el error arriba)" }
 }
 

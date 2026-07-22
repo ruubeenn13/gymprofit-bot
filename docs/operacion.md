@@ -25,6 +25,12 @@ solo a Discord** por la gateway (WebSocket) con el `DISCORD_TOKEN`. Tú solo lo 
 
 ## 2. Arrancar / reiniciar en LOCAL (desarrollo)
 
+### Opción más fácil (doble clic)
+
+**Doble clic en `scripts\arrancar-bot.bat`.** Hace todo (JDK 21, compilar, `.env`, arrancar)
+delegando en `run-local.ps1`; la ventana se queda abierta al terminar para poder leer errores.
+**Parar:** `Ctrl+C` en esa ventana.
+
 ### Opción fácil (script)
 ```powershell
 .\scripts\run-local.ps1
