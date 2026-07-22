@@ -507,7 +507,8 @@ public final class Main {
             InsigniaService insigniaService = new InsigniaService(
                     new InsigniaRepositorio(db.dataSource()), usuarios, personajeRepo,
                     mineriaRepo, mundoRepo);
-            comandos.add(new PerfilComando(economiaService, insigniaService));
+            // pasivoService entra aquí: /perfil ver pinta la línea de bonos pasivos ya sumados.
+            comandos.add(new PerfilComando(economiaService, insigniaService, pasivoService));
 
             // Economía entre jugadores (F-ECO-4a): regalar coins e ítems.
             RegaloService regaloService = new RegaloService(economiaRepo, inventarioRepo, usuarios);

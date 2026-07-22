@@ -11,6 +11,7 @@ import com.gymprofit.bot.services.Encantamiento;
 import com.gymprofit.bot.services.InsigniaService;
 import com.gymprofit.bot.services.InsigniaService.Vista;
 import com.gymprofit.bot.services.Items;
+import com.gymprofit.bot.services.PasivoService;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
@@ -38,10 +39,12 @@ public final class PerfilComando implements Comando {
 
     private final EconomiaService economia;
     private final InsigniaService insignias;
+    private final PasivoService pasivos;
 
-    public PerfilComando(EconomiaService economia, InsigniaService insignias) {
+    public PerfilComando(EconomiaService economia, InsigniaService insignias, PasivoService pasivos) {
         this.economia = economia;
         this.insignias = insignias;
+        this.pasivos = pasivos;
     }
 
     @Override
@@ -93,6 +96,12 @@ public final class PerfilComando implements Comando {
                 p.coins(), p.personaje().energia(), p.personaje().salud(),
                 p.personaje().fuerza(), p.personaje().resistencia(), p.personaje().carisma(),
                 CombateService.poderCombate(p.personaje()), arma, armadura, p.personaje().estudios());
+        // Los pasivos solo se pintan si hay alguno: un perfil recién creado no debe llevar una
+        // línea a ceros.
+        String bonos = PasivosTexto.bonos(locale, pasivos.bonosDe(objetivo.getIdLong()));
+        if (!bonos.isEmpty()) {
+            desc += Messages.get(locale, "perfil.pasivos.linea", bonos);
+        }
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                         Messages.get(locale, "perfil.titulo", objetivo.getName()), desc)
                 .setThumbnail(objetivo.getEffectiveAvatarUrl()).build();
