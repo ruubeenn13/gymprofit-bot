@@ -464,8 +464,10 @@ public final class Main {
             comandos.add(new MonstruosComando());
 
             // Combate (COMBAT-3): batalla por turnos con botones.
+            // pasivoService entra aquí: los bonos de COMBATE_ATAQUE/COMBATE_DEFENSA/CRITICO se
+            // congelan en la sesión al iniciar la pelea (snapshot, sin consultas por turno).
             BatallaService batallaService = new BatallaService(personajeRepo, inventarioRepo,
-                    usuarios, economiaRepo, xpService, mundoRepo, descansoService);
+                    usuarios, economiaRepo, xpService, mundoRepo, descansoService, pasivoService);
             // Misiones de caza (COMBAT-6a): se completan al vencer en combate.
             MisionService misionService = new MisionService(
                     new MisionRepositorio(db.dataSource()), economiaRepo, xpService, usuarios);

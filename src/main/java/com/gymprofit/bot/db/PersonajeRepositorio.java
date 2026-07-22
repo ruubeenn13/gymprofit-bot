@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -170,6 +171,61 @@ public final class PersonajeRepositorio {
             return ps.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Error regenerando energía", e);
+        }
+    }
+
+    /**
+     * <b>Segundo pase</b> de la regeneración: suma la energía extra de los efectos pasivos, solo a
+     * quien tiene uno equipado <b>y conserva el ítem</b>.
+     *
+     * <p>El {@code UPDATE} masivo de {@link #regenerarEnergia(int)} se conserva intacto: esto es una
+     * consulta adicional cada 30 minutos, no un rediseño del job. El {@code JOIN} contra
+     * {@code inventario} aplica aquí la regla de «el bono se recalcula contra el inventario» sin
+     * traerse una sola fila a memoria, y el {@code NOT EXISTS} de dormidos se repite porque quien
+     * duerme ya cobra su energía al despertar (sumar las dos vías sería doble ración).
+     *
+     * <p>Los ids y las magnitudes vienen del catálogo en código ({@code Pasivos.fuentesDe}); la SQL
+     * se <b>genera</b> a partir de ese mapa y todo va como parámetro, nunca concatenado.
+     *
+     * @param fuentes itemId → energía extra que aporta (orden estable)
+     * @param tope    tope global del tipo {@code ENERGIA_REGEN}
+     * @return número de personajes afectados
+     */
+    public int regenerarEnergiaPasivos(Map<String, Double> fuentes, int tope) {
+        if (fuentes.isEmpty()) {
+            return 0;
+        }
+        StringBuilder casos = new StringBuilder();
+        StringBuilder marcas = new StringBuilder();
+        for (int i = 0; i < fuentes.size(); i++) {
+            casos.append(" WHEN ? THEN ?");
+            marcas.append(i == 0 ? "?" : ", ?");
+        }
+        String sql = "UPDATE personajes p JOIN ("
+                + "SELECT pe.discord_id, SUM(CASE pe.item_id" + casos + " ELSE 0 END) AS extra "
+                + "FROM pasivos_equipados pe "
+                + "JOIN inventario i ON i.discord_id = pe.discord_id "
+                + "AND i.item_id = pe.item_id AND i.cantidad > 0 "
+                + "WHERE pe.item_id IN (" + marcas + ") "
+                + "GROUP BY pe.discord_id) b ON b.discord_id = p.discord_id "
+                + "SET p.energia = LEAST(100, p.energia + LEAST(?, b.extra)) "
+                + "WHERE p.energia < 100 "
+                + "AND NOT EXISTS (SELECT 1 FROM descanso d "
+                + "WHERE d.discord_id = p.discord_id AND d.dormido_desde IS NOT NULL)";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            int i = 1;
+            for (Map.Entry<String, Double> e : fuentes.entrySet()) {
+                ps.setString(i++, e.getKey());
+                ps.setInt(i++, (int) Math.round(e.getValue()));
+            }
+            for (String itemId : fuentes.keySet()) {
+                ps.setString(i++, itemId);
+            }
+            ps.setInt(i, tope);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error regenerando la energía de los pasivos", e);
         }
     }
 

@@ -12,6 +12,7 @@ import com.gymprofit.bot.services.BatallaService.Desenlace;
 import com.gymprofit.bot.services.BatallaService.InicioEstado;
 import com.gymprofit.bot.services.BatallaService.Turno;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -53,10 +54,23 @@ class BatallaServiceTest {
         when(descanso.estaDormido(anyLong())).thenReturn(false);
     }
 
-    /** Servicio con azar fijo (factor de daño = 1.0). */
+    /** Mock de pasivos sin ningún bono: es lo que usan todos los tests que no van de esto. */
+    private PasivoService sinPasivos() {
+        PasivoService p = mock(PasivoService.class);
+        when(p.bonosDe(anyLong())).thenReturn(PasivoService.sumarYTopar(List.of()));
+        return p;
+    }
+
+    /** Servicio con azar fijo (factor de daño = 1.0) y sin ningún pasivo equipado. */
     private BatallaService svc(double azar) {
         return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, descanso,
-                () -> azar);
+                sinPasivos(), () -> azar);
+    }
+
+    /** Servicio con azar fijo y unos pasivos concretos. */
+    private BatallaService svcConPasivos(double azar, PasivoService pasivos) {
+        return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, descanso,
+                pasivos, () -> azar);
     }
 
     private static Personaje personaje(int fuerza, int resistencia) {
@@ -87,7 +101,7 @@ class BatallaServiceTest {
 
     private BatallaService svc(BatallaService.Aleatorio azar) {
         return new BatallaService(personajes, inventario, usuarios, economia, xp, mundos, descanso,
-                azar);
+                sinPasivos(), azar);
     }
 
     // ---------------------- Turnos ----------------------
@@ -402,6 +416,76 @@ class BatallaServiceTest {
         assertEquals(150, b.xp());
         verify(economia).ingresar(eq(1L), eq(300L), anyString());
         verify(xp).ganarXp(1L, 150);
+    }
+
+    // ---------------------- Efectos pasivos en combate ----------------------
+
+    /** Monstruo del mundo inicial que ya usan los tests de {@code iniciar}. */
+    private static final String MONSTRUO_DE_PRUEBA = "lobo";
+
+    /** Mismo montaje de mocks que usan los tests de iniciar(): todo en orden para pelear. */
+    private void montarInicioOk() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(personaje(5, 3));
+        when(mundos.completados(1L)).thenReturn(Set.of());
+        when(usuarios.buscar(1L)).thenReturn(Optional.of(
+                new UsuarioDiscord(1L, 0, 10, 0, 0, null, null, false)));
+        when(personajes.gastarEnergia(1L, BatallaService.ENERGIA_POR_PELEA)).thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("conPasivos suma ataque y defensa planos y el crítico aditivo, con techo 0,9")
+    void conPasivosEsPuro() {
+        var bonos = PasivoService.sumarYTopar(List.of(
+                Pasivos.porId("cohete").orElseThrow(),       // +5 at, +4 def, +3 % crit
+                Pasivos.porId("mancuernas").orElseThrow()));  // +3 at
+        var r = BatallaService.conPasivos(100, 50, 0.20, bonos);
+        assertEquals(108, r.ataque());
+        assertEquals(54, r.defensa());
+        assertEquals(0.23, r.critico(), 1e-9);
+
+        // Mismo techo duro que el encantamiento CRITICO: un jugador ya saturado no gana nada.
+        assertEquals(0.9, BatallaService.conPasivos(1, 1, 0.89, bonos).critico(), 1e-9);
+        // Sin bonos no cambia nada.
+        var cero = PasivoService.sumarYTopar(List.of());
+        assertEquals(100, BatallaService.conPasivos(100, 50, 0.20, cero).ataque());
+    }
+
+    @Test
+    @DisplayName("la sesión nace con el ataque, la defensa y el crítico ya sumados")
+    void laSesionNaceConLosPasivos() {
+        PasivoService pasivos = mock(PasivoService.class);
+        when(pasivos.bonosDe(anyLong())).thenReturn(PasivoService.sumarYTopar(List.of(
+                Pasivos.porId("cohete").orElseThrow())));
+
+        montarInicioOk();
+        var conPasivos = svcConPasivos(0.5, pasivos).iniciar(1L, MONSTRUO_DE_PRUEBA);
+        var sinPasivosRes = svc(0.5).iniciar(1L, MONSTRUO_DE_PRUEBA);
+
+        assertEquals(InicioEstado.OK, conPasivos.estado());
+        assertEquals(sinPasivosRes.sesion().ataqueJugador() + 5,
+                conPasivos.sesion().ataqueJugador(), "el cohete da +5 de ataque");
+        assertEquals(sinPasivosRes.sesion().defensaJugador() + 4,
+                conPasivos.sesion().defensaJugador(), "y +4 de defensa");
+        assertEquals(sinPasivosRes.sesion().critJugador() + 0.03,
+                conPasivos.sesion().critJugador(), 1e-9, "y +3 % de crítico");
+    }
+
+    @Test
+    @DisplayName("la sesión es un snapshot: cambiar los pasivos a mitad de mazmorra no la altera")
+    void elSnapshotNoCambiaAMitadDePelea() {
+        PasivoService pasivos = mock(PasivoService.class);
+        when(pasivos.bonosDe(anyLong())).thenReturn(PasivoService.sumarYTopar(List.of()));
+
+        montarInicioOk();
+        var sesion = svcConPasivos(0.5, pasivos).iniciar(1L, MONSTRUO_DE_PRUEBA).sesion();
+        int ataqueAntes = sesion.ataqueJugador();
+
+        // El jugador equipa el cohete justo antes del golpe final del jefe: no le vale de nada.
+        when(pasivos.bonosDe(anyLong())).thenReturn(PasivoService.sumarYTopar(List.of(
+                Pasivos.porId("cohete").orElseThrow())));
+
+        assertEquals(ataqueAntes, sesion.ataqueJugador(),
+                "los bonos se congelan al empezar: nada de equipar el cohete a mitad de pelea");
     }
 
     @Test

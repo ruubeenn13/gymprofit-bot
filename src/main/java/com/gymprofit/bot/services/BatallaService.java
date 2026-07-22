@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -88,6 +89,30 @@ public final class BatallaService {
     }
 
     /**
+     * Ataque, defensa y crítico tras aplicar los efectos pasivos. Existe para que la aplicación de
+     * los bonos sea una función <b>pura y pública</b> —y por tanto testeable sin base de datos—
+     * aunque {@link #nuevaSesion} siga siendo privado, que es donde debe estar el snapshot.
+     */
+    public record BonosCombate(int ataque, int defensa, double critico) {
+    }
+
+    /**
+     * Aplica los bonos pasivos de combate al ataque, la defensa y el crítico base. <b>Pura.</b>
+     *
+     * <p>Los planos se redondean con {@code Math.round} y el crítico se suma <b>antes</b> del tope
+     * existente de {@code CombateService.probCritico}, con el mismo techo duro de 0,9 que usa el
+     * encantamiento {@code CRITICO}: un jugador ya saturado no gana nada, y eso está bien — el
+     * crítico de pasivos es para quien aún no ha entrenado fuerza.
+     */
+    public static BonosCombate conPasivos(int ataque, int defensa, double crit,
+                                          Map<Pasivos.Tipo, Double> bonos) {
+        return new BonosCombate(
+                ataque + (int) Math.round(bonos.getOrDefault(Pasivos.Tipo.COMBATE_ATAQUE, 0.0)),
+                defensa + (int) Math.round(bonos.getOrDefault(Pasivos.Tipo.COMBATE_DEFENSA, 0.0)),
+                Math.min(0.9, crit + bonos.getOrDefault(Pasivos.Tipo.CRITICO, 0.0)));
+    }
+
+    /**
      * Botín de la victoria.
      *
      * @param coins             coins ganados
@@ -108,12 +133,13 @@ public final class BatallaService {
     private final XpService xp;
     private final MundoRepositorio mundos;
     private final DescansoService descanso;
+    private final PasivoService pasivos;
     private final Aleatorio azar;
 
     public BatallaService(PersonajeRepositorio personajes, InventarioRepositorio inventario,
                           UsuarioDiscordRepositorio usuarios, EconomiaRepositorio economia,
                           XpService xp, MundoRepositorio mundos, DescansoService descanso,
-                          Aleatorio azar) {
+                          PasivoService pasivos, Aleatorio azar) {
         this.personajes = personajes;
         this.inventario = inventario;
         this.usuarios = usuarios;
@@ -121,14 +147,16 @@ public final class BatallaService {
         this.xp = xp;
         this.mundos = mundos;
         this.descanso = descanso;
+        this.pasivos = pasivos;
         this.azar = azar;
     }
 
     /** Constructor de producción: azar real ({@link ThreadLocalRandom}). */
     public BatallaService(PersonajeRepositorio personajes, InventarioRepositorio inventario,
                           UsuarioDiscordRepositorio usuarios, EconomiaRepositorio economia,
-                          XpService xp, MundoRepositorio mundos, DescansoService descanso) {
-        this(personajes, inventario, usuarios, economia, xp, mundos, descanso,
+                          XpService xp, MundoRepositorio mundos, DescansoService descanso,
+                          PasivoService pasivos) {
+        this(personajes, inventario, usuarios, economia, xp, mundos, descanso, pasivos,
                 () -> ThreadLocalRandom.current().nextDouble());
     }
 
@@ -236,6 +264,17 @@ public final class BatallaService {
         double crit = CombateService.probCritico(p);
         double esquiva = CombateService.probEsquiva(p);
         double roboVida = 0;
+
+        // Los pasivos entran ANTES que el encantamiento a propósito: DANO_PCT multiplica y debe
+        // multiplicar sobre el ataque completo, que es la lectura intuitiva de «+X % de daño».
+        // Y entran AQUÍ, en el snapshot, para que valgan toda la pelea y toda la mazmorra: sin
+        // consultas por turno y sin el exploit de equipar el cohete antes del golpe final del jefe.
+        BonosCombate bp = conPasivos(ataque, CombateService.defensaDe(p), crit,
+                pasivos == null ? Map.of() : pasivos.bonosDe(p.discordId()));
+        ataque = bp.ataque();
+        int defensa = bp.defensa();
+        crit = bp.critico();
+
         Encantamiento e = p.armaEncanto() == null ? null
                 : Encantamiento.porId(p.armaEncanto()).orElse(null);
         if (e != null) {
@@ -247,8 +286,8 @@ public final class BatallaService {
                 case ROBO_VIDA -> roboVida = e.magnitud();
             }
         }
-        return new CombateSesion(p.discordId(), mundoId, monstruo, ataque,
-                CombateService.defensaDe(p), crit, esquiva, roboVida, CombateService.hpCombate(p));
+        return new CombateSesion(p.discordId(), mundoId, monstruo, ataque, defensa, crit, esquiva,
+                roboVida, CombateService.hpCombate(p));
     }
 
     /** Acción <b>Atacar</b>: el jugador golpea (con opción a crítico/esquiva); si sobrevive, contraataca. */

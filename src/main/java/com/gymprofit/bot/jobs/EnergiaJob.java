@@ -1,6 +1,7 @@
 package com.gymprofit.bot.jobs;
 
 import com.gymprofit.bot.db.PersonajeRepositorio;
+import com.gymprofit.bot.services.Pasivos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +21,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>A los dormidos no les regenera: ya cobran su energía al despertar, y sumar las dos vías sería
  * doble ración (ver {@code PersonajeRepositorio#regenerarEnergia}).
+ *
+ * <p>Desde los efectos pasivos hay un <b>segundo pase</b>: quien tenga equipado un ítem con bono de
+ * energía (y siga teniéndolo en el inventario) recibe hasta {@code +5} extra. El tope está puesto
+ * deliberadamente por debajo de lo que da una noche de sueño: dormir sigue siendo la vía principal.
  */
 public final class EnergiaJob {
 
@@ -50,8 +55,15 @@ public final class EnergiaJob {
     private void regenerar() {
         try {
             int afectados = personajes.regenerarEnergia(REGEN);
-            if (afectados > 0) {
-                log.debug("Energía regenerada a {} personajes", afectados);
+            // Segundo pase: SOLO los que tienen equipado un pasivo de energía y conservan el ítem.
+            // Es una consulta más cada 30 min; el UPDATE masivo de arriba se queda igual porque su
+            // eficiencia es lo que permite que el job sea invisible.
+            int conPasivos = personajes.regenerarEnergiaPasivos(
+                    Pasivos.fuentesDe(Pasivos.Tipo.ENERGIA_REGEN),
+                    (int) Math.round(Pasivos.TOPES.get(Pasivos.Tipo.ENERGIA_REGEN)));
+            if (afectados > 0 || conPasivos > 0) {
+                log.debug("Energía regenerada a {} personajes (+extra de pasivos a {})",
+                        afectados, conPasivos);
             }
         } catch (RuntimeException e) {
             log.warn("Fallo en el job de energía", e);
