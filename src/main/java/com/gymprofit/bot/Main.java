@@ -64,6 +64,7 @@ import com.gymprofit.bot.commands.moderacion.UnbanComando;
 import com.gymprofit.bot.commands.moderacion.WarnComando;
 import com.gymprofit.bot.commands.privacidad.PrivacidadComando;
 import com.gymprofit.bot.config.BotConfig;
+import com.gymprofit.bot.db.CarreraRepositorio;
 import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.DescansoRepositorio;
@@ -435,8 +436,11 @@ public final class Main {
             // /trabajo agrupa lista, elegir y currar.
             // pasivoService entra aquí: los pasivos de SUELDO suben la nómina y los de COOLDOWN_WORK
             // recortan la espera entre turnos.
+            // carreraRepo guarda el tier alcanzado por rama: el gate de elegir y los ascensos
+            // leen/escriben ahí (el tier nunca baja, así que cambiar de rama no borra la carrera).
+            CarreraRepositorio carreraRepo = new CarreraRepositorio(db.dataSource());
             TrabajoService trabajoService = new TrabajoService(
-                    personajeRepo, economiaRepo, usuarios, descansoService, pasivoService);
+                    personajeRepo, economiaRepo, usuarios, descansoService, carreraRepo, pasivoService);
             comandos.add(new TrabajoComando(trabajoService, reintentos));
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));

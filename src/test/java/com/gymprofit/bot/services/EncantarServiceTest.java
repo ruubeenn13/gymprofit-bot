@@ -25,7 +25,7 @@ class EncantarServiceTest {
     private final EncantarService servicio = new EncantarService(personajes, economia, usuarios);
 
     private static Personaje conArma(String arma, int nivel) {
-        return new Personaje(1L, 0, 0, 0, 100, 100, null, null, arma, null, null, nivel, null, 0);
+        return new Personaje(1L, 0, 0, 0, 100, 100, null, null, arma, null, null, nivel, null, 0, 0);
     }
 
     @Test
