@@ -269,8 +269,8 @@ public final class SetupComando implements Comando {
                 boolean comunidad = guild.getFeatures().contains("COMMUNITY");
                 Set<Long> conservar = new HashSet<>();
                 if (comunidad) {
-                    TextChannel anclaReglas = reusarOCrearAncla(guild, ANCLA_REGLAS);
-                    TextChannel anclaAvisos = reusarOCrearAncla(guild, ANCLA_AVISOS);
+                    TextChannel anclaReglas = reusarOCrearAncla(guild, ANCLA_REGLAS, reg);
+                    TextChannel anclaAvisos = reusarOCrearAncla(guild, ANCLA_AVISOS, reg);
                     anclarComunidad(guild, anclaReglas, anclaAvisos);
                     conservar.add(anclaReglas.getIdLong());
                     conservar.add(anclaAvisos.getIdLong());
@@ -284,7 +284,7 @@ public final class SetupComando implements Comando {
                         : 0;
                 Map<String, Role> roles = crearRoles(guild, reg);
                 int canales = crearCategoriasYCanales(guild, roles, locale, reg);
-                int reglasAutoMod = crearReglasAutoMod(guild);
+                int reglasAutoMod = crearReglasAutoMod(guild, reg);
 
                 // Recoloca las anclas en STAFF y las oculta (solo bot + Fundador), en cada /setup.
                 if (comunidad) {
@@ -306,9 +306,9 @@ public final class SetupComando implements Comando {
 
                 // Pantalla de bienvenida (Welcome Screen): lo único de la incorporación que expone
                 // la API. El resto del onboarding (canales por defecto, preguntas) es manual.
-                configurarBienvenida(guild);
+                configurarBienvenida(guild, reg);
                 // Fija el canal AFK (Discord mueve ahí a los inactivos de voz).
-                configurarAfk(guild);
+                configurarAfk(guild, reg);
 
                 var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "setup.titulo"),
@@ -470,7 +470,7 @@ public final class SetupComando implements Comando {
                             aplicarPermisos(guild, existente, chPlan, roles);
                             // Refresca la intro fijada (edita el embed existente; no duplica).
                             if (existente instanceof GuildMessageChannel gmc) {
-                                actualizarIntro(gmc, chPlan, locale);
+                                actualizarIntro(gmc, chPlan, locale, reg);
                             }
                             if (topicCambia) {
                                 reg.actualizado(RegistroCambios.Categoria.CANAL, chPlan.nombre());
@@ -540,7 +540,7 @@ public final class SetupComando implements Comando {
             }
             NewsChannel nc = accion.complete();
             nc.getManager().sync().complete();
-            fijarIntro(nc, chPlan, locale);
+            fijarIntro(nc, chPlan, locale, reg);
             creado = nc;
         } else {
             var accion = categoria.createTextChannel(chPlan.nombre());
@@ -554,9 +554,9 @@ public final class SetupComando implements Comando {
             // Hereda los permisos de la categoría (ocultación, staff, silenciado).
             tc.getManager().sync().complete();
             if ("panel.roles".equals(chPlan.introKey())) {
-                publicarPanelRoles(tc, locale);
+                publicarPanelRoles(tc, locale, reg);
             } else {
-                fijarIntro(tc, chPlan, locale);
+                fijarIntro(tc, chPlan, locale, reg);
             }
             creado = tc;
         }
@@ -743,14 +743,17 @@ public final class SetupComando implements Comando {
     }
 
     /** Publica y fija el panel de auto-roles (menús de objetivo y notificaciones) en el canal. */
-    private void publicarPanelRoles(TextChannel canal, Locale locale) {
+    private void publicarPanelRoles(TextChannel canal, Locale locale, RegistroCambios reg) {
         canal.sendMessage(com.gymprofit.bot.commands.config.PanelRolesFactory.mensaje(locale)).queue(
                 mensaje -> mensaje.pin().queue(),
                 error -> log.warn("No se pudo publicar el panel de roles en {}", canal.getId(), error));
+        // Solo se llega aquí al CREAR el canal de roles (en un canal reutilizado no se re-publica el
+        // panel): por tanto es siempre un panel nuevo y se anota como creado en el informe.
+        reg.creado(RegistroCambios.Categoria.PANEL, canal.getName());
     }
 
     /** Publica y fija un embed de ayuda en el canal, si el plan define un {@code introKey}. */
-    private void fijarIntro(GuildMessageChannel canal, CanalPlan chPlan, Locale locale) {
+    private void fijarIntro(GuildMessageChannel canal, CanalPlan chPlan, Locale locale, RegistroCambios reg) {
         if (chPlan.introKey() == null) {
             return;
         }
@@ -761,6 +764,9 @@ public final class SetupComando implements Comando {
         canal.sendMessageEmbeds(embed).queue(
                 mensaje -> mensaje.pin().queue(),
                 error -> log.warn("No se pudo fijar la intro en {}", canal.getId(), error));
+        // fijarIntro solo se invoca sobre canales recién creados: la intro es siempre nueva, así que
+        // se anota como creada (el envío es async pero la intención de crearla es firme).
+        reg.creado(RegistroCambios.Categoria.INTRO, canal.getName());
     }
 
     /**
@@ -768,25 +774,39 @@ public final class SetupComando implements Comando {
      * (para no duplicar), o lo publica y fija si aún no está. El panel de roles se gestiona aparte,
      * así que se omite aquí. Best-effort (async, no rompe el setup si falla).
      */
-    private void actualizarIntro(GuildMessageChannel canal, CanalPlan chPlan, Locale locale) {
+    private void actualizarIntro(GuildMessageChannel canal, CanalPlan chPlan, Locale locale, RegistroCambios reg) {
         if (chPlan.introKey() == null || "panel.roles".equals(chPlan.introKey())) {
             return;
         }
+        String descNueva = Messages.get(locale, chPlan.introKey() + ".desc");
         var embed = EmbedFactory.base(EmbedFactory.Tipo.ANUNCIO, locale,
                 Messages.get(locale, chPlan.introKey() + ".titulo"),
-                Messages.get(locale, chPlan.introKey() + ".desc"))
+                descNueva)
                 .build();
         long botId = canal.getJDA().getSelfUser().getIdLong();
-        canal.retrievePinnedMessages().queue(pins -> {
-            var intro = pins.stream()
+        try {
+            // Lectura SÍNCRONA (complete) porque corremos en el hilo dedicado de /setup: así el diff y
+            // el registro ocurren antes de que Task 7 renderice el informe, y sobre el mismo hilo (el
+            // colector es un ArrayList no seguro para hilos, no se puede tocar desde callbacks de JDA).
+            var intro = canal.retrievePinnedMessages().complete().stream()
                     .filter(m -> m.getAuthor().getIdLong() == botId && !m.getEmbeds().isEmpty())
                     .findFirst().orElse(null);
-            if (intro != null) {
-                intro.editMessageEmbeds(embed).queue(null, e -> { });
-            } else {
+            if (intro == null) {
+                // No había intro del bot fijada: se publica y se anota como creada.
                 canal.sendMessageEmbeds(embed).queue(m -> m.pin().queue(null, e -> { }), e -> { });
+                reg.creado(RegistroCambios.Categoria.INTRO, canal.getName());
+            } else {
+                // Diff de contenido: solo edita y anota si la descripción cambió. Si es idéntica, ni
+                // se llama a la API (ahorra rate limit al reejecutar /setup) ni se registra.
+                String descVieja = intro.getEmbeds().isEmpty() ? null : intro.getEmbeds().get(0).getDescription();
+                if (!descNueva.equals(descVieja)) {
+                    intro.editMessageEmbeds(embed).queue(null, e -> { });
+                    reg.actualizado(RegistroCambios.Categoria.INTRO, canal.getName());
+                }
             }
-        }, error -> log.warn("No se pudieron leer los pins de {}", canal.getId(), error));
+        } catch (RuntimeException error) {
+            log.warn("No se pudieron leer los pins de {}", canal.getId(), error);
+        }
     }
 
     /**
@@ -805,9 +825,17 @@ public final class SetupComando implements Comando {
     }
 
     /** Reutiliza el canal-ancla por nombre si existe, o lo crea. Nunca se borra en {@code /setup}. */
-    private TextChannel reusarOCrearAncla(Guild guild, String nombre) {
+    private TextChannel reusarOCrearAncla(Guild guild, String nombre, RegistroCambios reg) {
         TextChannel existente = primerCanal(guild, nombre);
-        return existente != null ? existente : guild.createTextChannel(nombre).complete();
+        if (existente != null) {
+            // Ya existía: el re-anclaje (anclarComunidad) se hace en cada /setup y no es un cambio
+            // real de contenido, así que un ancla reutilizada no se anota (evita ruido idempotente).
+            return existente;
+        }
+        TextChannel creada = guild.createTextChannel(nombre).complete();
+        // Canal-ancla creado por primera vez: se anota como creado en el informe.
+        reg.creado(RegistroCambios.Categoria.ANCLA, nombre);
+        return creada;
     }
 
     /**
@@ -867,7 +895,7 @@ public final class SetupComando implements Comando {
      * con emoji. Es lo único de la «incorporación» que expone la API (el onboarding con preguntas es
      * manual). Requiere que el servidor sea Comunidad; si no, se omite.
      */
-    private void configurarBienvenida(Guild guild) {
+    private void configurarBienvenida(Guild guild, RegistroCambios reg) {
         if (!guild.getFeatures().contains("COMMUNITY")) {
             return;
         }
@@ -880,26 +908,60 @@ public final class SetupComando implements Comando {
         if (canales.isEmpty()) {
             return;
         }
+        String descNueva = Messages.get(Messages.ES, "bienvenida.descripcion");
+        // Lee el estado actual (síncrono, en el hilo de /setup) para poder comparar. Si la lectura
+        // falla, descVieja queda como "no se pudo leer": se aplica igual y se anota conservadora.
+        String descVieja = null;
+        boolean leido = false;
+        try {
+            GuildWelcomeScreen actual = guild.retrieveWelcomeScreen().complete();
+            descVieja = actual == null ? null : actual.getDescription();
+            leido = true;
+        } catch (RuntimeException e) {
+            log.warn("No se pudo leer la pantalla de bienvenida actual; se aplicará sin diff", e);
+        }
+        // Diff limitado a la descripción (los canales sugeridos no se comparan por coste y fragilidad
+        // de casar objetos Channel; concern documentado). Si se leyó y coincide, no se toca nada.
+        if (leido && descNueva.equals(descVieja)) {
+            return;
+        }
+        boolean existia = descVieja != null && !descVieja.isBlank();
         try {
             guild.modifyWelcomeScreen()
                     .setEnabled(true)
-                    .setDescription(Messages.get(Messages.ES, "bienvenida.descripcion"))
+                    .setDescription(descNueva)
                     .setWelcomeChannels(canales)
                     .complete();
+            // Creada si no había descripción previa; actualizada si la había (o si no se pudo leer, se
+            // anota como actualizada de forma conservadora: se ha aplicado un modifyWelcomeScreen real).
+            if (existia) {
+                reg.actualizado(RegistroCambios.Categoria.WELCOME, guild.getName());
+            } else {
+                reg.creado(RegistroCambios.Categoria.WELCOME, guild.getName());
+            }
         } catch (RuntimeException e) {
             log.warn("No se pudo configurar la pantalla de bienvenida", e);
         }
     }
 
     /** Fija «💤 AFK» como canal AFK del servidor con timeout de 5 min, si el canal existe. */
-    private void configurarAfk(Guild guild) {
+    private void configurarAfk(Guild guild, RegistroCambios reg) {
         VoiceChannel afk = guild.getVoiceChannelsByName("💤 AFK", false)
                 .stream().findFirst().orElse(null);
         if (afk == null) {
             return;
         }
+        // Diff contra el estado actual: solo se aplica y anota si el canal AFK o el timeout difieren
+        // de lo deseado (evita una llamada REST y una entrada de informe en cada /setup idempotente).
+        boolean canalIgual = guild.getAfkChannel() != null
+                && guild.getAfkChannel().getIdLong() == afk.getIdLong();
+        boolean timeoutIgual = guild.getAfkTimeout() == Guild.Timeout.SECONDS_300;
+        if (canalIgual && timeoutIgual) {
+            return;
+        }
         try {
             guild.getManager().setAfkChannel(afk).setAfkTimeout(Guild.Timeout.SECONDS_300).complete();
+            reg.actualizado(RegistroCambios.Categoria.AFK, afk.getName());
         } catch (RuntimeException e) {
             log.warn("No se pudo fijar el canal AFK", e);
         }
@@ -961,7 +1023,7 @@ public final class SetupComando implements Comando {
      * <p>Requiere {@code MANAGE_SERVER}; si falta, se omite sin romper el resto del montaje. Los
      * roles de gestión (Admin/Gestionar servidor) quedan exentos automáticamente por Discord.</p>
      */
-    private int crearReglasAutoMod(Guild guild) {
+    private int crearReglasAutoMod(Guild guild, RegistroCambios reg) {
         if (!guild.getSelfMember().hasPermission(Permission.MANAGE_SERVER)) {
             log.info("Sin MANAGE_SERVER: se omite la creación de reglas de AutoMod");
             return 0;
@@ -984,15 +1046,15 @@ public final class SetupComando implements Comando {
         int cubiertas = 0;
         cubiertas += crearReglaAutoMod(guild, nombres, tipos, AUTOMOD_MENCIONES,
                 AutoModTriggerType.MENTION_SPAM,
-                TriggerConfig.mentionSpam(AUTOMOD_LIMITE_MENCIONES), alertas);
+                TriggerConfig.mentionSpam(AUTOMOD_LIMITE_MENCIONES), alertas, reg);
         cubiertas += crearReglaAutoMod(guild, nombres, tipos, AUTOMOD_SPAM,
-                AutoModTriggerType.SPAM, TriggerConfig.antiSpam(), alertas);
+                AutoModTriggerType.SPAM, TriggerConfig.antiSpam(), alertas, reg);
         cubiertas += crearReglaAutoMod(guild, nombres, tipos, AUTOMOD_LENGUAJE,
                 AutoModTriggerType.KEYWORD_PRESET,
                 TriggerConfig.presetKeywordFilter(EnumSet.of(
                         AutoModRule.KeywordPreset.PROFANITY,
                         AutoModRule.KeywordPreset.SLURS,
-                        AutoModRule.KeywordPreset.SEXUAL_CONTENT)), alertas);
+                        AutoModRule.KeywordPreset.SEXUAL_CONTENT)), alertas, reg);
         return cubiertas;
     }
 
@@ -1005,7 +1067,7 @@ public final class SetupComando implements Comando {
      */
     private int crearReglaAutoMod(Guild guild, Set<String> nombres, Set<AutoModTriggerType> tipos,
                                   String nombre, AutoModTriggerType tipo, TriggerConfig config,
-                                  TextChannel alertas) {
+                                  TextChannel alertas, RegistroCambios reg) {
         if (nombres.contains(nombre) || tipos.contains(tipo)) {
             return 1; // ya cubierta (por nombre o por tipo): no duplicar ni exceder el máximo
         }
@@ -1021,6 +1083,8 @@ public final class SetupComando implements Comando {
             guild.createAutoModRule(data).complete();
             nombres.add(nombre);
             tipos.add(tipo);
+            // Regla creada de verdad (no preexistente): se anota como nueva en el informe.
+            reg.creado(RegistroCambios.Categoria.AUTOMOD, nombre);
             return 1;
         } catch (RuntimeException e) {
             log.warn("No se pudo crear la regla de AutoMod {}", nombre, e);
