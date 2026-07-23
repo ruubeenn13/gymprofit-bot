@@ -30,6 +30,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
 import java.awt.Color;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -53,6 +54,8 @@ public final class TrabajoComando implements ComandoAutocompletable {
     private static final int MAX_SUGERENCIAS = 25;
     /** Discord corta el nombre de una sugerencia a 100 caracteres. */
     private static final int MAX_LARGO_SUGERENCIA = 100;
+    /** Tope de caracteres de la descripción de un embed de Discord. */
+    private static final int MAX_DESC_EMBED = 4096;
     /** Prefijo de los roles cosméticos de trabajo (identifica y limpia el anterior). */
     private static final String PREFIJO_ROL = "💼 ";
     private static final Color COLOR_ROL_TRABAJO = new Color(0x9B59B6);
@@ -122,13 +125,14 @@ public final class TrabajoComando implements ComandoAutocompletable {
         // puestos: se memoiza por rama (una lectura a BD por rama, no una por fila) para no abrir 52
         // conexiones contra Aiven al pintar la lista.
         Map<Ascensos.Rama, Integer> tierPorRama = new EnumMap<>(Ascensos.Rama.class);
-        StringBuilder sb = new StringBuilder();
+        List<String> lineas = new ArrayList<>();
+        lineas.add(Messages.get(locale, "trabajos.intro"));
         int tierActual = 0;
         for (Trabajos t : Trabajos.CATALOGO) {
             if (t.tier() != tierActual) {
                 tierActual = t.tier();
-                sb.append("\n**").append(Messages.get(locale, "trabajos.tier", tierActual))
-                        .append("**\n");
+                lineas.add("");  // separación visual entre grupos de tier
+                lineas.add("**" + Messages.get(locale, "trabajos.tier", tierActual) + "**");
             }
             // Los puestos por encima del tier alcanzado en su rama no se eligen, se ascienden: van con
             // candado y el texto que lo explica en vez de la línea normal.
@@ -136,14 +140,44 @@ public final class TrabajoComando implements ComandoAutocompletable {
                     rama -> trabajos.tierAlcanzadoEn(id, rama));
             boolean bloqueado = t.tier() > alcanzado;
             String clave = bloqueado ? "trabajos.linea.bloqueada" : "trabajos.linea";
-            sb.append(Messages.get(locale, clave,
+            lineas.add(Messages.get(locale, clave,
                     t.id(), Messages.get(locale, "trabajo." + t.id()), t.sector(),
-                    t.salarioMin(), t.salarioMax(), t.requisitoNivel())).append('\n');
+                    t.salarioMin(), t.salarioMax(), t.requisitoNivel()));
         }
-        var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
-                Messages.get(locale, "trabajos.titulo"),
-                Messages.get(locale, "trabajos.intro") + "\n" + sb).build();
-        evento.getHook().sendMessageEmbeds(embed).queue();
+        // El catálogo (~52 puestos, casi todos bloqueados para un novato con líneas más largas) se
+        // pasa del tope de 4096 de la descripción de un embed: se reparte en varios embeds. El título
+        // solo va en el primero; los demás continúan la lista sin título.
+        List<String> bloques = partirEnBloques(lineas, MAX_DESC_EMBED);
+        String titulo = Messages.get(locale, "trabajos.titulo");
+        for (int i = 0; i < bloques.size(); i++) {
+            var embed = EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                    i == 0 ? titulo : null, bloques.get(i)).build();
+            evento.getHook().sendMessageEmbeds(embed).queue();
+        }
+    }
+
+    /**
+     * Reparte líneas en bloques cuyo texto unido con saltos de línea no supera {@code limite}
+     * caracteres (el tope de la descripción de un embed de Discord). Rompe solo entre líneas: nunca
+     * parte una línea por la mitad. Package-private para poder testearlo.
+     */
+    static List<String> partirEnBloques(List<String> lineas, int limite) {
+        List<String> bloques = new ArrayList<>();
+        StringBuilder actual = new StringBuilder();
+        for (String linea : lineas) {
+            if (actual.length() > 0 && actual.length() + 1 + linea.length() > limite) {
+                bloques.add(actual.toString());
+                actual.setLength(0);
+            }
+            if (actual.length() > 0) {
+                actual.append('\n');
+            }
+            actual.append(linea);
+        }
+        if (actual.length() > 0) {
+            bloques.add(actual.toString());
+        }
+        return bloques;
     }
 
     private void elegir(SlashCommandInteractionEvent evento, Locale locale) {
