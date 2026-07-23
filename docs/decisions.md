@@ -262,3 +262,24 @@ no hay que rebalancear el bestiario. Queda pendiente en el backlog el coste de m
 vehículos (sumidero con su propio job y su propio diseño).
 
 **Estado:** aceptada e implementada.
+
+## ADR-014 — ramas de carrera para los ascensos
+
+**Estado:** aceptada e implementada.
+
+**Contexto.** Cualquier puesto del catálogo se elegía directamente con solo nivel de servidor: un
+nivel 30 pasaba de parado a CEO en un comando. 26 sectores para ~50 puestos hacían inviable una
+carrera por sector (la mayoría tiene 1-2 puestos).
+
+**Decisión.** (1) Carrera por **rama**: 7 ramas agrupan los sectores en un catálogo satélite
+`Ascensos` — `Trabajos` no se toca (precedente: `Pasivos`/`Camas`/`Picos`/`Cofres`). (2) Cuatro
+requisitos por salto — antigüedad en el puesto, estudios, stat dominante de la rama y coins que se
+queman — validados antes del cobro atómico. (3) La carrera **se conserva por rama** y el tier
+alcanzado nunca baja (`GREATEST`): cambiar de rama es explorar, no un castigo. (4) Ramas con
+huecos saltan al siguiente tier existente y las que topan por debajo de t4 acaban antes: el
+catálogo puede crecer por rama sin tocar el diseño. (5) Migración V26 con borrón del trabajo
+elegido: no había jugadores reales que migrar.
+
+**Consecuencias.** El late-game gana un destino más (t4 cuesta 50 000 coins quemados) y los
+estudios y las stats ganan un segundo uso. `/trabajo` pasa a 5 subcomandos. Queda fuera el rango
+interno por puesto (descartado) y `/trabajo dimitir` (cambiar = elegir otro, YAGNI).
