@@ -258,6 +258,9 @@ public final class SetupComando implements Comando {
         // bloquearlo con complete() causaba thread starvation y desconexiones).
         Thread hilo = new Thread(() -> {
             try {
+                // Colector de los cambios de ESTA ejecución (nuevos/actualizados/eliminados con
+                // nombre); lo rellenan los helpers de estructura. Task 7 lo renderiza y envía.
+                RegistroCambios reg = new RegistroCambios();
                 // Con Comunidad activada, Discord no deja borrar los canales de reglas/updates/
                 // seguridad (error 50074). Solución: dos canales-ancla permanentes y ocultos
                 // (reglas-comunidad y avisos-comunidad) sostienen esos ajustes. Se aseguran y anclan
@@ -277,10 +280,10 @@ public final class SetupComando implements Comando {
                 // /setup NO borra mensajes: solo crea/reutiliza estructura (sobrescribe, no elimina).
                 // El borrado total (canales incluidos) solo ocurre con la opción desde_cero.
                 int limpiados = desdeCero
-                        ? vaciarServidor(guild, protegidos, conservar)
+                        ? vaciarServidor(guild, protegidos, conservar, reg)
                         : 0;
-                Map<String, Role> roles = crearRoles(guild);
-                int canales = crearCategoriasYCanales(guild, roles, locale);
+                Map<String, Role> roles = crearRoles(guild, reg);
+                int canales = crearCategoriasYCanales(guild, roles, locale, reg);
                 int reglasAutoMod = crearReglasAutoMod(guild);
 
                 // Recoloca las anclas en STAFF y las oculta (solo bot + Fundador), en cada /setup.
@@ -292,6 +295,10 @@ public final class SetupComando implements Comando {
                     try {
                         viejo.delete().complete();
                         limpiados++;
+                        // Borrado efectivo en el reintento: se anota con nombre en el informe.
+                        reg.eliminado(viejo instanceof Category
+                                ? RegistroCambios.Categoria.CATEGORIA : RegistroCambios.Categoria.CANAL,
+                                viejo.getName());
                     } catch (RuntimeException e) {
                         log.warn("Sigue sin poder borrarse el canal {}", viejo.getName());
                     }
@@ -333,7 +340,8 @@ public final class SetupComando implements Comando {
      * <p>Los canales que Discord rechace borrar se acumulan en {@code protegidosOut} para
      * reintentarlos al final (tras reapuntar la comunidad a las anclas).</p>
      */
-    private int vaciarServidor(Guild guild, List<GuildChannel> protegidosOut, Set<Long> conservar) {
+    private int vaciarServidor(Guild guild, List<GuildChannel> protegidosOut, Set<Long> conservar,
+                               RegistroCambios reg) {
         int borrados = 0;
         for (GuildChannel canal : List.copyOf(guild.getChannels())) {
             // Las anclas de comunidad son permanentes: no se borran nunca.
@@ -343,6 +351,10 @@ public final class SetupComando implements Comando {
             try {
                 canal.delete().complete();
                 borrados++;
+                // Borrado efectivo: entrada con nombre para el informe (categoría o canal según tipo).
+                reg.eliminado(canal instanceof Category
+                        ? RegistroCambios.Categoria.CATEGORIA : RegistroCambios.Categoria.CANAL,
+                        canal.getName());
             } catch (RuntimeException e) {
                 // Probablemente un canal protegido por la comunidad; se reintenta más tarde.
                 protegidosOut.add(canal);
@@ -353,7 +365,7 @@ public final class SetupComando implements Comando {
     }
 
     /** Crea (o reutiliza) los roles con sus permisos; devuelve un mapa nombre → rol. */
-    private Map<String, Role> crearRoles(Guild guild) {
+    private Map<String, Role> crearRoles(Guild guild, RegistroCambios reg) {
         Map<String, Role> creados = new HashMap<>();
         for (RolPlan plan : SetupServidorPlan.ROLES) {
             try {
@@ -368,8 +380,18 @@ public final class SetupComando implements Comando {
                         accion = accion.setPermissions(permisos);
                     }
                     rol = accion.complete();
-                } else if (permisos != 0) {
-                    rol.getManager().setPermissions(permisos).complete();
+                    // Rol nuevo: se anota como creado para el informe de /setup.
+                    reg.creado(RegistroCambios.Categoria.ROL, plan.nombre());
+                } else {
+                    if (permisos != 0) {
+                        rol.getManager().setPermissions(permisos).complete();
+                    }
+                    // Rol reutilizado: solo cuenta como actualización si el color del plan difiere del
+                    // actual (los separadores con colorRgb()==0 no llevan color y no se comparan).
+                    if (plan.colorRgb() != 0 && rol.getColorRaw() != (plan.colorRgb() & 0xFFFFFF)) {
+                        rol.getManager().setColor(new Color(plan.colorRgb())).complete();
+                        reg.actualizado(RegistroCambios.Categoria.ROL, plan.nombre());
+                    }
                 }
                 creados.put(plan.nombre(), rol);
                 if (plan.objetivo() != null) {
@@ -383,7 +405,8 @@ public final class SetupComando implements Comando {
     }
 
     /** Crea (o reutiliza) categorías y canales con permisos y pins; devuelve cuántos canales. */
-    private int crearCategoriasYCanales(Guild guild, Map<String, Role> roles, Locale locale) {
+    private int crearCategoriasYCanales(Guild guild, Map<String, Role> roles, Locale locale,
+                                        RegistroCambios reg) {
         int canales = 0;
         Role everyone = guild.getPublicRole();
         Role staff = roles.get(ROL_STAFF);
@@ -418,6 +441,8 @@ public final class SetupComando implements Comando {
                                 0L, Permission.VOICE_CONNECT.getRawValue());
                     }
                     categoria = accion.complete();
+                    // Categoría nueva: se anota como creada para el informe de /setup.
+                    reg.creado(RegistroCambios.Categoria.CATEGORIA, catPlan.nombre());
                 }
 
                 // Fija el orden de las categorías según el plan (en cada /setup, nuevo o reutilizado),
@@ -436,6 +461,10 @@ public final class SetupComando implements Comando {
                                 .findFirst().orElse(null);
                         GuildChannel canal;
                         if (existente != null) {
+                            // En un canal reutilizado, lo único que setup reescribe en esta fase es el
+                            // topic; se calcula ANTES de aplicarlo para anotar el cambio solo si de
+                            // verdad difiere del plan (evita ruido idempotente al reejecutar /setup).
+                            boolean topicCambia = topicDifiere(existente, chPlan);
                             aplicarConfig(guild, existente, chPlan);
                             aplicarTopic(existente, chPlan);
                             aplicarPermisos(guild, existente, chPlan, roles);
@@ -443,9 +472,12 @@ public final class SetupComando implements Comando {
                             if (existente instanceof GuildMessageChannel gmc) {
                                 actualizarIntro(gmc, chPlan, locale);
                             }
+                            if (topicCambia) {
+                                reg.actualizado(RegistroCambios.Categoria.CANAL, chPlan.nombre());
+                            }
                             canal = existente;
                         } else {
-                            canal = crearCanal(guild, categoria, chPlan, roles, locale);
+                            canal = crearCanal(guild, categoria, chPlan, roles, locale, reg);
                             if (CANAL_EMPIEZA.equals(chPlan.nombre())) {
                                 empiezaNueva = true;
                             }
@@ -470,7 +502,7 @@ public final class SetupComando implements Comando {
 
     /** Crea un canal nuevo bajo su categoría, sincroniza permisos, fija intro y config. */
     private GuildChannel crearCanal(Guild guild, Category categoria, CanalPlan chPlan,
-                                    Map<String, Role> roles, Locale locale) {
+                                    Map<String, Role> roles, Locale locale, RegistroCambios reg) {
         GuildChannel creado;
         if (chPlan.tipo() == SetupServidorPlan.TipoCanalDiscord.VOZ) {
             var accionVoz = categoria.createVoiceChannel(chPlan.nombre());
@@ -530,7 +562,30 @@ public final class SetupComando implements Comando {
         }
         aplicarConfig(guild, creado, chPlan);
         aplicarPermisos(guild, creado, chPlan, roles);
+        // Canal recién creado (cualquier tipo): se anota como nuevo para el informe de /setup.
+        reg.creado(RegistroCambios.Categoria.CANAL, chPlan.nombre());
         return creado;
+    }
+
+    /**
+     * True si el plan define un topic distinto del actual del canal. Mismo criterio de comparación
+     * que {@link #aplicarTopic}, extraído para poder anotar la actualización en el informe sin
+     * repetir la lógica de tipos de canal.
+     */
+    private boolean topicDifiere(GuildChannel canal, CanalPlan chPlan) {
+        if (chPlan.topic() == null) {
+            return false;
+        }
+        if (canal instanceof StandardGuildMessageChannel smc) {
+            return !chPlan.topic().equals(smc.getTopic());
+        }
+        if (canal instanceof ForumChannel fc) {
+            return !chPlan.topic().equals(fc.getTopic());
+        }
+        if (canal instanceof MediaChannel mc) {
+            return !chPlan.topic().equals(mc.getTopic());
+        }
+        return false;
     }
 
     /**
