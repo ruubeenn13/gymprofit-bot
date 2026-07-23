@@ -998,12 +998,15 @@ public final class SetupComando implements Comando {
     }
 
     /**
-     * Fija la descripción del servidor (visible en la tarjeta de invitación / descubrimiento) desde
-     * i18n. Solo con Comunidad activada. Registra el cambio solo si el texto difiere del actual.
+     * Fija la descripción del servidor (la del campo {@code description} del guild) desde i18n.
+     * <b>Limitación de Discord:</b> la API solo permite {@code setDescription} en servidores con la
+     * feature {@code VERIFIED} o {@code PARTNERED}; en el resto lanza {@code IllegalStateException},
+     * así que ni se intenta (la descripción se gestiona a mano en Ajustes). Registra el cambio solo
+     * si el texto difiere del actual.
      */
     private void configurarDescripcionServidor(Guild guild, RegistroCambios reg) {
-        if (!guild.getFeatures().contains("COMMUNITY")) {
-            return;  // sin Comunidad la API de descripción no está disponible
+        if (!guild.getFeatures().contains("VERIFIED") && !guild.getFeatures().contains("PARTNERED")) {
+            return;  // sin VERIFIED/PARTNERED la API no deja fijar la descripción del guild
         }
         String nueva = Messages.get(Messages.ES, "setup.descripcion_servidor");
         if (nueva.equals(guild.getDescription())) {
