@@ -95,6 +95,7 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.BolsaJob;
 import com.gymprofit.bot.jobs.EjercicioDiaJob;
+import com.gymprofit.bot.jobs.NominaEmpresasJob;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.ApuestaService;
 import com.gymprofit.bot.services.BancoService;
@@ -162,6 +163,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -472,6 +474,10 @@ public final class Main {
             comandos.add(new EmpresaComando(
                     empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo));
             listeners.add(new EmpresaBotonesListener(empresaService, empresaGestion));
+            // Empresas (Fase 3): nómina diaria a las 03:00 Europe/Madrid. Reparte una fracción del
+            // bote entre los miembros según su rango; reloj de Madrid para clavar la hora local.
+            new NominaEmpresasJob(empresaRepo, economiaRepo, Clock.system(ZoneId.of("Europe/Madrid")))
+                    .iniciar();
 
             // Tienda e inventario.
             ItemService itemService =
