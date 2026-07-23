@@ -449,8 +449,12 @@ public final class Main {
             // carreraRepo guarda el tier alcanzado por rama: el gate de elegir y los ascensos
             // leen/escriben ahí (el tier nunca baja, así que cambiar de rama no borra la carrera).
             CarreraRepositorio carreraRepo = new CarreraRepositorio(db.dataSource());
+            // empresaRepo se crea aquí (antes que el service de trabajo) porque currar necesita el
+            // repo de empresas para el corte al bote y el bonus de nivel al ingreso (F3).
+            EmpresaRepositorio empresaRepo = new EmpresaRepositorio(db.dataSource());
             TrabajoService trabajoService = new TrabajoService(
-                    personajeRepo, economiaRepo, usuarios, descansoService, carreraRepo, pasivoService);
+                    personajeRepo, economiaRepo, usuarios, descansoService, carreraRepo, pasivoService,
+                    empresaRepo);
             comandos.add(new TrabajoComando(trabajoService, reintentos));
             listeners.add(new TrabajoBotonesListener(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
@@ -460,7 +464,6 @@ public final class Main {
             // Empresas (Fase 1): entidad tipo gremio ligada a la rama del trabajo. La funda un t4 de
             // la rama (coins quemados) y se ingresa por invitación del dueño o solicitud con motivo.
             // El comando recibe también el repo para los listados de pendientes (consultas de apoyo).
-            EmpresaRepositorio empresaRepo = new EmpresaRepositorio(db.dataSource());
             EmpresaService empresaService = new EmpresaService(
                     empresaRepo, personajeRepo, economiaRepo, trabajoService);
             // Empresas (Fase 2): gobernanza de la plantilla (cambiar rango, sacar, despedir). El dueño

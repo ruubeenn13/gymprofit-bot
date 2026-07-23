@@ -2,10 +2,14 @@ package com.gymprofit.bot.services;
 
 import com.gymprofit.bot.db.CarreraRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.Empresa;
+import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.Personaje;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscord;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -42,6 +46,10 @@ public final class TrabajoService {
     public static final double BONO_ESTUDIOS_MAX = 0.25;
     /** Multiplicador del sueldo con fatiga (−20 %): rendir cansado se nota en la nómina. */
     public static final double PENAL_FATIGA = 0.8;
+    /** Corte que se lleva la empresa del curro de cada miembro (10 % del bruto → al bote). */
+    public static final double CORTE_EMPRESA = 0.10;
+    /** Bonus de ingresos por cada nivel de la empresa (+2 %/nivel sobre el sueldo del miembro). */
+    public static final double BONUS_POR_NIVEL = 0.02;
 
     public enum EstadoWork { OK, SIN_TRABAJO, EN_COOLDOWN, SIN_ENERGIA, DORMIDO }
 
@@ -92,26 +100,46 @@ public final class TrabajoService {
     private final CarreraRepositorio carreras;
     /** Efectos pasivos del jugador. {@code null} en los tests y arranques que no los usan. */
     private final PasivoService pasivos;
+    /**
+     * Empresa del jugador: el curro corta un 10 % al bote y el nivel bonifica el ingreso (F3).
+     * {@code null} en los tests y arranques que no usan empresas (el curro paga el base sin corte).
+     */
+    private final EmpresaRepositorio empresas;
     private final Random aleatorio = new Random();
+
+    private static final Logger log = LoggerFactory.getLogger(TrabajoService.class);
 
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
                           UsuarioDiscordRepositorio usuarios, DescansoService descanso,
-                          CarreraRepositorio carreras, PasivoService pasivos) {
+                          CarreraRepositorio carreras, PasivoService pasivos,
+                          EmpresaRepositorio empresas) {
         this.personajes = personajes;
         this.economia = economia;
         this.usuarios = usuarios;
         this.descanso = descanso;
         this.carreras = carreras;
         this.pasivos = pasivos;
+        this.empresas = empresas;
     }
 
     /**
-     * Constructor sin pasivos (tests y arranques degradados): equivale a no tener nada equipado.
+     * Constructor sin empresas (tests y arranques que no tocan el corte al bote): el curro paga el
+     * sueldo sin corte ni bonus de empresa.
+     */
+    public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
+                          UsuarioDiscordRepositorio usuarios, DescansoService descanso,
+                          CarreraRepositorio carreras, PasivoService pasivos) {
+        this(personajes, economia, usuarios, descanso, carreras, pasivos, null);
+    }
+
+    /**
+     * Constructor sin pasivos ni empresas (tests y arranques degradados): equivale a no tener nada
+     * equipado y a currar fuera de cualquier empresa.
      */
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
                           UsuarioDiscordRepositorio usuarios, DescansoService descanso,
                           CarreraRepositorio carreras) {
-        this(personajes, economia, usuarios, descanso, carreras, null);
+        this(personajes, economia, usuarios, descanso, carreras, null, null);
     }
 
     /**
@@ -287,8 +315,56 @@ public final class TrabajoService {
         int pago = conPenalizacionFatiga(
                 conBonoPasivos(conBonoEstudios(base, p.estudios()), bono(bonos, Pasivos.Tipo.SUELDO)),
                 fatiga);
-        economia.ingresar(discordId, pago, "work");
-        return new ResultadoWork(EstadoWork.OK, pago, p.energia() - t.energiaCoste(), 0);
+        // Corte de empresa (F3): si el jugador está en una empresa, su nivel bonifica el ingreso y un
+        // 10 % del bruto va al bote. Se aplica sobre el sueldo FINAL que hoy percibe (ya con estudios,
+        // pasivos y fatiga): es el importe natural sobre el que la empresa tributa. Sin empresa el pago
+        // no cambia; si algo falla al leer/actualizar la empresa se cobra el sueldo íntegro sin corte.
+        long aCobrar = aplicarEmpresa(discordId, pago);
+        economia.ingresar(discordId, aCobrar, "work");
+        return new ResultadoWork(EstadoWork.OK, (int) aCobrar, p.energia() - t.energiaCoste(), 0);
+    }
+
+    /**
+     * Aplica el corte/bonus de empresa al sueldo final del turno y devuelve lo que cobra el jugador.
+     * Si pertenece a una empresa, {@link #ingresoEmpresa} calcula el bruto bonificado por nivel y el
+     * corte al bote, se ingresa el corte con {@link EmpresaRepositorio#incrementarBote} y el jugador
+     * cobra el neto. Sin empresa (o sin repo inyectado) devuelve el sueldo intacto.
+     *
+     * <p>Todo el acceso a la empresa va envuelto en {@code try/catch}: <b>el curro es prioritario</b>,
+     * así que un fallo leyendo o actualizando la empresa degrada a «cobrar el base sin corte» en vez de
+     * dejar al jugador sin cobrar su turno.
+     */
+    private long aplicarEmpresa(long discordId, int sueldo) {
+        if (empresas == null) {
+            return sueldo;
+        }
+        try {
+            Optional<Empresa> emp = empresas.deMiembro(discordId);
+            if (emp.isEmpty()) {
+                return sueldo; // fuera de toda empresa no hay corte ni bonus: cobra el sueldo íntegro
+            }
+            IngresoEmpresa ingreso = ingresoEmpresa(sueldo, emp.get().nivel());
+            empresas.incrementarBote(emp.get().id(), ingreso.corte());
+            return ingreso.neto();
+        } catch (RuntimeException e) {
+            log.warn("No se pudo aplicar el corte de empresa al curro de {}: {}", discordId, e.toString());
+            return sueldo;
+        }
+    }
+
+    /** Reparto del sueldo de un turno entre el miembro (neto) y el bote de su empresa (corte). */
+    public record IngresoEmpresa(long neto, long corte) {
+    }
+
+    /**
+     * Reparte el sueldo de un turno entre el miembro y el bote de su empresa. El nivel bonifica el
+     * bruto ({@code +2 %} por nivel) y el {@code 10 %} de ese bruto se corta al bote; el miembro cobra
+     * el resto. Redondeo a la baja en ambos pasos. <b>Pura.</b>
+     */
+    public static IngresoEmpresa ingresoEmpresa(long sueldo, int nivel) {
+        long bruto = (long) Math.floor(sueldo * (1 + BONUS_POR_NIVEL * nivel));
+        long corte = (long) Math.floor(bruto * CORTE_EMPRESA);
+        return new IngresoEmpresa(bruto - corte, corte);
     }
 
     /**

@@ -3,16 +3,20 @@ package com.gymprofit.bot.services;
 import com.gymprofit.bot.db.CarreraRepositorio;
 import com.gymprofit.bot.db.DescansoEstado;
 import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.Empresa;
+import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.Personaje;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscord;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.services.TrabajoService.EstadoAscenso;
 import com.gymprofit.bot.services.TrabajoService.EstadoWork;
+import com.gymprofit.bot.services.TrabajoService.IngresoEmpresa;
 import com.gymprofit.bot.services.TrabajoService.ResultadoDimitir;
 import com.gymprofit.bot.services.TrabajoService.ResultadoElegir;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -43,6 +48,7 @@ class TrabajoServiceTest {
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
     private final DescansoService descanso = mock(DescansoService.class);
     private final CarreraRepositorio carreras = mock(CarreraRepositorio.class);
+    private final EmpresaRepositorio empresas = mock(EmpresaRepositorio.class);
 
     @Test
     void dormidoNoSePuedeCurrar() {
@@ -158,6 +164,72 @@ class TrabajoServiceTest {
         assertEquals(EstadoWork.OK, svc.trabajar(1L, ahora).estado());
         // Un solo viaje a los pasivos por turno aunque se usen dos tipos de bono distintos.
         verify(pasivos).bonosDe(1L);
+    }
+
+    // ------------------------------------------------------------------ corte de empresa (F3)
+
+    @Test
+    @DisplayName("ingresoEmpresa: el nivel bonifica +2 %/nivel y el 10 % del bruto va al bote")
+    void ingresoEmpresaRepartoExacto() {
+        // base 1000, nivel 5 → bruto 1100, corte 110, el jugador cobra 990.
+        IngresoEmpresa r = TrabajoService.ingresoEmpresa(1000, 5);
+        assertEquals(990, r.neto());
+        assertEquals(110, r.corte());
+        // base 1000, nivel 0 → sin bonus: bruto 1000, corte 100, cobra 900.
+        IngresoEmpresa sinBonus = TrabajoService.ingresoEmpresa(1000, 0);
+        assertEquals(900, sinBonus.neto());
+        assertEquals(100, sinBonus.corte());
+    }
+
+    @Test
+    @DisplayName("currar en una empresa nivel 5: el bote recibe el 10 % del bruto y el jugador el neto")
+    void currarEnEmpresaCortaAlBote() {
+        var svc = svcParaCurrar(Optional.of(empresa(42L, 5)));
+        var r = svc.trabajar(1L, Instant.now());
+        assertEquals(EstadoWork.OK, r.estado());
+
+        // Importe abonado al jugador y corte enviado al bote (comportamiento real, no eco del mock).
+        ArgumentCaptor<Long> pagado = ArgumentCaptor.forClass(Long.class);
+        verify(economia).ingresar(eq(1L), pagado.capture(), eq("work"));
+        ArgumentCaptor<Long> corte = ArgumentCaptor.forClass(Long.class);
+        verify(empresas).incrementarBote(eq(42L), corte.capture());
+
+        long bruto = pagado.getValue() + corte.getValue();
+        // El corte es exactamente el 10 % del bruto y el jugador cobra el resto, sea cual sea el
+        // sueldo aleatorio del turno. El neto abonado coincide con el pago que reporta el resultado.
+        assertEquals((long) Math.floor(bruto * TrabajoService.CORTE_EMPRESA), corte.getValue());
+        assertEquals(r.pago(), pagado.getValue().intValue());
+        assertTrue(corte.getValue() > 0, "en una empresa nivel 5 el corte al bote es positivo");
+    }
+
+    @Test
+    @DisplayName("currar sin empresa: cobra el sueldo íntegro y no toca ningún bote")
+    void currarSinEmpresaNoCorta() {
+        var svc = svcParaCurrar(Optional.empty());
+        var r = svc.trabajar(1L, Instant.now());
+        assertEquals(EstadoWork.OK, r.estado());
+
+        // El importe abonado es el sueldo del turno tal cual: sin corte ni bonus de empresa.
+        verify(economia).ingresar(1L, (long) r.pago(), "work");
+        verify(empresas, never()).incrementarBote(anyLong(), anyLong());
+    }
+
+    /**
+     * Service listo para un turno de curro que llega a pagar (despierto, con trabajo, sin cooldown ni
+     * fatiga, energía de sobra) y con el repo de empresas devolviendo la empresa dada para el jugador.
+     */
+    private TrabajoService svcParaCurrar(Optional<Empresa> empresaDelJugador) {
+        when(descanso.estaDormido(1L)).thenReturn(false);
+        when(personajes.obtenerOCrear(1L)).thenReturn(personaje(null)); // sin ultimoWork: sin cooldown
+        when(descanso.estadoDe(1L)).thenReturn(sinFatiga());
+        when(personajes.trabajar(anyLong(), anyInt())).thenReturn(true);
+        when(empresas.deMiembro(1L)).thenReturn(empresaDelJugador);
+        return new TrabajoService(personajes, economia, usuarios, descanso, carreras, null, empresas);
+    }
+
+    /** Empresa mínima para los tests del corte: solo importan el id y el nivel. */
+    private static Empresa empresa(long id, int nivel) {
+        return new Empresa(id, "HOSTELERIA", 1L, "Acme", nivel, 0, Instant.now());
     }
 
     // ------------------------------------------------------------------ ascensos de carrera
