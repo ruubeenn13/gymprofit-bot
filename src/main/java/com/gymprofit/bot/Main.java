@@ -142,6 +142,7 @@ import com.gymprofit.bot.events.EjerciciosPaginadorListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
 import com.gymprofit.bot.events.PanelRolesListener;
 import com.gymprofit.bot.events.TicketListener;
+import com.gymprofit.bot.events.TrabajoBotonesListener;
 import com.gymprofit.bot.events.XpMensajeListener;
 import com.gymprofit.bot.jobs.EnergiaJob;
 import com.gymprofit.bot.jobs.RetencionJob;
@@ -442,6 +443,7 @@ public final class Main {
             TrabajoService trabajoService = new TrabajoService(
                     personajeRepo, economiaRepo, usuarios, descansoService, carreraRepo, pasivoService);
             comandos.add(new TrabajoComando(trabajoService, reintentos));
+            listeners.add(new TrabajoBotonesListener(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();

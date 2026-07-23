@@ -9,6 +9,7 @@ import com.gymprofit.bot.db.UsuarioDiscord;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.services.TrabajoService.EstadoAscenso;
 import com.gymprofit.bot.services.TrabajoService.EstadoWork;
+import com.gymprofit.bot.services.TrabajoService.ResultadoDimitir;
 import com.gymprofit.bot.services.TrabajoService.ResultadoElegir;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -303,6 +305,24 @@ class TrabajoServiceTest {
         assertNull(sin.requisitos());
         assertTrue(sin.siguiente().isEmpty());
         assertEquals(0, sin.tierAlcanzado());
+    }
+
+    @Test
+    @DisplayName("dimitir: con trabajo vuelve al paro (fijarTrabajo null resetea la antigüedad)")
+    void dimitirDejaEnParo() {
+        var r = svcConPersonaje(camarero(20, 5, 10)).dimitir(1L);
+        assertEquals(ResultadoDimitir.OK, r);
+        // fijarTrabajo(null) pone trabajo=NULL y turnos_puesto=0 en la misma sentencia.
+        verify(personajes).fijarTrabajo(1L, null);
+    }
+
+    @Test
+    @DisplayName("dimitir: en paro devuelve SIN_TRABAJO y no toca nada")
+    void dimitirEnParoNoTocaNada() {
+        var r = svcConPersonaje(sinTrabajo()).dimitir(1L);
+        assertEquals(ResultadoDimitir.SIN_TRABAJO, r);
+        verify(personajes, never()).fijarTrabajo(anyLong(), anyString());
+        verify(personajes, never()).fijarTrabajo(anyLong(), isNull());
     }
 
     /** Service con el montaje completo de mocks (sin pasivos: aquí no pintan nada). */

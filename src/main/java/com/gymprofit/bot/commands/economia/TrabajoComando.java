@@ -26,6 +26,8 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
@@ -58,6 +60,9 @@ public final class TrabajoComando implements ComandoAutocompletable {
     /** Prefijo de los roles cosméticos de trabajo (identifica y limpia el anterior). */
     private static final String PREFIJO_ROL = "💼 ";
     private static final Color COLOR_ROL_TRABAJO = new Color(0x9B59B6);
+    /** Prefijos de customId de la confirmación de dimitir: {@code trabajo:dimitir:<accion>:<ownerId>}. */
+    public static final String BOTON_DIMITIR_SI = "trabajo:dimitir:si";
+    public static final String BOTON_DIMITIR_NO = "trabajo:dimitir:no";
 
     private final TrabajoService trabajos;
     private final ReintentoRegistro reintentos;
@@ -92,7 +97,8 @@ public final class TrabajoComando implements ComandoAutocompletable {
                         sub("elegir", "comando.elegirtrabajo.descripcion").addOptions(trabajo),
                         sub("currar", "comando.work.descripcion"),
                         sub("ascender", "comando.trabajo.ascender.descripcion").addOptions(puesto),
-                        sub("carrera", "comando.trabajo.carrera.descripcion"));
+                        sub("carrera", "comando.trabajo.carrera.descripcion"),
+                        sub("dimitir", "comando.trabajo.dimitir.descripcion"));
     }
 
     private static SubcommandData sub(String nombre, String claveDesc) {
@@ -110,6 +116,7 @@ public final class TrabajoComando implements ComandoAutocompletable {
             case "currar" -> currar(evento, locale);
             case "ascender" -> ascender(evento, locale);
             case "carrera" -> carrera(evento, locale);
+            case "dimitir" -> dimitir(evento, locale);
             default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
         }
@@ -324,6 +331,38 @@ public final class TrabajoComando implements ComandoAutocompletable {
     private static void enviarCarrera(SlashCommandInteractionEvent evento, Locale locale, String cuerpo) {
         evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "carrera.titulo"), cuerpo).build()).queue();
+    }
+
+    /**
+     * Renunciar al trabajo es <b>destructivo</b> (se pierde la antigüedad del puesto), así que no se
+     * ejecuta en el acto: se pide confirmación por botón. Estando ya en paro no hay nada que confirmar
+     * y se corta con un aviso efímero. El mensaje de confirmación va efímero (decisión personal, no
+     * hay nada que celebrar en el canal); la dimisión real la resuelve {@link TrabajoBotonesListener}.
+     */
+    private void dimitir(SlashCommandInteractionEvent evento, Locale locale) {
+        long userId = evento.getUser().getIdLong();
+        String puesto = trabajos.infoCarrera(userId).puestoActual();
+        if (puesto == null) {
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "dimitir.sintrabajo"))).setEphemeral(true).queue();
+            return;
+        }
+        evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                        Messages.get(locale, "dimitir.confirmar", Messages.get(locale, "trabajo." + puesto))))
+                .setComponents(botonesDimitir(locale, userId))
+                .setEphemeral(true).queue();
+    }
+
+    /**
+     * Botones Sí/No de la confirmación de dimitir. El customId lleva el id del dueño
+     * ({@code trabajo:dimitir:<accion>:<id>}), mismo patrón que los botones de descanso.
+     *
+     * @param ownerId dueño de la dimisión; el único que puede resolverla
+     */
+    public static ActionRow botonesDimitir(Locale locale, long ownerId) {
+        return ActionRow.of(
+                Button.danger(BOTON_DIMITIR_SI + ":" + ownerId, Messages.get(locale, "dimitir.boton.si")),
+                Button.secondary(BOTON_DIMITIR_NO + ":" + ownerId, Messages.get(locale, "dimitir.boton.no")));
     }
 
     /**

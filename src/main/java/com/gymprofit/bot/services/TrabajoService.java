@@ -51,6 +51,8 @@ public final class TrabajoService {
 
     public enum ResultadoEntrenar { OK, SIN_ENERGIA }
 
+    public enum ResultadoDimitir { OK, SIN_TRABAJO }
+
     /** Resultado de {@code /work}. */
     public record ResultadoWork(EstadoWork estado, int pago, int energiaRestante,
                                 long segundosRestantes) {
@@ -287,6 +289,21 @@ public final class TrabajoService {
                 fatiga);
         economia.ingresar(discordId, pago, "work");
         return new ResultadoWork(EstadoWork.OK, pago, p.energia() - t.energiaCoste(), 0);
+    }
+
+    /**
+     * Renuncia al trabajo actual: vuelta al paro. Resetea la antigüedad del puesto. <b>No</b> toca la
+     * pertenencia a empresa (la pertenencia se valida al entrar, no de forma continua — decisión de F1).
+     */
+    public ResultadoDimitir dimitir(long discordId) {
+        Personaje p = personajes.obtenerOCrear(discordId);
+        if (p.trabajo() == null) {
+            return ResultadoDimitir.SIN_TRABAJO;
+        }
+        // fijarTrabajo(null) deja trabajo=NULL y turnos_puesto=0 en la misma sentencia: el mismo
+        // método (y reseteo de antigüedad) que usan elegir y ascender al cambiar de puesto.
+        personajes.fijarTrabajo(discordId, null);
+        return ResultadoDimitir.OK;
     }
 
     /** Entrena un atributo (+1) gastando energía. */
