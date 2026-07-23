@@ -8,6 +8,7 @@ import com.gymprofit.bot.services.SetupServidorPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CanalPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.CategoriaPlan;
 import com.gymprofit.bot.services.SetupServidorPlan.RolPlan;
+import com.gymprofit.bot.util.Embeds;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildWelcomeScreen;
@@ -48,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -279,12 +281,14 @@ public final class SetupComando implements Comando {
                 List<GuildChannel> protegidos = new ArrayList<>();
                 // /setup NO borra mensajes: solo crea/reutiliza estructura (sobrescribe, no elimina).
                 // El borrado total (canales incluidos) solo ocurre con la opción desde_cero.
-                int limpiados = desdeCero
-                        ? vaciarServidor(guild, protegidos, conservar, reg)
-                        : 0;
+                // El informe se construye desde 'reg' (con nombres), no de contadores: por eso las
+                // llamadas de montaje no guardan su total, solo se ejecutan por sus efectos.
+                if (desdeCero) {
+                    vaciarServidor(guild, protegidos, conservar, reg);
+                }
                 Map<String, Role> roles = crearRoles(guild, reg);
-                int canales = crearCategoriasYCanales(guild, roles, locale, reg);
-                int reglasAutoMod = crearReglasAutoMod(guild, reg);
+                crearCategoriasYCanales(guild, roles, locale, reg);
+                crearReglasAutoMod(guild, reg);
 
                 // Recoloca las anclas en STAFF y las oculta (solo bot + Fundador), en cada /setup.
                 if (comunidad) {
@@ -294,7 +298,6 @@ public final class SetupComando implements Comando {
                 for (GuildChannel viejo : protegidos) {
                     try {
                         viejo.delete().complete();
-                        limpiados++;
                         // Borrado efectivo en el reintento: se anota con nombre en el informe.
                         reg.eliminado(viejo instanceof Category
                                 ? RegistroCambios.Categoria.CATEGORIA : RegistroCambios.Categoria.CANAL,
@@ -312,14 +315,39 @@ public final class SetupComando implements Comando {
                 // Fija la descripción del servidor (tarjeta de invitación / descubrimiento); solo Comunidad.
                 configurarDescripcionServidor(guild, reg);
 
-                var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
-                        Messages.get(locale, "setup.titulo"),
-                        Messages.get(locale, "setup.resumen",
-                                SetupServidorPlan.ROLES.size(), canales, limpiados, reglasAutoMod)).build();
-                // Si la interacción ya expiró (setup largo), el resumen falla sin pasa nada grave.
-                evento.getHook().sendMessageEmbeds(embed).queue(null,
-                        err -> log.info("Setup terminado, pero no se pudo enviar el resumen: {}",
-                                err.toString()));
+                // Informe detallado de esta ejecución (Task 7). Se trocea porque el registro puede
+                // superar el tope de un solo embed (Embeds.MAX_DESC) cuando hay muchos cambios.
+                InformeSetup.Contexto ctx = new InformeSetup.Contexto(
+                        guild.getName(), evento.getUser().getAsMention(), desdeCero,
+                        Instant.now().getEpochSecond());
+                List<String> lineas = InformeSetup.lineas(reg, ctx, locale);
+                List<String> bloques = Embeds.partirEnBloques(lineas, Embeds.MAX_DESC);
+                String titulo = Messages.get(locale, "setup.registro.titulo");
+
+                // Un embed por bloque; el título solo va en el primero para no repetir cabecera.
+                for (int i = 0; i < bloques.size(); i++) {
+                    var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+                            i == 0 ? titulo : null, bloques.get(i)).build();
+                    // Si la interacción ya expiró (setup largo), el envío falla sin pasar nada grave.
+                    evento.getHook().sendMessageEmbeds(embed).queue(null,
+                            err -> log.info("Setup terminado, pero no se pudo enviar el informe: {}",
+                                    err.toString()));
+                }
+
+                // Además se archiva en bot-logs (persistente): la respuesta es efímera y expira, el
+                // canal deja constancia. Best-effort: bot-logs se crea en este mismo /setup y su id se
+                // guarda en config_servidor; si aun así falta, se avisa y no se rompe el montaje.
+                Long logsId = config.obtener(guild.getIdLong()).canalBotLogs();
+                TextChannel logs = logsId == null ? null : guild.getTextChannelById(logsId);
+                if (logs != null) {
+                    for (int i = 0; i < bloques.size(); i++) {
+                        var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+                                i == 0 ? titulo : null, bloques.get(i)).build();
+                        logs.sendMessageEmbeds(embed).queue(null, e -> { });
+                    }
+                } else {
+                    log.warn("No hay canal bot-logs: el informe de /setup no se archiva");
+                }
             } catch (RuntimeException e) {
                 log.error("Error en /setup en el servidor {}", guild.getId(), e);
                 evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ANUNCIO, locale, Messages.get(locale, "setup.error")))
