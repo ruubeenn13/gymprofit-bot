@@ -54,7 +54,7 @@ GymProBot convierte el servidor de la comunidad en un gimnasio gamificado y lo c
 | `/nivel [usuario]` | Muestra tu nivel, XP y progreso (o los de otro usuario) |
 | `/top` | Ranking de XP del servidor |
 | `/config` | Configuración del servidor: canales, roles de objetivo e idioma (solo staff) |
-| `/setup [desde_cero]` | Monta la estructura del servidor (roles, canales, permisos) y autoconfigura; `desde_cero` borra todo antes (solo admin) |
+| `/setup [desde_cero]` | Monta la estructura del servidor (roles, canales, permisos, descripción) y autoconfigura, con **informe de los cambios** de esa tanda (nuevos/actualizados/eliminados) en la respuesta y en `bot-logs`; `desde_cero` borra todo antes (solo admin) |
 | `/limpiar <cantidad>` | Borra los últimos N mensajes del canal (solo staff) |
 | `/reto <texto>` | Fija el reto de la semana (contador `🎯 Reto` de las estadísticas, solo staff) |
 | `/evento <nombre> <fecha>` | Fija el próximo evento con cuenta atrás (contador `⏳ Evento`, solo staff) |

@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Informe de /setup**: cada ejecución de `/setup` (y `/setup desde_cero`) muestra qué cambió esa
+  tanda —nuevos, actualizados y eliminados, con nombres— en la respuesta y como registro persistente
+  en `bot-logs`. `/setup` pasa a fijar también la descripción del servidor.
 - **Ascensos de carrera** (`/trabajo ascender` · `/trabajo carrera`): los trabajos se agrupan en
   7 ramas y el tier se gana currando. Cada ascenso exige antigüedad en el puesto, estudios, la
   stat de la rama y un pago que se quema. La carrera se conserva por rama al cambiar de trabajo, y

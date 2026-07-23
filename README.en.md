@@ -54,7 +54,7 @@ GymProBot turns the community server into a gamified gym and wires it to the app
 | `/nivel [user]` | Shows your level, XP and progress (or another user's) |
 | `/top` | Server XP leaderboard |
 | `/config` | Server configuration: channels, goal roles and language (staff only) |
-| `/setup [desde_cero]` | Set up the server structure (roles, channels, permissions) and auto-config; `desde_cero` wipes everything first (admin only) |
+| `/setup [desde_cero]` | Set up the server structure (roles, channels, permissions, description) and auto-config, with a **report of that run's changes** (added/updated/removed) in the reply and in `bot-logs`; `desde_cero` wipes everything first (admin only) |
 | `/limpiar <amount>` | Delete the latest N messages in the channel (staff only) |
 | `/frase` | Drops a random motivational quote from the bilingual bank (30 s cooldown) |
 | `/ejercicios [group] [difficulty] [search]` | Browse the app's exercise catalog: paginated list with arrows and a full card per exercise |

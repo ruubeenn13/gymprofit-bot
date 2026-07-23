@@ -96,6 +96,15 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).
 
+## Setup del servidor
+
+`/setup` (y `/setup desde_cero`) monta la estructura del servidor de forma idempotente y, además,
+gestiona la **descripción del servidor**. Cada ejecución produce un **informe de cambios**: un
+colector `RegistroCambios` anota lo creado/actualizado/eliminado por nombre —el contenido reaplicado
+(intros, welcome, AFK, descripción) solo cuenta si **difiere** del actual—, `InformeSetup` lo
+renderiza y `util/Embeds` lo trocea en varios embeds; el informe va a la respuesta del comando y, como
+registro persistente, a `#bot-logs` (ADR-015).
+
 ## Autenticación bot → API
 
 Ver ADR en [`decisions.md`](decisions.md). Implementado en `api/`: cuenta de servicio con

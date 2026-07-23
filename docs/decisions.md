@@ -283,3 +283,20 @@ elegido: no había jugadores reales que migrar.
 **Consecuencias.** El late-game gana un destino más (t4 cuesta 50 000 coins quemados) y los
 estudios y las stats ganan un segundo uso. `/trabajo` pasa a 5 subcomandos. Queda fuera el rango
 interno por puesto (descartado) y `/trabajo dimitir` (cambiar = elegir otro, YAGNI).
+
+## ADR-015 — informe de cambios de /setup
+
+**Estado:** aceptada e implementada.
+
+**Contexto.** /setup era idempotente pero opaco: solo daba contadores, no qué cambiaba. Sin registro
+no había forma de saber qué se añadió o actualizó en cada tanda.
+
+**Decisión.** Un colector `RegistroCambios` recorre los helpers de setup y registra creado/actualizado/
+eliminado por nombre; el contenido reaplicado (intros, welcome, descripción del servidor) se compara y
+solo cuenta si difiere. El informe se renderiza con `InformeSetup`, se trocea con `util/Embeds` y se
+envía a la respuesta y, persistente, a bot-logs. Setup pasa además a gestionar la descripción del
+servidor.
+
+**Consecuencias.** Cada /setup deja un registro consultable. Coste: instrumentación repartida por
+SetupComando y alguna lectura extra a la API (`complete()`) para los diffs de contenido, que alarga
+algo el montaje.
