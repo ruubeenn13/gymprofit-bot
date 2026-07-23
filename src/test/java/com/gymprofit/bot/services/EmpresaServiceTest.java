@@ -81,53 +81,51 @@ class EmpresaServiceTest {
     }
 
     @Test
-    @DisplayName("fundar sin saldo devuelve SIN_SALDO y NO cobra ni funda")
+    @DisplayName("fundar sin saldo (gastar=false) devuelve SIN_SALDO y NO funda")
     void fundarSinSaldo() {
         when(personajes.obtenerOCrear(1L)).thenReturn(camarero());
         when(trabajos.tierAlcanzadoEn(1L, Ascensos.Rama.HOSTELERIA)).thenReturn(4);
         when(repo.deMiembro(1L)).thenReturn(Optional.empty());
-        when(economia.saldo(1L)).thenReturn(EmpresaService.COSTE_FUNDAR - 1);
+        // El cobro es el gate atómico: si gastar devuelve false (sin saldo), no se funda nada.
+        when(economia.gastar(1L, EmpresaService.COSTE_FUNDAR, "fundar_empresa")).thenReturn(false);
 
         assertEquals(ResultadoFundar.SIN_SALDO, svc().fundar(1L, "Gimnasio").estado());
         verify(repo, never()).fundar(anyString(), anyLong(), anyString());
-        verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
     }
 
     @Test
-    @DisplayName("fundar OK: funda en la BD y SOLO DESPUÉS cobra (el cobro es lo último)")
-    void fundarOkCobraLoUltimo() {
+    @DisplayName("fundar OK: cobra ATÓMICAMENTE primero y SOLO DESPUÉS funda en la BD")
+    void fundarOkCobraPrimero() {
         when(personajes.obtenerOCrear(1L)).thenReturn(camarero());
         when(trabajos.tierAlcanzadoEn(1L, Ascensos.Rama.HOSTELERIA)).thenReturn(4);
         when(repo.deMiembro(1L)).thenReturn(Optional.empty());
-        when(economia.saldo(1L)).thenReturn(500_000L);
-        when(repo.fundar("HOSTELERIA", 1L, "Gimnasio")).thenReturn(77L);
         when(economia.gastar(1L, EmpresaService.COSTE_FUNDAR, "fundar_empresa")).thenReturn(true);
+        when(repo.fundar("HOSTELERIA", 1L, "Gimnasio")).thenReturn(77L);
 
         SalidaFundar salida = svc().fundar(1L, "Gimnasio");
 
         assertEquals(ResultadoFundar.OK, salida.estado());
         assertEquals(77L, salida.empresaId());
         assertEquals(EmpresaService.COSTE_FUNDAR, salida.costeQuemado());
-        // El orden es la garantía de "nunca se cobra una fundación fallida": si fundar lanzase, no se
-        // llegaría a gastar.
-        InOrder orden = inOrder(repo, economia);
-        orden.verify(repo).fundar("HOSTELERIA", 1L, "Gimnasio");
+        // El cobro es el gate atómico final: gastar (que valida saldo y descuenta) va ANTES del insert.
+        InOrder orden = inOrder(economia, repo);
         orden.verify(economia).gastar(1L, EmpresaService.COSTE_FUNDAR, "fundar_empresa");
+        orden.verify(repo).fundar("HOSTELERIA", 1L, "Gimnasio");
     }
 
     @Test
-    @DisplayName("fundar con el nombre pillado (UNIQUE) devuelve NOMBRE_EN_USO sin cobrar")
+    @DisplayName("fundar con el nombre pillado (UNIQUE) devuelve NOMBRE_EN_USO y REEMBOLSA el coste")
     void fundarNombreEnUso() {
         when(personajes.obtenerOCrear(1L)).thenReturn(camarero());
         when(trabajos.tierAlcanzadoEn(1L, Ascensos.Rama.HOSTELERIA)).thenReturn(4);
         when(repo.deMiembro(1L)).thenReturn(Optional.empty());
-        when(economia.saldo(1L)).thenReturn(500_000L);
+        when(economia.gastar(1L, EmpresaService.COSTE_FUNDAR, "fundar_empresa")).thenReturn(true);
         when(repo.fundar("HOSTELERIA", 1L, "Gimnasio"))
                 .thenThrow(new DatabaseException("uq_empresa_nombre_rama", null));
 
         assertEquals(ResultadoFundar.NOMBRE_EN_USO, svc().fundar(1L, "Gimnasio").estado());
-        // La fundación falló: prohibido cobrar.
-        verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
+        // Se cobró antes del insert fallido: hay que devolver el coste.
+        verify(economia).ingresar(1L, EmpresaService.COSTE_FUNDAR, "reembolso_fundar");
     }
 
     // ------------------------------------------------------------------ invitar

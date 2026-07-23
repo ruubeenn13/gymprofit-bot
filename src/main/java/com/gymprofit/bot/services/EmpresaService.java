@@ -78,13 +78,14 @@ public final class EmpresaService {
 
     /**
      * Funda una empresa en la rama del trabajo actual del jugador. Valida en orden: tener trabajo,
-     * ser t4 de esa rama, no estar ya en una empresa y tener saldo para el coste; solo entonces crea
-     * la empresa y, <b>como último paso</b>, quema el coste.
+     * ser t4 de esa rama y no estar ya en una empresa; solo entonces intenta el cobro y crea la
+     * empresa.
      *
-     * <p>El cobro va después del insert a propósito: {@code repo.fundar} puede fallar por el UNIQUE de
-     * nombre (se traduce a {@link ResultadoFundar#NOMBRE_EN_USO}), y cobrar antes dejaría al jugador
-     * pagando una fundación que no ocurrió. Fundar primero y gastar al final garantiza que nunca se
-     * cobra una fundación fallida — el mismo principio de «cobro lo último» de {@code ascender}.
+     * <p>El cobro es el <b>gate atómico final</b>, igual que en {@code ascender}: {@code gastar}
+     * valida el saldo y descuenta en una sola operación (no hay ventana TOCTOU con un pre-check de
+     * saldo). Si tras cobrar el insert falla por el UNIQUE de nombre (se traduce a
+     * {@link ResultadoFundar#NOMBRE_EN_USO}), se <b>reembolsa</b> el coste antes de devolver el error,
+     * de modo que nunca se cobra una fundación que no ocurrió.
      *
      * @param discordId jugador que funda (será {@link RangoEmpresa#DUENO})
      * @param nombre    nombre de la empresa (único dentro de la rama)
@@ -102,7 +103,9 @@ public final class EmpresaService {
         if (repo.deMiembro(discordId).isPresent()) {
             return new SalidaFundar(ResultadoFundar.YA_EN_EMPRESA, 0, 0);
         }
-        if (economia.saldo(discordId) < COSTE_FUNDAR) {
+        // El cobro es el gate atómico final (como ascender): gastar valida el saldo y descuenta en una
+        // sola operación; no hay ventana TOCTOU. Si el insert falla por nombre en uso, se reembolsa.
+        if (!economia.gastar(discordId, COSTE_FUNDAR, "fundar_empresa")) {
             return new SalidaFundar(ResultadoFundar.SIN_SALDO, 0, 0);
         }
         long empresaId;
@@ -110,11 +113,10 @@ public final class EmpresaService {
             empresaId = repo.fundar(rama.name(), discordId, nombre);
         } catch (DatabaseException e) {
             // La red de seguridad de la BD saltó (nombre pillado en la rama, o pertenencia doble por
-            // carrera). Se surface como nombre en uso: es el conflicto esperable al fundar y nunca se
-            // ha cobrado nada todavía.
+            // carrera). Ya se ha cobrado, así que se reembolsa antes de devolver el error.
+            economia.ingresar(discordId, COSTE_FUNDAR, "reembolso_fundar");
             return new SalidaFundar(ResultadoFundar.NOMBRE_EN_USO, 0, 0);
         }
-        economia.gastar(discordId, COSTE_FUNDAR, "fundar_empresa"); // cobro estrictamente lo último
         return new SalidaFundar(ResultadoFundar.OK, empresaId, COSTE_FUNDAR);
     }
 
