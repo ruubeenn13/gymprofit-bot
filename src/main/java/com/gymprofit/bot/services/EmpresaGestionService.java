@@ -102,7 +102,7 @@ public final class EmpresaGestionService {
         // (empresa+tipo+objetivo) frena una segunda propuesta idéntica y se traduce a YA_HAY_PROPUESTA.
         try {
             long id = propuestas.crear(empresa.id(), tipo, objetivoId, rangoNuevo, actorId,
-                    Instant.now(reloj).plus(DURACION_PROPUESTA));
+                    Instant.now(reloj).plus(DURACION_PROPUESTA), null);
             propuestas.votar(id, actorId, true);
             return ResultadoGestion.PROPUESTA_CREADA;
         } catch (DatabaseException e) {

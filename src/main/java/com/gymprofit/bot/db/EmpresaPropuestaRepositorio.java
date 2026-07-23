@@ -34,14 +34,15 @@ public final class EmpresaPropuestaRepositorio {
     /**
      * Abre una propuesta de gestión y devuelve su id generado. {@code rangoNuevo} solo aplica a
      * {@link TipoPropuesta#CAMBIAR_RANGO}; en el resto llega {@code null} y se persiste como NULL.
-     * Propaga la violación de {@code uq_propuesta_activa} si ya hay una propuesta activa idéntica
-     * (misma empresa, tipo y objetivo).
+     * {@code dato} es la carga extra del {@link TipoPropuesta#ASCENSO} (puesto destino); en el resto
+     * llega {@code null}. Propaga la violación de {@code uq_propuesta_activa} si ya hay una propuesta
+     * activa idéntica (misma empresa, tipo y objetivo).
      */
     public long crear(long empresaId, TipoPropuesta tipo, long objetivoId, RangoEmpresa rangoNuevo,
-                      long proponenteId, Instant expira) {
+                      long proponenteId, Instant expira, String dato) {
         String sql = "INSERT INTO empresa_propuestas "
-                + "(empresa_id, tipo, objetivo_discord_id, rango_nuevo, proponente_discord_id, expira) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+                + "(empresa_id, tipo, objetivo_discord_id, rango_nuevo, proponente_discord_id, expira, dato) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, empresaId);
@@ -55,6 +56,12 @@ public final class EmpresaPropuestaRepositorio {
             }
             ps.setLong(5, proponenteId);
             ps.setTimestamp(6, Timestamp.from(expira));
+            // dato solo lo usa ASCENSO (puesto destino); NULL en el resto de tipos.
+            if (dato == null) {
+                ps.setNull(7, java.sql.Types.VARCHAR);
+            } else {
+                ps.setString(7, dato);
+            }
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 rs.next();
@@ -152,7 +159,7 @@ public final class EmpresaPropuestaRepositorio {
 
     private static final String SELECT_PROPUESTA =
             "SELECT id, empresa_id, tipo, objetivo_discord_id, rango_nuevo, proponente_discord_id, "
-                    + "creada, expira FROM empresa_propuestas";
+                    + "creada, expira, dato FROM empresa_propuestas";
 
     private static Propuesta mapearPropuesta(ResultSet rs) throws SQLException {
         String rango = rs.getString("rango_nuevo");
@@ -164,7 +171,8 @@ public final class EmpresaPropuestaRepositorio {
                 rango == null ? null : RangoEmpresa.valueOf(rango),
                 rs.getLong("proponente_discord_id"),
                 rs.getTimestamp("creada").toInstant(),
-                rs.getTimestamp("expira").toInstant());
+                rs.getTimestamp("expira").toInstant(),
+                rs.getString("dato"));
     }
 
     private static Voto mapearVoto(ResultSet rs) throws SQLException {

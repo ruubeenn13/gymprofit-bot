@@ -433,6 +433,8 @@ public final class EmpresaComando implements Comando {
                     objetivo.getAsMention(), Messages.get(locale, rangoNuevo.claveI18n()));
             case SACAR -> Messages.get(locale, "empresa.sacado", objetivo.getAsMention());
             case DESPEDIR -> Messages.get(locale, "empresa.despedido", objetivo.getAsMention());
+            // ASCENSO (patrocinio de carrera) tiene su propio flujo de F3; no llega por esta vía de gestión.
+            case ASCENSO -> throw new IllegalStateException("ASCENSO no se ejecuta por gestión");
         };
     }
 
@@ -511,6 +513,8 @@ public final class EmpresaComando implements Comando {
                     Messages.get(locale, p.rangoNuevo().claveI18n()));
             case SACAR -> Messages.get(locale, "empresa.propuesta.tipo.sacar");
             case DESPEDIR -> Messages.get(locale, "empresa.propuesta.tipo.despedir");
+            // ASCENSO (patrocinio de carrera) tiene su propio flujo de F3; aún no se anuncia por aquí.
+            case ASCENSO -> throw new IllegalStateException("ASCENSO no se anuncia por gestión");
         };
         return Messages.get(locale, "empresa.propuesta.cuerpo",
                 "<@" + p.proponenteId() + ">",

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -178,6 +179,65 @@ class EmpresaRepositorioTest {
                 assertEquals(2, empresas.miembros(empresaId).size(), "quedan dueño y directivo");
                 assertTrue(empresas.deMiembro(becario).isEmpty(),
                         "el miembro quitado queda libre (sin empresa)");
+            }
+        }
+    }
+
+    /**
+     * Economía de F3: {@code incrementarBote} suma al bote, {@code gastarDelBote} resta de forma atómica
+     * (devuelve false y no deja el bote negativo si falta saldo), {@code subirNivel} incrementa el nivel y
+     * {@code conBote} lista solo las empresas con bote positivo.
+     */
+    @Test
+    void boteNivelYListadoConBote() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar (RGPD).
+                long dueno = 601L;
+                long dueno2 = 602L;
+                for (long id : new long[]{dueno, dueno2}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                long conDinero = empresas.fundar("SALUD", dueno, "Gimnasio del Bote");
+                long sinDinero = empresas.fundar("ARTE", dueno2, "Taller Pelado");
+
+                // incrementarBote suma al bote (arranca en 0 por el DEFAULT de V27).
+                empresas.incrementarBote(conDinero, 500);
+                assertEquals(500, empresas.porId(conDinero).orElseThrow().bote(), "el bote sube 500");
+
+                // gastarDelBote con saldo suficiente: baja y devuelve true.
+                assertTrue(empresas.gastarDelBote(conDinero, 200), "gasta con saldo y devuelve true");
+                assertEquals(300, empresas.porId(conDinero).orElseThrow().bote(), "el bote queda en 300");
+
+                // gastarDelBote con cantidad > bote: devuelve false y NO deja el bote negativo.
+                assertFalse(empresas.gastarDelBote(conDinero, 1000), "sin saldo devuelve false");
+                assertEquals(300, empresas.porId(conDinero).orElseThrow().bote(),
+                        "el bote no cambia si el gasto no cabe (nunca negativo)");
+
+                // subirNivel incrementa el nivel (arranca en 1 por el DEFAULT de V27).
+                int nivelPrevio = empresas.porId(conDinero).orElseThrow().nivel();
+                empresas.subirNivel(conDinero);
+                assertEquals(nivelPrevio + 1, empresas.porId(conDinero).orElseThrow().nivel(),
+                        "subirNivel suma uno al nivel");
+
+                // conBote: solo la que tiene bote > 0.
+                List<Empresa> conBote = empresas.conBote();
+                assertEquals(1, conBote.size(), "solo una empresa tiene bote positivo");
+                assertEquals(conDinero, conBote.get(0).id());
+                assertTrue(conBote.stream().noneMatch(e -> e.id() == sinDinero),
+                        "la empresa sin bote no aparece");
             }
         }
     }

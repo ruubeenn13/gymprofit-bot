@@ -165,6 +165,66 @@ public final class EmpresaRepositorio {
         }
     }
 
+    /** Suma {@code cantidad} al bote de la empresa (ingresos de F3: trabajo de los miembros, etc.). */
+    public void incrementarBote(long empresaId, long cantidad) {
+        String sql = "UPDATE empresas SET bote = bote + ? WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, cantidad);
+            ps.setLong(2, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error incrementando el bote de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Gasta {@code cantidad} del bote y devuelve {@code true} si se pudo. La resta y la comprobación de
+     * saldo van en la MISMA sentencia ({@code WHERE ... AND bote >= ?}): así es atómica y el bote nunca
+     * puede quedar negativo aunque dos gastos concurran; si no había saldo, no afecta filas y devuelve
+     * {@code false} sin tocar el bote.
+     */
+    public boolean gastarDelBote(long empresaId, long cantidad) {
+        String sql = "UPDATE empresas SET bote = bote - ? WHERE id = ? AND bote >= ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, cantidad);
+            ps.setLong(2, empresaId);
+            ps.setLong(3, cantidad);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error gastando del bote de la empresa " + empresaId, e);
+        }
+    }
+
+    /** Sube un nivel a la empresa (al comprar la mejora con el bote en F3). */
+    public void subirNivel(long empresaId) {
+        String sql = "UPDATE empresas SET nivel = nivel + 1 WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error subiendo el nivel de la empresa " + empresaId, e);
+        }
+    }
+
+    /** Empresas con bote positivo (las que tienen dinero acumulado por repartir/gastar). */
+    public List<Empresa> conBote() {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(SELECT_EMPRESA + " WHERE bote > 0")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                List<Empresa> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(mapearEmpresa(rs));
+                }
+                return lista;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error listando empresas con bote", e);
+        }
+    }
+
     /**
      * Añade un miembro a una empresa con el rango dado. Propaga la violación de {@code
      * uq_miembro_unico} si el jugador ya pertenece a otra empresa (la pertenencia es exclusiva).

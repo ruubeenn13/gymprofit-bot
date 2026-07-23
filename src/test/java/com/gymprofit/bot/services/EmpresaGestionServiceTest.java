@@ -74,7 +74,7 @@ class EmpresaGestionServiceTest {
         assertEquals(ResultadoGestion.EJECUTADA,
                 svc().gestionar(DUENO, TipoPropuesta.SACAR, OBJETIVO, null));
         verify(repo).quitarMiembro(EMPRESA, OBJETIVO);
-        verify(propuestas, never()).crear(anyLong(), any(), anyLong(), any(), anyLong(), any());
+        verify(propuestas, never()).crear(anyLong(), any(), anyLong(), any(), anyLong(), any(), any());
     }
 
     @Test
@@ -83,13 +83,13 @@ class EmpresaGestionServiceTest {
         when(repo.deMiembro(DIRECTIVO)).thenReturn(Optional.of(empresa()));
         when(repo.miembros(EMPRESA)).thenReturn(List.of(
                 miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
-        when(propuestas.crear(anyLong(), any(), anyLong(), any(), anyLong(), any())).thenReturn(99L);
+        when(propuestas.crear(anyLong(), any(), anyLong(), any(), anyLong(), any(), any())).thenReturn(99L);
 
         assertEquals(ResultadoGestion.PROPUESTA_CREADA,
                 svc().gestionar(DIRECTIVO, TipoPropuesta.DESPEDIR, OBJETIVO, null));
-        // Expira exactamente a 48 h del reloj fijo y se persiste como propuesta DESPEDIR sin rango.
+        // Expira exactamente a 48 h del reloj fijo y se persiste como propuesta DESPEDIR sin rango ni dato.
         verify(propuestas).crear(EMPRESA, TipoPropuesta.DESPEDIR, OBJETIVO, null, DIRECTIVO,
-                AHORA.plus(Duration.ofHours(48)));
+                AHORA.plus(Duration.ofHours(48)), null);
         verify(propuestas).votar(99L, DIRECTIVO, true);
         verify(repo, never()).quitarMiembro(anyLong(), anyLong());
     }
@@ -100,7 +100,7 @@ class EmpresaGestionServiceTest {
         when(repo.deMiembro(DIRECTIVO)).thenReturn(Optional.of(empresa()));
         when(repo.miembros(EMPRESA)).thenReturn(List.of(
                 miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
-        when(propuestas.crear(anyLong(), any(), anyLong(), any(), anyLong(), any()))
+        when(propuestas.crear(anyLong(), any(), anyLong(), any(), anyLong(), any(), any()))
                 .thenThrow(new DatabaseException("dup", new RuntimeException()));
 
         assertEquals(ResultadoGestion.YA_HAY_PROPUESTA,
@@ -117,7 +117,7 @@ class EmpresaGestionServiceTest {
         assertEquals(ResultadoGestion.NO_AUTORIZADO,
                 svc().gestionar(EMPLEADO, TipoPropuesta.SACAR, OBJETIVO, null));
         verify(repo, never()).quitarMiembro(anyLong(), anyLong());
-        verify(propuestas, never()).crear(anyLong(), any(), anyLong(), any(), anyLong(), any());
+        verify(propuestas, never()).crear(anyLong(), any(), anyLong(), any(), anyLong(), any(), any());
     }
 
     @Test
@@ -415,7 +415,7 @@ class EmpresaGestionServiceTest {
     }
 
     private static Propuesta propuesta(TipoPropuesta tipo, RangoEmpresa rangoNuevo, Instant expira) {
-        return new Propuesta(99L, EMPRESA, tipo, OBJETIVO, rangoNuevo, DIRECTIVO, AHORA, expira);
+        return new Propuesta(99L, EMPRESA, tipo, OBJETIVO, rangoNuevo, DIRECTIVO, AHORA, expira, null);
     }
 
     private static Voto voto(long votanteId, boolean si) {

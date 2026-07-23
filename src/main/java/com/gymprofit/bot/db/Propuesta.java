@@ -18,8 +18,9 @@ import java.time.Instant;
  * @param proponenteId alto cargo que abrió la propuesta (snowflake)
  * @param creada       instante de creación
  * @param expira       instante en que caduca si no se resuelve
+ * @param dato         carga extra: puesto destino en {@link TipoPropuesta#ASCENSO}, {@code null} en el resto
  */
 public record Propuesta(long id, long empresaId, TipoPropuesta tipo, long objetivoId,
                         RangoEmpresa rangoNuevo, long proponenteId,
-                        Instant creada, Instant expira) {
+                        Instant creada, Instant expira, String dato) {
 }

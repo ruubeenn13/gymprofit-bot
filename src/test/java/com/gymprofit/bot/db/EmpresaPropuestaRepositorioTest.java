@@ -57,9 +57,9 @@ class EmpresaPropuestaRepositorioTest {
                 long empresaId = empresas.fundar("SALUD", dueno, "Gimnasio Central");
                 Instant expira = Instant.now().plus(1, ChronoUnit.DAYS);
 
-                // crear + porId con rangoNuevo (CAMBIAR_RANGO): el record vuelve completo.
+                // crear + porId con rangoNuevo (CAMBIAR_RANGO): el record vuelve completo. dato NULL.
                 long idCambio = propuestas.crear(
-                        empresaId, TipoPropuesta.CAMBIAR_RANGO, objetivo, RangoEmpresa.ENCARGADO, dueno, expira);
+                        empresaId, TipoPropuesta.CAMBIAR_RANGO, objetivo, RangoEmpresa.ENCARGADO, dueno, expira, null);
                 assertTrue(idCambio > 0, "crear devuelve el id generado");
                 Propuesta cambio = propuestas.porId(idCambio).orElseThrow();
                 assertEquals(empresaId, cambio.empresaId());
@@ -69,17 +69,25 @@ class EmpresaPropuestaRepositorioTest {
                 assertEquals(dueno, cambio.proponenteId());
                 assertEquals(expira.truncatedTo(ChronoUnit.SECONDS),
                         cambio.expira().truncatedTo(ChronoUnit.SECONDS), "expira ida y vuelta");
+                assertNull(cambio.dato(), "CAMBIAR_RANGO no lleva dato");
 
                 // crear sin rangoNuevo (SACAR): rangoNuevo NULL vuelve como null en el record.
                 long idSacar = propuestas.crear(
-                        empresaId, TipoPropuesta.SACAR, objetivo2, null, dueno, expira);
+                        empresaId, TipoPropuesta.SACAR, objetivo2, null, dueno, expira, null);
                 Propuesta sacar = propuestas.porId(idSacar).orElseThrow();
                 assertEquals(TipoPropuesta.SACAR, sacar.tipo());
                 assertNull(sacar.rangoNuevo(), "SACAR no lleva rango destino");
 
-                // activasDe: lista las dos propuestas de la empresa.
+                // crear con dato (ASCENSO): el puesto destino viaja en dato y vuelve íntegro por porId.
+                long idAscenso = propuestas.crear(
+                        empresaId, TipoPropuesta.ASCENSO, objetivo, null, dueno, expira, "cocinero");
+                Propuesta ascenso = propuestas.porId(idAscenso).orElseThrow();
+                assertEquals(TipoPropuesta.ASCENSO, ascenso.tipo());
+                assertEquals("cocinero", ascenso.dato(), "ASCENSO conserva el puesto destino en dato");
+
+                // activasDe: lista las tres propuestas de la empresa (CAMBIAR_RANGO, SACAR, ASCENSO).
                 List<Propuesta> activas = propuestas.activasDe(empresaId);
-                assertEquals(2, activas.size(), "las dos propuestas de la empresa");
+                assertEquals(3, activas.size(), "las tres propuestas de la empresa");
 
                 // votar UPSERT: votante1 vota Sí y luego No -> una sola fila con el último valor.
                 propuestas.votar(idCambio, votante1, true);
@@ -95,14 +103,14 @@ class EmpresaPropuestaRepositorioTest {
                 // UNIQUE uq_propuesta_activa: misma empresa+tipo+objetivo no se puede duplicar activa.
                 assertThrows(DatabaseException.class,
                         () -> propuestas.crear(
-                                empresaId, TipoPropuesta.CAMBIAR_RANGO, objetivo, RangoEmpresa.DIRECTIVO, dueno, expira),
+                                empresaId, TipoPropuesta.CAMBIAR_RANGO, objetivo, RangoEmpresa.DIRECTIVO, dueno, expira, null),
                         "propuesta activa idéntica viola uq_propuesta_activa");
 
                 // cerrar: tras cerrar, porId vacío y votos vacío (CASCADE borra los votos).
                 propuestas.cerrar(idCambio);
                 assertTrue(propuestas.porId(idCambio).isEmpty(), "la propuesta cerrada desaparece");
                 assertTrue(propuestas.votos(idCambio).isEmpty(), "la cascada borra los votos");
-                assertEquals(1, propuestas.activasDe(empresaId).size(), "queda solo la de SACAR");
+                assertEquals(2, propuestas.activasDe(empresaId).size(), "quedan SACAR y ASCENSO");
             }
         }
     }

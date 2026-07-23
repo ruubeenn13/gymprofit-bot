@@ -10,5 +10,7 @@ public enum TipoPropuesta {
     /** Expulsar a un miembro de la empresa (lo saca de {@code empresa_miembros}). */
     SACAR,
     /** Despedir a un miembro (variante con consecuencias económicas de F2). */
-    DESPEDIR
+    DESPEDIR,
+    /** Patrocinar el ascenso de carrera de un miembro; el puesto destino viaja en el campo {@code dato}. */
+    ASCENSO
 }
