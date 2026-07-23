@@ -126,4 +126,59 @@ class EmpresaRepositorioTest {
             }
         }
     }
+
+    /**
+     * Métodos de gestión de F2: {@code actualizarRango} cambia el rango de un miembro,
+     * {@code quitarMiembro} lo saca de la empresa y {@code altosCargos} devuelve solo DUENO/DIRECTIVO.
+     */
+    @Test
+    void gestionDeMiembrosYAltosCargos() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de insertar filas con FK a esos ids (RGPD).
+                long dueno = 401L;
+                long directivo = 402L;
+                long becario = 403L;
+                for (long id : new long[]{dueno, directivo, becario}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                long empresaId = empresas.fundar("SALUD", dueno, "Clínica del Músculo");
+                empresas.anadirMiembro(empresaId, directivo, RangoEmpresa.DIRECTIVO);
+                empresas.anadirMiembro(empresaId, becario, RangoEmpresa.BECARIO);
+
+                // actualizarRango: el becario asciende a ENCARGADO.
+                empresas.actualizarRango(empresaId, becario, RangoEmpresa.ENCARGADO);
+                RangoEmpresa rangoBecario = empresas.miembros(empresaId).stream()
+                        .filter(m -> m.discordId() == becario).findFirst().orElseThrow().rango();
+                assertEquals(RangoEmpresa.ENCARGADO, rangoBecario,
+                        "actualizarRango cambia el rango del miembro");
+
+                // altosCargos: solo DUENO + DIRECTIVO (el ENCARGADO no vota), ordenados por antigüedad.
+                List<MiembroEmpresa> altos = empresas.altosCargos(empresaId);
+                assertEquals(2, altos.size(), "solo DUENO y DIRECTIVO son altos cargos");
+                assertEquals(RangoEmpresa.DUENO, altos.get(0).rango(), "el dueño (más antiguo) primero");
+                assertEquals(RangoEmpresa.DIRECTIVO, altos.get(1).rango());
+
+                // quitarMiembro: el ex-becario deja de aparecer en la empresa.
+                empresas.quitarMiembro(empresaId, becario);
+                assertTrue(empresas.miembros(empresaId).stream().noneMatch(m -> m.discordId() == becario),
+                        "quitarMiembro saca al miembro de la empresa");
+                assertEquals(2, empresas.miembros(empresaId).size(), "quedan dueño y directivo");
+                assertTrue(empresas.deMiembro(becario).isEmpty(),
+                        "el miembro quitado queda libre (sin empresa)");
+            }
+        }
+    }
 }

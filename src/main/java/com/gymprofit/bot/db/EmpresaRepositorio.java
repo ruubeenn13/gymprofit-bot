@@ -184,6 +184,64 @@ public final class EmpresaRepositorio {
     }
 
     /**
+     * Cambia el rango de un miembro dentro de su empresa (al aplicar una propuesta CAMBIAR_RANGO
+     * aprobada). No toca la pertenencia, solo la columna {@code rango}.
+     */
+    public void actualizarRango(long empresaId, long discordId, RangoEmpresa rango) {
+        String sql = "UPDATE empresa_miembros SET rango = ? WHERE empresa_id = ? AND discord_id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, rango.name());
+            ps.setLong(2, empresaId);
+            ps.setLong(3, discordId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "Error actualizando el rango de " + discordId + " en la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Saca a un miembro de una empresa (al aplicar una propuesta SACAR/DESPEDIR aprobada). Tras esto el
+     * jugador deja de aparecer en {@link #miembros(long)} y queda libre para entrar en otra empresa.
+     */
+    public void quitarMiembro(long empresaId, long discordId) {
+        String sql = "DELETE FROM empresa_miembros WHERE empresa_id = ? AND discord_id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, empresaId);
+            ps.setLong(2, discordId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "Error quitando a " + discordId + " de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Altos cargos de una empresa: los miembros con rango DUENO o DIRECTIVO, que son quienes votan las
+     * propuestas de gestión (F2). Ordenados por antigüedad de alta, como {@link #miembros(long)}.
+     */
+    public List<MiembroEmpresa> altosCargos(long empresaId) {
+        String sql = "SELECT empresa_id, discord_id, rango, se_unio FROM empresa_miembros "
+                + "WHERE empresa_id = ? AND rango IN ('DUENO', 'DIRECTIVO') "
+                + "ORDER BY se_unio ASC, discord_id ASC";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, empresaId);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<MiembroEmpresa> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(mapearMiembro(rs));
+                }
+                return lista;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error listando altos cargos de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
      * Crea un pendiente (invitación o solicitud) y devuelve su id. Propaga la violación de {@code
      * uq_pendiente_par} si ya hay un pendiente para ese par empresa/jugador.
      */
