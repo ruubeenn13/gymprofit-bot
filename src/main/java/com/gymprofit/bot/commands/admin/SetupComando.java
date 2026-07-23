@@ -309,6 +309,8 @@ public final class SetupComando implements Comando {
                 configurarBienvenida(guild, reg);
                 // Fija el canal AFK (Discord mueve ahí a los inactivos de voz).
                 configurarAfk(guild, reg);
+                // Fija la descripción del servidor (tarjeta de invitación / descubrimiento); solo Comunidad.
+                configurarDescripcionServidor(guild, reg);
 
                 var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                         Messages.get(locale, "setup.titulo"),
@@ -964,6 +966,34 @@ public final class SetupComando implements Comando {
             reg.actualizado(RegistroCambios.Categoria.AFK, afk.getName());
         } catch (RuntimeException e) {
             log.warn("No se pudo fijar el canal AFK", e);
+        }
+    }
+
+    /**
+     * Fija la descripción del servidor (visible en la tarjeta de invitación / descubrimiento) desde
+     * i18n. Solo con Comunidad activada. Registra el cambio solo si el texto difiere del actual.
+     */
+    private void configurarDescripcionServidor(Guild guild, RegistroCambios reg) {
+        if (!guild.getFeatures().contains("COMMUNITY")) {
+            return;  // sin Comunidad la API de descripción no está disponible
+        }
+        String nueva = Messages.get(Messages.ES, "setup.descripcion_servidor");
+        if (nueva.equals(guild.getDescription())) {
+            return;  // ya está puesta: no es un cambio
+        }
+        boolean existia = guild.getDescription() != null && !guild.getDescription().isBlank();
+        try {
+            // .complete() (no .queue()): corre en el hilo dedicado de setup y el registro se hace
+            // síncronamente en ese hilo, igual que configurarAfk/configurarBienvenida.
+            guild.getManager().setDescription(nueva).complete();
+            if (existia) {
+                reg.actualizado(RegistroCambios.Categoria.DESCRIPCION_SERVIDOR, guild.getName());
+            } else {
+                reg.creado(RegistroCambios.Categoria.DESCRIPCION_SERVIDOR, guild.getName());
+            }
+        } catch (RuntimeException e) {
+            // Un fallo aquí no debe abortar el /setup: se registra y se continúa.
+            log.warn("No se pudo fijar la descripción del servidor: {}", e.toString());
         }
     }
 
