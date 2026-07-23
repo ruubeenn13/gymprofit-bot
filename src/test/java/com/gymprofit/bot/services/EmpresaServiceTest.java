@@ -10,8 +10,10 @@ import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.services.EmpresaService.ResultadoDisolver;
 import com.gymprofit.bot.services.EmpresaService.ResultadoFundar;
 import com.gymprofit.bot.services.EmpresaService.ResultadoIngreso;
+import com.gymprofit.bot.services.EmpresaService.ResultadoMejora;
 import com.gymprofit.bot.services.EmpresaService.ResultadoResolver;
 import com.gymprofit.bot.services.EmpresaService.SalidaFundar;
+import com.gymprofit.bot.services.EmpresaService.SalidaMejora;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -283,6 +285,60 @@ class EmpresaServiceTest {
         verify(repo, never()).disolver(anyLong());
     }
 
+    // ------------------------------------------------------------------ mejorar
+
+    @Test
+    @DisplayName("mejorar por el dueño con bote suficiente cobra ATÓMICAMENTE y SOLO DESPUÉS sube nivel")
+    void mejorarOkCobraAntesDeSubir() {
+        when(repo.deMiembro(1L)).thenReturn(Optional.of(empresa(10L, 1L, "HOSTELERIA", "Gimnasio", 3)));
+        // Bote suficiente: gastarDelBote confirma el cobro del coste 50_000*3.
+        when(repo.gastarDelBote(10L, 150_000L)).thenReturn(true);
+
+        SalidaMejora salida = svc().mejorar(1L);
+
+        assertEquals(ResultadoMejora.OK, salida.estado());
+        assertEquals(4, salida.nivelNuevo());
+        assertEquals(150_000L, salida.coste());
+        // El cobro del bote es el gate atómico: gastarDelBote va ANTES de subirNivel.
+        InOrder orden = inOrder(repo);
+        orden.verify(repo).gastarDelBote(10L, 150_000L);
+        orden.verify(repo).subirNivel(10L);
+    }
+
+    @Test
+    @DisplayName("mejorar por quien no es el dueño devuelve NO_ERES_DUENO y no cobra ni sube")
+    void mejorarNoDueno() {
+        when(repo.deMiembro(2L)).thenReturn(Optional.of(empresa(10L, 1L, "HOSTELERIA", "Gimnasio", 3)));
+
+        assertEquals(ResultadoMejora.NO_ERES_DUENO, svc().mejorar(2L).estado());
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+        verify(repo, never()).subirNivel(anyLong());
+    }
+
+    @Test
+    @DisplayName("mejorar en el nivel tope devuelve TOPE y no cobra ni sube")
+    void mejorarEnTope() {
+        when(repo.deMiembro(1L)).thenReturn(Optional.of(
+                empresa(10L, 1L, "HOSTELERIA", "Gimnasio", EmpresaService.NIVEL_MAX)));
+
+        assertEquals(ResultadoMejora.TOPE, svc().mejorar(1L).estado());
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+        verify(repo, never()).subirNivel(anyLong());
+    }
+
+    @Test
+    @DisplayName("mejorar con el bote sin fondos (gastarDelBote=false) devuelve SIN_FONDOS y NO sube nivel")
+    void mejorarSinFondos() {
+        when(repo.deMiembro(1L)).thenReturn(Optional.of(empresa(10L, 1L, "HOSTELERIA", "Gimnasio", 3)));
+        when(repo.gastarDelBote(10L, 150_000L)).thenReturn(false);
+
+        SalidaMejora salida = svc().mejorar(1L);
+
+        assertEquals(ResultadoMejora.SIN_FONDOS, salida.estado());
+        assertEquals(150_000L, salida.coste());
+        verify(repo, never()).subirNivel(anyLong());
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /** Personaje con el trabajo dado (el resto de stats no pintan en estas reglas). */
@@ -301,7 +357,12 @@ class EmpresaServiceTest {
     }
 
     private static Empresa empresa(long id, long duenoId, String rama, String nombre) {
-        return new Empresa(id, rama, duenoId, nombre, 1, 0L, Instant.now());
+        return empresa(id, duenoId, rama, nombre, 1);
+    }
+
+    /** Empresa con un nivel concreto (para las reglas de {@code mejorar}). */
+    private static Empresa empresa(long id, long duenoId, String rama, String nombre, int nivel) {
+        return new Empresa(id, rama, duenoId, nombre, nivel, 0L, Instant.now());
     }
 
     private static Pendiente pendiente(long id, long empresaId, long discordId, TipoPendiente tipo,

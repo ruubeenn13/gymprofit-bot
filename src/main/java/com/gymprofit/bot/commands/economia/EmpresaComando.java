@@ -16,7 +16,9 @@ import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaService.InfoEmpresa;
 import com.gymprofit.bot.services.EmpresaService.ResultadoFundar;
 import com.gymprofit.bot.services.EmpresaService.ResultadoIngreso;
+import com.gymprofit.bot.services.EmpresaService.ResultadoMejora;
 import com.gymprofit.bot.services.EmpresaService.SalidaFundar;
+import com.gymprofit.bot.services.EmpresaService.SalidaMejora;
 import com.gymprofit.bot.services.RangoEmpresa;
 import com.gymprofit.bot.services.TipoPendiente;
 import com.gymprofit.bot.services.TipoPropuesta;
@@ -134,6 +136,7 @@ public final class EmpresaComando implements Comando {
                 .addSubcommands(
                         sub("fundar", "comando.empresa.fundar.descripcion").addOptions(nombreFundar),
                         sub("info", "comando.empresa.info.descripcion").addOptions(nombreInfo),
+                        sub("mejorar", "comando.empresa.mejorar.descripcion"),
                         sub("disolver", "comando.empresa.disolver.descripcion"),
                         sub("invitar", "comando.empresa.invitar.descripcion").addOptions(usuarioInvitar),
                         sub("solicitar", "comando.empresa.solicitar.descripcion")
@@ -158,6 +161,7 @@ public final class EmpresaComando implements Comando {
         switch (sub) {
             case "fundar" -> fundar(evento, locale);
             case "info" -> info(evento, locale);
+            case "mejorar" -> mejorar(evento, locale);
             case "disolver" -> disolver(evento, locale);
             case "invitar" -> invitar(evento, locale);
             case "solicitar" -> solicitar(evento, locale);
@@ -199,7 +203,8 @@ public final class EmpresaComando implements Comando {
     }
 
     /**
-     * Pinta una empresa: nombre, rama, dueño, nivel y la lista de miembros con su rango. Sin nombre,
+     * Pinta una empresa: nombre, rama, dueño, nivel (con el bonus de ingresos actual), bote y la lista
+     * de miembros con su rango. Sin nombre,
      * la tuya; con nombre, la busca por su nombre en cualquier rama (los nombres son únicos por rama,
      * así que la primera coincidencia basta en F1). Es pública (la economía se juega a la vista).
      */
@@ -229,10 +234,37 @@ public final class EmpresaComando implements Comando {
                 Messages.get(locale, "rama." + e.rama().toLowerCase(Locale.ROOT)),
                 "<@" + e.duenoId() + ">",
                 e.nivel(),
+                e.nivel() * 2, // bonus de ingresos actual: +2 % por nivel
+                e.bote(),
                 miembros.size(),
                 lista.toString().strip());
         evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "empresa.info.titulo"), cuerpo).build()).queue();
+    }
+
+    /**
+     * Sube un nivel a tu empresa pagándolo del bote (solo el dueño). El éxito es un embed
+     * <b>público</b> de celebración con el nuevo nivel y el bonus de ingresos resultante; cualquier
+     * fallo (no eres dueño, tope alcanzado, bote sin fondos) va <b>efímero</b> con el dato exacto.
+     */
+    private void mejorar(SlashCommandInteractionEvent evento, Locale locale) {
+        evento.deferReply(false).queue();
+        SalidaMejora r = empresa.mejorar(evento.getUser().getIdLong());
+        if (r.estado() == ResultadoMejora.OK) {
+            evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "empresa.mejora.ok.titulo"),
+                    Messages.get(locale, "empresa.mejora.ok",
+                            r.nivelNuevo(), r.coste(), r.nivelNuevo() * 2)).build()).queue();
+            return;
+        }
+        String mensaje = switch (r.estado()) {
+            case NO_ERES_DUENO -> Messages.get(locale, "empresa.mejora.noeresdueno");
+            case TOPE -> Messages.get(locale, "empresa.mejora.tope", EmpresaService.NIVEL_MAX);
+            case SIN_FONDOS -> Messages.get(locale, "empresa.mejora.sinfondos", r.coste());
+            case OK -> throw new IllegalStateException("OK ya tratado");
+        };
+        evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje))
+                .setEphemeral(true).queue();
     }
 
     /** Busca una empresa por nombre recorriendo las ramas (nombre único por rama; primera coincide). */

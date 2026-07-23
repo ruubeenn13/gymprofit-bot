@@ -36,8 +36,28 @@ public final class EmpresaService {
      */
     public static final long COSTE_FUNDAR = 100_000L;
 
+    /**
+     * Nivel máximo de una empresa. Cada nivel da +2 % de ingresos a todos los miembros
+     * ({@link TrabajoService#BONUS_POR_NIVEL}), así que el tope acota el bonus a +20 %.
+     */
+    public static final int NIVEL_MAX = 10;
+
+    /**
+     * Coste (en coins del <b>bote</b>, quemados) de subir del nivel {@code n} al {@code n+1}: es
+     * lineal ({@code 50 000 · n}), de modo que cada nivel cuesta más que el anterior y la mejora es una
+     * decisión de tesorería de la empresa, no un trámite.
+     *
+     * @param nivelActual nivel del que se parte (1..{@value #NIVEL_MAX}-1)
+     */
+    public static long costeNivel(int nivelActual) {
+        return 50_000L * nivelActual;
+    }
+
     /** Resultado de fundar una empresa. */
     public enum ResultadoFundar { OK, SIN_TRABAJO, NO_ES_TIER4, YA_EN_EMPRESA, NOMBRE_EN_USO, SIN_SALDO }
+
+    /** Resultado de mejorar (subir un nivel) una empresa. */
+    public enum ResultadoMejora { OK, NO_ERES_DUENO, TOPE, SIN_FONDOS }
 
     /** Resultado de crear una pertenencia (invitar o solicitar). */
     public enum ResultadoIngreso { OK, SIN_TRABAJO, OTRA_RAMA, YA_EN_EMPRESA, EMPRESA_NO_EXISTE, YA_PENDIENTE, ES_MISMO }
@@ -53,6 +73,14 @@ public final class EmpresaService {
      * creada y los coins quemados (para pintarlos en el embed de celebración).
      */
     public record SalidaFundar(ResultadoFundar estado, long empresaId, long costeQuemado) {
+    }
+
+    /**
+     * Salida de {@code mejorar}: el estado y, para el embed, el nivel resultante y el coste pagado del
+     * bote. En los fallos {@code nivelNuevo}/{@code coste} valen lo que ayude al mensaje (nivel actual y
+     * el coste que habría tocado) o 0 cuando no aplica.
+     */
+    public record SalidaMejora(ResultadoMejora estado, int nivelNuevo, long coste) {
     }
 
     /** Foto de una empresa para {@code info}: sus datos y la lista de miembros con rango. */
@@ -238,6 +266,39 @@ public final class EmpresaService {
         }
         repo.disolver(empresaOpt.get().id());
         return ResultadoDisolver.OK;
+    }
+
+    /**
+     * Sube un nivel a la empresa del jugador pagándolo del bote. Solo el <b>dueño</b> puede; el coste
+     * es {@link #costeNivel(int)} sobre el nivel actual y el tope es {@link #NIVEL_MAX}.
+     *
+     * <p>El cobro es el <b>gate atómico final</b> (igual que {@code fundar}/{@code ascender}):
+     * {@link EmpresaRepositorio#gastarDelBote} valida el saldo del bote y descuenta en una sola
+     * sentencia, y solo si devolvió {@code true} se sube el nivel. Así nunca se sube gratis ni el bote
+     * queda negativo aunque dos mejoras concurran.
+     *
+     * @param discordId jugador que mejora (debe ser el dueño)
+     * @return la salida con estado, nivel resultante y coste pagado
+     */
+    public SalidaMejora mejorar(long discordId) {
+        Optional<Empresa> empresaOpt = repo.deMiembro(discordId);
+        // Sin empresa propia (o no siendo su dueño) no hay nada que mejorar.
+        if (empresaOpt.isEmpty() || empresaOpt.get().duenoId() != discordId) {
+            return new SalidaMejora(ResultadoMejora.NO_ERES_DUENO, 0, 0);
+        }
+        Empresa e = empresaOpt.get();
+        int nivelActual = e.nivel();
+        if (nivelActual >= NIVEL_MAX) {
+            return new SalidaMejora(ResultadoMejora.TOPE, nivelActual, 0);
+        }
+        long coste = costeNivel(nivelActual);
+        // Cobro atómico del bote ANTES de subir nivel: si no hay saldo, gastarDelBote no toca nada y no
+        // se sube el nivel (nunca se paga una mejora que no ocurre ni se sube sin pagar).
+        if (!repo.gastarDelBote(e.id(), coste)) {
+            return new SalidaMejora(ResultadoMejora.SIN_FONDOS, nivelActual, coste);
+        }
+        repo.subirNivel(e.id());
+        return new SalidaMejora(ResultadoMejora.OK, nivelActual + 1, coste);
     }
 
     /** ¿Es {@code quienId} la parte con potestad para resolver esta pendiente? */
