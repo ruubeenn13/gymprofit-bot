@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Ascensos de carrera** (`/trabajo ascender` · `/trabajo carrera`): los trabajos se agrupan en
+  7 ramas y el tier se gana currando. Cada ascenso exige antigüedad en el puesto, estudios, la
+  stat de la rama y un pago que se quema. La carrera se conserva por rama al cambiar de trabajo, y
+  `/trabajo lista` marca con 🔒 lo que se consigue ascendiendo. Migración `V26__carreras`.
 - **Efectos pasivos de equipo y bienes** (`/pasivos ver` · `equipar` · `quitar`): los 20 ítems de
   equipo y los 10 vehículos dejan de ser decoración y dan bonos permanentes de sueldo, cooldown de
   trabajo, XP, energía, minería (cantidad y durabilidad) y combate (ataque, defensa y crítico). Se

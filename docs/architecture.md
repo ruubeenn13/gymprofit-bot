@@ -83,9 +83,15 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   **globales por tipo y saturantes**. Los bonos de combate entran en el **snapshot** de
   `BatallaService.nuevaSesion` (valen toda la pelea, sin consultas por turno) y la energía extra es
   un **segundo `UPDATE`** en `EnergiaJob`, sin tocar el pase masivo.
-- **Migraciones Flyway V6–V25**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Ascensos de carrera**: los sectores del catálogo de trabajos se agrupan en 7 ramas
+  (`Ascensos`, satélite de `Trabajos`); el tier deja de ser de libre acceso y se gana currando.
+  La tabla `carreras` guarda el tier alcanzado por rama (referencia con `GREATEST`: nunca baja) y
+  `personajes.turnos_puesto` cuenta la antigüedad del puesto. Cada salto exige antigüedad,
+  estudios, la stat dominante de la rama y un coste en coins que se **quema** (sumidero
+  antiinflación). El cobro es lo último que se valida: nunca se paga un ascenso fallido.
+- **Migraciones Flyway V6–V26**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias, descanso, pasivos equipados.
+  estudios, insignias, descanso, pasivos equipados, carreras.
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).
