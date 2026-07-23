@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 1)** (`/empresa fundar · info · disolver · invitar · solicitar · pendientes`):
+  entidad tipo gremio ligada a una rama; la funda un t4 de la rama (100.000 coins) y se entra por
+  invitación o por solicitud con motivo, resueltas con botones. Migración `V27`. Además
+  `/trabajo dimitir` (renunciar al trabajo).
 - **Informe de /setup**: cada ejecución de `/setup` (y `/setup desde_cero`) muestra qué cambió esa
   tanda —nuevos, actualizados y eliminados, con nombres— en la respuesta y como registro persistente
   en `bot-logs`. `/setup` pasa a fijar también la descripción del servidor (solo en servidores

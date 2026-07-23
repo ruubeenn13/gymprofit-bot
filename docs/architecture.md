@@ -30,7 +30,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `DiscordBot` | Fábrica de la conexión JDA: intents privilegiados (`GUILD_MEMBERS`, `MESSAGE_CONTENT`), cache de miembros, presencia |
 | `db/Database` | Pool HikariCP + ejecución de migraciones Flyway; expone el `DataSource` a los repos |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
-| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`) para no rebasar el límite de 100 slash commands de Discord: 59 de nivel superior (ADR-011). `commands/consultas` agrupa lo que lee de la API/contenido de la app: `/ejercicios`, `/ejercicio-dia` y `/frase`, con `ConsultaAsincrona` como **punto único** de ejecución asíncrona y manejo de errores del módulo (lo usan también los componentes del paginador): API caída → aviso amable, cualquier otro fallo → log a nivel error + aviso genérico, y consumidor de fallo en los `queue()` para las interacciones caducadas |
+| `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`, `/empresa`) para no rebasar el límite de 100 slash commands de Discord: 60 de nivel superior (ADR-011). `commands/consultas` agrupa lo que lee de la API/contenido de la app: `/ejercicios`, `/ejercicio-dia` y `/frase`, con `ConsultaAsincrona` como **punto único** de ejecución asíncrona y manejo de errores del módulo (lo usan también los componentes del paginador): API caída → aviso amable, cualquier otro fallo → log a nivel error + aviso genérico, y consumidor de fallo en los `queue()` para las interacciones caducadas |
 | `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod, `EjerciciosPaginadorListener` (flechas y ficha del catálogo, con el estado codificado en el customId) |
 | `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
 | `api/` | Cliente Retrofit2+OkHttp3 hacia la API GymProFit: `ApiClient` (Bearer por interceptor, renovación ante 401 —contando 401 en la cadena, no cualquier `priorResponse`—, timeouts 60 s por Render free más `callTimeout` de la llamada completa, executor propio de 4 hilos daemon y `cerrar()` que los libera), `TokenManager` (refresh serializado con caída a login), interfaces por dominio (`AuthApi`, `EjerciciosApi`) y DTOs como records. Lo consume `services/EjercicioService` (caché TTL 5 min acotada y de vuelo único por consulta+idioma + reintentos con backoff acotado, 429 respeta `Retry-After`) |
@@ -89,9 +89,17 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   `personajes.turnos_puesto` cuenta la antigüedad del puesto. Cada salto exige antigüedad,
   estudios, la stat dominante de la rama y un coste en coins que se **quema** (sumidero
   antiinflación). El cobro es lo último que se valida: nunca se paga un ascenso fallido.
-- **Migraciones Flyway V6–V26**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 1)**: entidad tipo gremio **ligada a una rama**, construida sobre los ascensos.
+  La funda un **t4 de la rama** (100 000 coins quemados, cobro atómico con reembolso si el nombre
+  colisiona) y un jugador pertenece a **una sola** empresa (UNIQUE global). El ingreso exige
+  **consentimiento** por dos vías —invitación del dueño o solicitud con motivo—, resuelto por
+  botones. `/empresa` (fundar · info · disolver · invitar · solicitar · pendientes) y
+  `/trabajo dimitir`. Rangos gestionables, despidos, economía y ranking quedan para fases
+  posteriores. Tablas `empresas`, `empresa_miembros` y `empresa_pendientes` con FKs RGPD a
+  `usuarios_discord` (ON DELETE CASCADE).
+- **Migraciones Flyway V6–V27**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias, descanso, pasivos equipados, carreras.
+  estudios, insignias, descanso, pasivos equipados, carreras, empresas.
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

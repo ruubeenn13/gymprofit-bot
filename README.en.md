@@ -72,7 +72,8 @@ convertible. By block:
   `/entrenar` · `/estudiar` · automatic level ranks.
 - **Rest:** `/descansar` (dormir · despertar · estado). Energy comes back by **sleeping**, and the
   better your bed (sleeping bag, mattress, flat, house… or a hotel) the higher you can go.
-- **Work & shop:** `/trabajo` (lista · elegir · currar · ascender · carrera) · `/tienda` · `/comprar` ·
+- **Work & shop:** `/trabajo` (lista · elegir · currar · ascender · carrera · dimitir) ·
+  `/empresa` (fundar · info · disolver · invitar · solicitar · pendientes) · `/tienda` · `/comprar` ·
   `/inventario` (ver · usar · vender) · `/mejoras` · `/mejorar` ·
   `/pasivos` (ver · equipar · quitar).
 - **Combat:** `/mundos` · `/monstruos` · `/pelear` (turn-based, buttons) · `/mazmorra` ·

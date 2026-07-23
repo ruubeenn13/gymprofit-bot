@@ -300,3 +300,23 @@ servidor.
 **Consecuencias.** Cada /setup deja un registro consultable. Coste: instrumentación repartida por
 SetupComando y alguna lectura extra a la API (`complete()`) para los diffs de contenido, que alarga
 algo el montaje.
+
+## ADR-016 — empresas como entidad ligada a rama
+
+**Estado:** aceptada e implementada (Fase 1).
+
+**Contexto.** Se pidió una jerarquía de trabajo «como una empresa»: dimitir y que los cargos altos
+gestionen a los inferiores. El sistema de ascensos daba carrera individual por rama, pero no una
+entidad colectiva.
+
+**Decisión.** Empresa como **entidad** ligada a una rama, no una capa sobre la carrera: la funda un
+**t4 de la rama** (100.000 coins quemados, cobro atómico con reembolso si el nombre colisiona), un
+jugador pertenece a **una sola** empresa (UNIQUE global), y el ingreso exige **consentimiento** por
+ambas vías (invitación del dueño / solicitud-con-motivo del jugador), resuelto por botones. La F1
+monta solo estructura y pertenencia; rangos gestionables, ascenso por el jefe, despidos, economía
+(reparto/bote/nivel), ranking y las funciones «vida real» (producción, impuestos, acciones,
+reputación, bolsa de empleo, préstamos, eventos) quedan para fases posteriores.
+
+**Consecuencias.** Migración V27 (empresas, empresa_miembros, empresa_pendientes) con FKs RGPD a
+usuarios_discord. `/empresa` nuevo y `/trabajo dimitir`. La pertenencia se valida al entrar, no de
+forma continua (dimitir no expulsa de la empresa en F1).
