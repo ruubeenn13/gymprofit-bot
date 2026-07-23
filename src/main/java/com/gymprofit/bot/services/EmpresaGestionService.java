@@ -137,12 +137,27 @@ public final class EmpresaGestionService {
         }
         propuestas.votar(prop.id(), votanteId, si);
 
-        // Recuento sobre el censo de altos cargos (N), no sobre los votos emitidos: los ausentes cuentan
-        // para exigir mayoría estricta del total.
+        // Recuento sobre el censo de altos cargos de AHORA (N), no sobre los votos emitidos: los ausentes
+        // cuentan para exigir mayoría estricta del total. Además, un voto de quien votó siendo alto cargo
+        // pero luego fue degradado o sacado durante las 48 h NO cuenta (los votos no se purgan al cambiar
+        // el rango, solo al cerrar la propuesta), así que se intersecta con el censo actual.
         List<Voto> votos = propuestas.votos(prop.id());
+        java.util.Set<Long> censo = altos.stream()
+                .map(MiembroEmpresa::discordId)
+                .collect(java.util.stream.Collectors.toSet());
         int n = altos.size();
-        int sies = (int) votos.stream().filter(Voto::si).count();
-        int noes = votos.size() - sies;
+        int sies = 0;
+        int noes = 0;
+        for (Voto v : votos) {
+            if (!censo.contains(v.votanteId())) {
+                continue; // voto fantasma: ya no es alto cargo
+            }
+            if (v.si()) {
+                sies++;
+            } else {
+                noes++;
+            }
+        }
         Long duenoId = altos.stream()
                 .filter(m -> m.rango() == RangoEmpresa.DUENO)
                 .map(MiembroEmpresa::discordId)

@@ -345,6 +345,65 @@ class EmpresaGestionServiceTest {
         assertEquals(ResultadoVoto.NO_EXISTE, svc().votar(99L, DUENO, true));
     }
 
+    @Test
+    @DisplayName("voto fantasma: el Sí de quien ya no es alto cargo no cuenta (REGISTRADO)")
+    void votoFantasmaNoCuenta() {
+        Propuesta prop = propuesta(TipoPropuesta.SACAR, null, futuro());
+        when(propuestas.porId(99L)).thenReturn(Optional.of(prop));
+        // Censo actual: solo dueño + directivo (N=2). DIRECTIVO_2 fue degradado/sacado y ya no figura.
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+        // Hay un Sí del ex-alto-cargo DIRECTIVO_2 y el Sí que acaba de emitir DIRECTIVO: sin el filtro
+        // serían 2 Sí (2*2>2 → aprobaría); con el filtro solo cuenta 1 (N=2, sin dueño) → no aprueba.
+        when(propuestas.votos(99L)).thenReturn(List.of(voto(DIRECTIVO_2, true), voto(DIRECTIVO, true)));
+
+        assertEquals(ResultadoVoto.REGISTRADO, svc().votar(99L, DIRECTIVO, true));
+        verify(repo, never()).quitarMiembro(anyLong(), anyLong());
+        verify(propuestas, never()).cerrar(anyLong());
+    }
+
+    @Test
+    @DisplayName("N=1 (solo dueño): su único Sí aprueba")
+    void votacionUnicoDueno() {
+        Propuesta prop = propuesta(TipoPropuesta.SACAR, null, futuro());
+        when(propuestas.porId(99L)).thenReturn(Optional.of(prop));
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(propuestas.votos(99L)).thenReturn(List.of(voto(DUENO, true)));
+        // La revalidación cruza el proponente (DIRECTIVO) contra el objetivo (BECARIO): sigue siendo inferior.
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+
+        assertEquals(ResultadoVoto.APROBADA_EJECUTADA, svc().votar(99L, DUENO, true));
+        verify(repo).quitarMiembro(EMPRESA, OBJETIVO);
+        verify(propuestas).cerrar(99L);
+    }
+
+    @Test
+    @DisplayName("empate N=2 sin voto del dueño queda REGISTRADO (espera al dueño)")
+    void votacionEmpateSinDueno() {
+        Propuesta prop = propuesta(TipoPropuesta.SACAR, null, futuro());
+        when(propuestas.porId(99L)).thenReturn(Optional.of(prop));
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+        // Solo el directivo vota Sí (1-0). N=2 → 1*2==2 pero el dueño no votó Sí → no aprueba.
+        when(propuestas.votos(99L)).thenReturn(List.of(voto(DIRECTIVO, true)));
+
+        assertEquals(ResultadoVoto.REGISTRADO, svc().votar(99L, DIRECTIVO, true));
+        verify(repo, never()).quitarMiembro(anyLong(), anyLong());
+        verify(propuestas, never()).cerrar(anyLong());
+    }
+
+    @Test
+    @DisplayName("autogestión (actor == objetivo) es RANGO_INVALIDO")
+    void autogestion() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+
+        assertEquals(ResultadoGestion.RANGO_INVALIDO,
+                svc().gestionar(DUENO, TipoPropuesta.SACAR, DUENO, null));
+        verify(repo, never()).quitarMiembro(anyLong(), anyLong());
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static Empresa empresa() {
