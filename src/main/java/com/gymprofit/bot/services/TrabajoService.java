@@ -9,7 +9,9 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -64,6 +66,22 @@ public final class TrabajoService {
     public record ResultadoAscenso(EstadoAscenso estado, Ascensos.Requisitos requisito, int actual) {
     }
 
+    /**
+     * Foto de la carrera de un jugador para {@code /trabajo carrera}: rama y tier, puesto y
+     * antigüedad, y el siguiente salto con sus requisitos. Incluye {@code estudios} y {@code stat}
+     * (el valor <b>actual</b> de la stat dominante de la rama) para que el comando pinte la
+     * checklist sin tocar repositorios.
+     *
+     * <p><b>Semántica sin trabajo:</b> {@code rama}, {@code puestoActual} y {@code requisitos} son
+     * {@code null}; {@code tierAlcanzado}, {@code turnosPuesto}, {@code estudios} y {@code stat}
+     * valen 0; {@code siguiente} está vacío. El comando detecta el paro con
+     * {@code puestoActual() == null}.
+     */
+    public record InfoCarrera(Ascensos.Rama rama, int tierAlcanzado, String puestoActual,
+                              int turnosPuesto, int estudios, int stat,
+                              Optional<Integer> siguiente, Ascensos.Requisitos requisitos) {
+    }
+
     private final PersonajeRepositorio personajes;
     private final EconomiaRepositorio economia;
     private final UsuarioDiscordRepositorio usuarios;
@@ -110,8 +128,7 @@ public final class TrabajoService {
         }
         // El tier ya no es libre: o es la entrada de la rama, o lo tienes alcanzado por carrera.
         Ascensos.Rama rama = Ascensos.ramaDe(trabajo.get().sector());
-        int alcanzado = Math.max(Ascensos.tierEntrada(rama), carreras.tierAlcanzado(discordId, rama.name()));
-        if (trabajo.get().tier() > alcanzado) {
+        if (trabajo.get().tier() > tierAlcanzadoEn(discordId, rama)) {
             return ResultadoElegir.TIER;
         }
         personajes.fijarTrabajo(discordId, trabajoId);
@@ -135,9 +152,7 @@ public final class TrabajoService {
         }
         Trabajos actual = Trabajos.porId(p.trabajo()).orElseThrow();
         Ascensos.Rama rama = Ascensos.ramaDe(actual.sector());
-        int tierActual = Math.max(Ascensos.tierEntrada(rama),
-                carreras.tierAlcanzado(discordId, rama.name()));
-        var siguiente = Ascensos.siguienteTier(rama, tierActual);
+        var siguiente = Ascensos.siguienteTier(rama, tierAlcanzadoEn(discordId, rama));
         if (siguiente.isEmpty()) {
             return new ResultadoAscenso(EstadoAscenso.TOPE, null, 0);
         }
@@ -166,6 +181,62 @@ public final class TrabajoService {
         carreras.fijarTier(discordId, rama.name(), siguiente.get());
         personajes.fijarTrabajo(discordId, puestoId); // resetea también la antigüedad
         return new ResultadoAscenso(EstadoAscenso.OK, req, 0);
+    }
+
+    /**
+     * Tier alcanzado por el jugador en una rama: el máximo entre la <b>entrada</b> de la rama
+     * (siempre concedida, aunque no haya carrera guardada) y lo que diga la BD de carrera. Es la
+     * regla única de «hasta dónde has llegado», compartida por elegir, ascender y la lista.
+     */
+    public int tierAlcanzadoEn(long discordId, Ascensos.Rama rama) {
+        return Math.max(Ascensos.tierEntrada(rama), carreras.tierAlcanzado(discordId, rama.name()));
+    }
+
+    /**
+     * Puestos elegibles para ascender desde el trabajo actual (para el autocompletado de
+     * {@code /trabajo ascender}): los del siguiente tier existente de tu rama. Vacío si el jugador
+     * no tiene trabajo o su rama ya topó.
+     */
+    public List<Trabajos> opcionesAscenso(long discordId) {
+        Optional<Ascensos.Rama> rama = ramaActual(personajes.obtenerOCrear(discordId));
+        if (rama.isEmpty()) {
+            return List.of();
+        }
+        return Ascensos.siguienteTier(rama.get(), tierAlcanzadoEn(discordId, rama.get()))
+                .map(t -> Ascensos.puestosDe(rama.get(), t))
+                .orElse(List.of());
+    }
+
+    /** Rama del trabajo actual del personaje, o vacío si está en paro. Sin trabajo no hay carrera. */
+    private static Optional<Ascensos.Rama> ramaActual(Personaje p) {
+        if (p.trabajo() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(Ascensos.ramaDe(Trabajos.porId(p.trabajo()).orElseThrow().sector()));
+    }
+
+    /**
+     * Foto de la carrera para {@code /trabajo carrera} (ver semántica sin trabajo en
+     * {@link InfoCarrera}). Misma lógica de rama/tier que {@link #opcionesAscenso}, más los valores
+     * actuales (antigüedad, estudios, stat dominante) que la checklist compara con los requisitos.
+     */
+    public InfoCarrera infoCarrera(long discordId) {
+        Personaje p = personajes.obtenerOCrear(discordId);
+        Optional<Ascensos.Rama> ramaOpt = ramaActual(p);
+        if (ramaOpt.isEmpty()) {
+            return new InfoCarrera(null, 0, null, 0, 0, 0, Optional.empty(), null);
+        }
+        Ascensos.Rama rama = ramaOpt.get();
+        int alcanzado = tierAlcanzadoEn(discordId, rama);
+        Optional<Integer> siguiente = Ascensos.siguienteTier(rama, alcanzado);
+        return new InfoCarrera(rama, alcanzado, p.trabajo(), p.turnosPuesto(), p.estudios(),
+                statDelPersonaje(p, Ascensos.statDe(rama)), siguiente,
+                siguiente.map(Ascensos::requisitosPara).orElse(null));
+    }
+
+    /** Saldo del jugador, expuesto para que el comando pinte el requisito de coins sin tocar repos. */
+    public long saldo(long discordId) {
+        return economia.saldo(discordId);
     }
 
     /** Valor de la stat dominante de la rama en este personaje. */

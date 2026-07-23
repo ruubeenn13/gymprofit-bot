@@ -16,9 +16,11 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -238,6 +240,69 @@ class TrabajoServiceTest {
         var r = svcConPersonaje(camarero(99, 99, 99)).ascender(1L, "cocinero");
         assertEquals(EstadoAscenso.NIVEL, r.estado());
         verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("opcionesAscenso: sin trabajo no hay nada que ascender")
+    void opcionesAscensoSinTrabajo() {
+        when(carreras.tierAlcanzado(anyLong(), anyString())).thenReturn(0);
+        assertTrue(svcConPersonaje(sinTrabajo()).opcionesAscenso(1L).isEmpty());
+    }
+
+    @Test
+    @DisplayName("opcionesAscenso: desde camarero (t1) ofrece solo los puestos t2 de su rama")
+    void opcionesAscensoDesdeEntrada() {
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+        var opciones = svcConPersonaje(camarero(0, 0, 0)).opcionesAscenso(1L);
+        assertTrue(opciones.stream().anyMatch(t -> "cocinero".equals(t.id())),
+                "cocinero es el t2 canónico de HOSTELERIA");
+        assertTrue(opciones.stream().allMatch(t -> t.tier() == 2
+                        && Ascensos.ramaDe(t.sector()) == Ascensos.Rama.HOSTELERIA),
+                "solo puestos del siguiente tier de TU rama");
+    }
+
+    @Test
+    @DisplayName("opcionesAscenso: en el tope de la rama la lista queda vacía")
+    void opcionesAscensoEnTope() {
+        when(carreras.tierAlcanzado(1L, "ARTE")).thenReturn(3);
+        assertTrue(svcConPersonaje(conTrabajo("actor", 0, 0, 0)).opcionesAscenso(1L).isEmpty(),
+                "ARTE topa en t3: no queda tier al que ascender");
+    }
+
+    @Test
+    @DisplayName("tierAlcanzadoEn: gana el máximo entre la entrada de la rama y la BD")
+    void tierAlcanzadoEsElMaximo() {
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+        assertEquals(1, svc().tierAlcanzadoEn(1L, Ascensos.Rama.HOSTELERIA),
+                "sin carrera guardada manda la entrada (t1)");
+        when(carreras.tierAlcanzado(1L, "ARTE")).thenReturn(0);
+        assertEquals(2, svc().tierAlcanzadoEn(1L, Ascensos.Rama.ARTE),
+                "ARTE entra por t2 aunque la BD diga 0");
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(3);
+        assertEquals(3, svc().tierAlcanzadoEn(1L, Ascensos.Rama.HOSTELERIA),
+                "la carrera guardada manda cuando supera la entrada");
+    }
+
+    @Test
+    @DisplayName("infoCarrera: con trabajo trae rama, tier y siguiente salto; sin trabajo, todo neutro")
+    void infoCarreraConYSinTrabajo() {
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+        var info = svcConPersonaje(camarero(7, 3, 8)).infoCarrera(1L);
+        assertEquals(Ascensos.Rama.HOSTELERIA, info.rama());
+        assertEquals(1, info.tierAlcanzado());
+        assertEquals("camarero", info.puestoActual());
+        assertEquals(7, info.turnosPuesto());
+        assertEquals(3, info.estudios());
+        assertEquals(8, info.stat(), "la stat que trae es la dominante de la rama (carisma)");
+        assertEquals(Optional.of(2), info.siguiente());
+        assertEquals(Ascensos.requisitosPara(2), info.requisitos());
+
+        var sin = svcConPersonaje(sinTrabajo()).infoCarrera(1L);
+        assertNull(sin.rama(), "sin trabajo no hay rama");
+        assertNull(sin.puestoActual());
+        assertNull(sin.requisitos());
+        assertTrue(sin.siguiente().isEmpty());
+        assertEquals(0, sin.tierAlcanzado());
     }
 
     /** Service con el montaje completo de mocks (sin pasivos: aquí no pintan nada). */
