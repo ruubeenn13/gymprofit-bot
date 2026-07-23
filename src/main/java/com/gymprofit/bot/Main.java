@@ -21,6 +21,7 @@ import com.gymprofit.bot.commands.economia.CofresComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
 import com.gymprofit.bot.commands.economia.DescansoComando;
+import com.gymprofit.bot.commands.economia.EmpresaComando;
 import com.gymprofit.bot.commands.economia.GremioComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
 import com.gymprofit.bot.commands.economia.DesequiparComando;
@@ -69,6 +70,7 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.BancoRepositorio;
 import com.gymprofit.bot.db.BolsaRepositorio;
@@ -104,6 +106,7 @@ import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EjercicioDiaService;
+import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EjercicioService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
@@ -137,6 +140,7 @@ import com.gymprofit.bot.events.CombateListener;
 import com.gymprofit.bot.events.DescansoListener;
 import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.events.DueloListener;
+import com.gymprofit.bot.events.EmpresaBotonesListener;
 import com.gymprofit.bot.events.TruequeListener;
 import com.gymprofit.bot.events.EjerciciosPaginadorListener;
 import com.gymprofit.bot.events.ModlogsPaginadorListener;
@@ -447,6 +451,15 @@ public final class Main {
             comandos.add(new EntrenarComando(trabajoService));
             comandos.add(new EstudiarComando(trabajoService));
             new EnergiaJob(personajeRepo).iniciar();
+
+            // Empresas (Fase 1): entidad tipo gremio ligada a la rama del trabajo. La funda un t4 de
+            // la rama (coins quemados) y se ingresa por invitación del dueño o solicitud con motivo.
+            // El comando recibe también el repo para los listados de pendientes (consultas de apoyo).
+            EmpresaRepositorio empresaRepo = new EmpresaRepositorio(db.dataSource());
+            EmpresaService empresaService = new EmpresaService(
+                    empresaRepo, personajeRepo, economiaRepo, trabajoService);
+            comandos.add(new EmpresaComando(empresaService, empresaRepo));
+            listeners.add(new EmpresaBotonesListener(empresaService));
 
             // Tienda e inventario.
             ItemService itemService =
