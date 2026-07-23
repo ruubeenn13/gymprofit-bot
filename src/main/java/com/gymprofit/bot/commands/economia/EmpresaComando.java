@@ -2,18 +2,24 @@ package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.db.Empresa;
+import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.MiembroEmpresa;
 import com.gymprofit.bot.db.Pendiente;
+import com.gymprofit.bot.db.Propuesta;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.Ascensos;
+import com.gymprofit.bot.services.EmpresaGestionService;
+import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaService.InfoEmpresa;
 import com.gymprofit.bot.services.EmpresaService.ResultadoFundar;
 import com.gymprofit.bot.services.EmpresaService.ResultadoIngreso;
 import com.gymprofit.bot.services.EmpresaService.SalidaFundar;
+import com.gymprofit.bot.services.RangoEmpresa;
 import com.gymprofit.bot.services.TipoPendiente;
+import com.gymprofit.bot.services.TipoPropuesta;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
@@ -58,13 +64,20 @@ public final class EmpresaComando implements Comando {
     /** Prefijos del customId de la confirmación de disolver: {@code empresa:disolver:<accion>:<ownerId>}. */
     public static final String BOTON_DISOLVER_SI = "empresa:disolver:si";
     public static final String BOTON_DISOLVER_NO = "empresa:disolver:no";
+    /** Prefijo del customId de votar una propuesta (F2): {@code empresa:voto:<propuestaId>:<1|0>}. */
+    public static final String BOTON_VOTO = "empresa:voto";
 
     private final EmpresaService empresa;
     private final EmpresaRepositorio repo;
+    private final EmpresaGestionService gestion;
+    private final EmpresaPropuestaRepositorio propuestasRepo;
 
-    public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo) {
+    public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo,
+                          EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo) {
         this.empresa = empresa;
         this.repo = repo;
+        this.gestion = gestion;
+        this.propuestasRepo = propuestasRepo;
     }
 
     @Override
@@ -89,6 +102,28 @@ public final class EmpresaComando implements Comando {
                 Messages.get(Messages.ES, "comando.empresa.solicitar.opcion.motivo"), false)
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.empresa.solicitar.opcion.motivo"));
+        // F2 — gestión de plantilla. El objetivo se elige por mención; en `rango` el destino es una de
+        // las cuatro escalas por debajo de DUENO (nunca se nombra dueño por comando).
+        OptionData usuarioRango = new OptionData(OptionType.USER, "usuario",
+                Messages.get(Messages.ES, "comando.empresa.rango.opcion.usuario"), true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.rango.opcion.usuario"));
+        OptionData rangoDestino = new OptionData(OptionType.STRING, "rango",
+                Messages.get(Messages.ES, "comando.empresa.rango.opcion.rango"), true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.rango.opcion.rango"))
+                .addChoice(Messages.get(Messages.ES, "rango.becario"), RangoEmpresa.BECARIO.name())
+                .addChoice(Messages.get(Messages.ES, "rango.empleado"), RangoEmpresa.EMPLEADO.name())
+                .addChoice(Messages.get(Messages.ES, "rango.encargado"), RangoEmpresa.ENCARGADO.name())
+                .addChoice(Messages.get(Messages.ES, "rango.directivo"), RangoEmpresa.DIRECTIVO.name());
+        OptionData usuarioSacar = new OptionData(OptionType.USER, "usuario",
+                Messages.get(Messages.ES, "comando.empresa.sacar.opcion.usuario"), true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.sacar.opcion.usuario"));
+        OptionData usuarioDespedir = new OptionData(OptionType.USER, "usuario",
+                Messages.get(Messages.ES, "comando.empresa.despedir.opcion.usuario"), true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.despedir.opcion.usuario"));
 
         return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.empresa.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
@@ -103,7 +138,12 @@ public final class EmpresaComando implements Comando {
                         sub("invitar", "comando.empresa.invitar.descripcion").addOptions(usuarioInvitar),
                         sub("solicitar", "comando.empresa.solicitar.descripcion")
                                 .addOptions(nombreSolicitar, motivoSolicitar),
-                        sub("pendientes", "comando.empresa.pendientes.descripcion"));
+                        sub("pendientes", "comando.empresa.pendientes.descripcion"),
+                        sub("rango", "comando.empresa.rango.descripcion")
+                                .addOptions(usuarioRango, rangoDestino),
+                        sub("sacar", "comando.empresa.sacar.descripcion").addOptions(usuarioSacar),
+                        sub("despedir", "comando.empresa.despedir.descripcion").addOptions(usuarioDespedir),
+                        sub("propuestas", "comando.empresa.propuestas.descripcion"));
     }
 
     private static SubcommandData sub(String nombre, String claveDesc) {
@@ -122,6 +162,10 @@ public final class EmpresaComando implements Comando {
             case "invitar" -> invitar(evento, locale);
             case "solicitar" -> solicitar(evento, locale);
             case "pendientes" -> pendientes(evento, locale);
+            case "rango" -> gestionar(evento, locale, TipoPropuesta.CAMBIAR_RANGO);
+            case "sacar" -> gestionar(evento, locale, TipoPropuesta.SACAR);
+            case "despedir" -> gestionar(evento, locale, TipoPropuesta.DESPEDIR);
+            case "propuestas" -> propuestas(evento, locale);
             default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
         }
@@ -355,6 +399,141 @@ public final class EmpresaComando implements Comando {
                 Button.success(BOTON_RESOLVER + ":" + pendienteId + ":1", Messages.get(locale, aceptarKey)),
                 Button.danger(BOTON_RESOLVER + ":" + pendienteId + ":0",
                         Messages.get(locale, "empresa.boton.rechazar")));
+    }
+
+    /**
+     * Gestión de plantilla (F2): cambiar rango, sacar o despedir. Delega toda la autoridad en
+     * {@link EmpresaGestionService#gestionar}. Si el actor es dueño la acción se ejecuta y se anuncia
+     * <b>pública</b> (se ve a la vista del canal); si es directivo se abre una propuesta pública con
+     * botones de voto para los altos cargos; los errores van <b>efímeros</b>.
+     */
+    private void gestionar(SlashCommandInteractionEvent evento, Locale locale, TipoPropuesta tipo) {
+        long actorId = evento.getUser().getIdLong();
+        User objetivo = evento.getOption("usuario").getAsUser();
+        RangoEmpresa rangoNuevo = tipo == TipoPropuesta.CAMBIAR_RANGO
+                ? RangoEmpresa.valueOf(evento.getOption("rango").getAsString()) : null;
+        evento.deferReply(false).queue();
+        ResultadoGestion r = gestion.gestionar(actorId, tipo, objetivo.getIdLong(), rangoNuevo);
+        switch (r) {
+            case EJECUTADA -> evento.getHook().sendMessageEmbeds(
+                    EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                            Messages.get(locale, "empresa.gestion.hecha.titulo"),
+                            mensajeEjecutada(locale, tipo, objetivo, rangoNuevo)).build()).queue();
+            case PROPUESTA_CREADA -> anunciarPropuesta(evento, locale, actorId, tipo, objetivo.getIdLong());
+            default -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA,
+                    locale, mensajeGestionFallida(locale, r))).setEphemeral(true).queue();
+        }
+    }
+
+    /** Frase pública de una acción ya ejecutada por el dueño, según el tipo. */
+    private static String mensajeEjecutada(Locale locale, TipoPropuesta tipo, User objetivo,
+                                           RangoEmpresa rangoNuevo) {
+        return switch (tipo) {
+            case CAMBIAR_RANGO -> Messages.get(locale, "empresa.rango.cambiado",
+                    objetivo.getAsMention(), Messages.get(locale, rangoNuevo.claveI18n()));
+            case SACAR -> Messages.get(locale, "empresa.sacado", objetivo.getAsMention());
+            case DESPEDIR -> Messages.get(locale, "empresa.despedido", objetivo.getAsMention());
+        };
+    }
+
+    /** Traduce un fallo de gestión a su mensaje i18n (los éxitos se tratan aparte). */
+    private static String mensajeGestionFallida(Locale locale, ResultadoGestion r) {
+        return switch (r) {
+            case NO_AUTORIZADO -> Messages.get(locale, "empresa.gestion.no_autorizado");
+            case RANGO_INVALIDO -> Messages.get(locale, "empresa.gestion.rango_invalido");
+            case NO_ES_MIEMBRO -> Messages.get(locale, "empresa.gestion.no_es_miembro");
+            case YA_HAY_PROPUESTA -> Messages.get(locale, "empresa.gestion.ya_hay_propuesta");
+            case EJECUTADA, PROPUESTA_CREADA -> throw new IllegalStateException("éxito ya tratado");
+        };
+    }
+
+    /**
+     * Anuncia públicamente la propuesta recién creada por un directivo, con botones de voto Sí/No.
+     * {@code gestionar} no devuelve el id de la propuesta, así que se recupera leyendo las propuestas
+     * activas de la empresa y quedándose con la única que coincide en tipo y objetivo (la UNIQUE
+     * {@code uq_propuesta_activa} garantiza que no hay dos iguales abiertas a la vez). Es la vía simple
+     * frente a exponer el id desde el service: los listados de propuestas son consultas de apoyo.
+     */
+    private void anunciarPropuesta(SlashCommandInteractionEvent evento, Locale locale, long actorId,
+                                   TipoPropuesta tipo, long objetivoId) {
+        Optional<InfoEmpresa> infoOpt = empresa.infoDe(actorId);
+        if (infoOpt.isEmpty()) {
+            return;
+        }
+        propuestasRepo.activasDe(infoOpt.get().empresa().id()).stream()
+                .filter(p -> p.tipo() == tipo && p.objetivoId() == objetivoId)
+                .findFirst()
+                .ifPresent(p -> evento.getHook().sendMessageEmbeds(
+                                EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                                        Messages.get(locale, "empresa.propuesta.anuncio.titulo"),
+                                        cuerpoPropuesta(locale, p)).build())
+                        .setComponents(botonesVoto(locale, p.id())).queue());
+    }
+
+    /**
+     * Lista las propuestas abiertas de tu empresa, en efímero (gestión interna). Solo para altos cargos
+     * (Dueño/Directivo); cada propuesta va en su propio mensaje con sus botones de voto, tope 5 filas
+     * como los pendientes de F1.
+     */
+    private void propuestas(SlashCommandInteractionEvent evento, Locale locale) {
+        long userId = evento.getUser().getIdLong();
+        evento.deferReply(true).queue();
+        Optional<InfoEmpresa> infoOpt = empresa.infoDe(userId);
+        if (infoOpt.isEmpty()) {
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "empresa.sin_empresa"))).queue();
+            return;
+        }
+        InfoEmpresa info = infoOpt.get();
+        RangoEmpresa rango = rangoDe(info.miembros(), userId);
+        if (rango != RangoEmpresa.DUENO && rango != RangoEmpresa.DIRECTIVO) {
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "empresa.propuesta.no_alto_cargo"))).queue();
+            return;
+        }
+        List<Propuesta> activas = propuestasRepo.activasDe(info.empresa().id());
+        if (activas.isEmpty()) {
+            evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "empresa.propuesta.sin_propuestas"))).queue();
+            return;
+        }
+        activas.stream().limit(MAX_PENDIENTES).forEach(p -> evento.getHook().sendMessageEmbeds(
+                        EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                                Messages.get(locale, "empresa.propuesta.lista.titulo"),
+                                cuerpoPropuesta(locale, p)).build())
+                .setComponents(botonesVoto(locale, p.id())).queue());
+    }
+
+    /** Texto de una propuesta: sobre quién, qué propone quién y cuándo caduca (timestamp relativo de Discord). */
+    private static String cuerpoPropuesta(Locale locale, Propuesta p) {
+        String accion = switch (p.tipo()) {
+            case CAMBIAR_RANGO -> Messages.get(locale, "empresa.propuesta.tipo.cambiar_rango",
+                    Messages.get(locale, p.rangoNuevo().claveI18n()));
+            case SACAR -> Messages.get(locale, "empresa.propuesta.tipo.sacar");
+            case DESPEDIR -> Messages.get(locale, "empresa.propuesta.tipo.despedir");
+        };
+        return Messages.get(locale, "empresa.propuesta.cuerpo",
+                "<@" + p.proponenteId() + ">",
+                accion,
+                "<@" + p.objetivoId() + ">",
+                "<t:" + p.expira().getEpochSecond() + ":R>");
+    }
+
+    /** Botones Sí/No de una propuesta: {@code empresa:voto:<propuestaId>:<1|0>}. */
+    private static ActionRow botonesVoto(Locale locale, long propuestaId) {
+        return ActionRow.of(
+                Button.success(BOTON_VOTO + ":" + propuestaId + ":1",
+                        Messages.get(locale, "empresa.boton.voto_si")),
+                Button.danger(BOTON_VOTO + ":" + propuestaId + ":0",
+                        Messages.get(locale, "empresa.boton.voto_no")));
+    }
+
+    /** Rango de un miembro dentro de la lista, o {@code null} si no está. */
+    private static RangoEmpresa rangoDe(List<MiembroEmpresa> miembros, long discordId) {
+        return miembros.stream()
+                .filter(m -> m.discordId() == discordId)
+                .map(MiembroEmpresa::rango)
+                .findFirst().orElse(null);
     }
 
     /** Traduce un resultado de ingreso (invitar/solicitar) fallido a su mensaje i18n. */

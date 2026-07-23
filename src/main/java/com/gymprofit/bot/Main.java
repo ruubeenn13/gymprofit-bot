@@ -70,6 +70,7 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
 import com.gymprofit.bot.db.BancoRepositorio;
@@ -106,6 +107,7 @@ import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EjercicioDiaService;
+import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EjercicioService;
 import com.gymprofit.bot.services.EncantarService;
@@ -159,6 +161,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -458,8 +461,17 @@ public final class Main {
             EmpresaRepositorio empresaRepo = new EmpresaRepositorio(db.dataSource());
             EmpresaService empresaService = new EmpresaService(
                     empresaRepo, personajeRepo, economiaRepo, trabajoService);
-            comandos.add(new EmpresaComando(empresaService, empresaRepo));
-            listeners.add(new EmpresaBotonesListener(empresaService));
+            // Empresas (Fase 2): gobernanza de la plantilla (cambiar rango, sacar, despedir). El dueño
+            // actúa directo; un directivo propone y los altos cargos votan (reloj UTC del sistema para
+            // la expira/caducidad de las propuestas). El comando lee el repo de propuestas para pintar
+            // los listados y recuperar el id de la propuesta recién creada (consultas de apoyo).
+            EmpresaPropuestaRepositorio empresaPropuestaRepo =
+                    new EmpresaPropuestaRepositorio(db.dataSource());
+            EmpresaGestionService empresaGestion = new EmpresaGestionService(
+                    empresaRepo, empresaPropuestaRepo, personajeRepo, Clock.systemUTC());
+            comandos.add(new EmpresaComando(
+                    empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo));
+            listeners.add(new EmpresaBotonesListener(empresaService, empresaGestion));
 
             // Tienda e inventario.
             ItemService itemService =
