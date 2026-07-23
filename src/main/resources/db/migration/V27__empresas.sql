@@ -21,7 +21,11 @@ CREATE TABLE empresas (
     creada            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Instante de fundación',
     PRIMARY KEY (id),
     -- Nombre único por rama: evita dos empresas homónimas compitiendo en el mismo sector.
-    UNIQUE KEY uq_empresa_nombre_rama (rama, nombre)
+    UNIQUE KEY uq_empresa_nombre_rama (rama, nombre),
+    -- RGPD: al borrar al dueño (derecho de supresión) su empresa se disuelve, y por la CASCADE de
+    -- empresa_id desaparecen también sus miembros y pendientes. Nadie queda con datos huérfanos.
+    CONSTRAINT fk_empresa_dueno FOREIGN KEY (dueno_discord_id)
+        REFERENCES usuarios_discord (discord_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT 'Empresas (gremios ligados a una rama de carrera).';
 
@@ -36,7 +40,10 @@ CREATE TABLE empresa_miembros (
     -- Un jugador, una empresa: la pertenencia es exclusiva a nivel global.
     UNIQUE KEY uq_miembro_unico (discord_id),
     -- CASCADE: al borrar la empresa desaparecen sus membresías.
-    CONSTRAINT fk_miembro_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE
+    CONSTRAINT fk_miembro_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE,
+    -- RGPD: al borrar al jugador se limpia su membresía (derecho de supresión).
+    CONSTRAINT fk_miembro_usuario FOREIGN KEY (discord_id)
+        REFERENCES usuarios_discord (discord_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT 'Pertenencia jugador↔empresa (exclusiva: una empresa por jugador).';
 
@@ -53,6 +60,9 @@ CREATE TABLE empresa_pendientes (
     -- Un pendiente por par: no se acumulan invitaciones/solicitudes repetidas al mismo jugador.
     UNIQUE KEY uq_pendiente_par (empresa_id, discord_id),
     -- CASCADE: al borrar la empresa se limpian sus pendientes.
-    CONSTRAINT fk_pendiente_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE
+    CONSTRAINT fk_pendiente_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE,
+    -- RGPD: al borrar al jugador se limpian sus invitaciones/solicitudes (derecho de supresión).
+    CONSTRAINT fk_pendiente_usuario FOREIGN KEY (discord_id)
+        REFERENCES usuarios_discord (discord_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT 'Invitaciones y solicitudes de pertenencia pendientes de resolver.';
