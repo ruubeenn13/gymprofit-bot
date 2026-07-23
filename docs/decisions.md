@@ -320,3 +320,22 @@ reputación, bolsa de empleo, préstamos, eventos) quedan para fases posteriores
 **Consecuencias.** Migración V27 (empresas, empresa_miembros, empresa_pendientes) con FKs RGPD a
 usuarios_discord. `/empresa` nuevo y `/trabajo dimitir`. La pertenencia se valida al entrar, no de
 forma continua (dimitir no expulsa de la empresa en F1).
+
+## ADR-017 — gobernanza de empresas
+
+**Estado:** aceptada e implementada (Fase 2).
+
+**Contexto.** La F1 daba miembros y rango, pero el rango no se podía cambiar ni echar a nadie. Se
+quería «que los cargos altos gestionen a los inferiores», pero sin que un Directivo mande solo.
+
+**Decisión.** El **Dueño** gestiona directo (cambiar rango, sacar, despedir) a cualquier rango
+inferior. Un **Directivo** no ejecuta: **propone**, y los **altos cargos** (Dueño + Directivos)
+votan; se aprueba por mayoría estricta del censo, con el voto del Dueño como desempate, y caduca a
+las 48 h. El recuento ignora votos de quien ya no es alto cargo. Echar tiene dos modos: **sacar**
+(conserva el trabajo) y **despedir** (al paro). La regla de rango (nunca tocar a un igual/superior)
+acota el abuso. El disparo de ascenso de tier de un miembro se **difiere a F3** por su acople con la
+economía (lo patrocina el bote).
+
+**Consecuencias.** Migración V28 (empresa_propuestas, empresa_votos). `EmpresaGestionService` separado
+de `EmpresaService`. La regla de rango se revalida al ejecutar (el objetivo pudo cambiar entre
+proponer y aprobar).

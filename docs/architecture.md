@@ -94,12 +94,18 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   colisiona) y un jugador pertenece a **una sola** empresa (UNIQUE global). El ingreso exige
   **consentimiento** por dos vías —invitación del dueño o solicitud con motivo—, resuelto por
   botones. `/empresa` (fundar · info · disolver · invitar · solicitar · pendientes) y
-  `/trabajo dimitir`. Rangos gestionables, despidos, economía y ranking quedan para fases
-  posteriores. Tablas `empresas`, `empresa_miembros` y `empresa_pendientes` con FKs RGPD a
+  `/trabajo dimitir`. Tablas `empresas`, `empresa_miembros` y `empresa_pendientes` con FKs RGPD a
   `usuarios_discord` (ON DELETE CASCADE).
-- **Migraciones Flyway V6–V27**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 2)**: gestión de plantilla y gobernanza sobre la estructura de F1. El **Dueño**
+  gestiona directo (cambiar rango, sacar, despedir) a los rangos inferiores; un **Directivo** no
+  ejecuta, **propone**, y los **altos cargos** (Dueño + Directivos) votan por mayoría estricta del
+  censo, con el voto del Dueño como desempate y caducidad a 48 h (el recuento ignora votos de quien
+  ya dejó de ser alto cargo). **Sacar** conserva el trabajo; **despedir** manda al paro. `/empresa`
+  suma `rango · sacar · despedir · propuestas` (más botones de voto). El ascenso de tier de un
+  miembro queda para F3. Tablas `empresa_propuestas` y `empresa_votos` con FKs RGPD.
+- **Migraciones Flyway V6–V28**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias, descanso, pasivos equipados, carreras, empresas.
+  estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura y gobernanza).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

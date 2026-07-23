@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 2)** (`/empresa rango · sacar · despedir · propuestas`): el dueño gestiona la
+  plantilla directo (cambiar rango, echar); un directivo lo propone y los altos cargos lo votan
+  (mayoría, desempate del dueño, caduca a 48 h). Despedir manda al paro; sacar conserva el trabajo.
+  Migración `V28`.
 - **Empresas (Fase 1)** (`/empresa fundar · info · disolver · invitar · solicitar · pendientes`):
   entidad tipo gremio ligada a una rama; la funda un t4 de la rama (100.000 coins) y se entra por
   invitación o por solicitud con motivo, resueltas con botones. Migración `V27`. Además
