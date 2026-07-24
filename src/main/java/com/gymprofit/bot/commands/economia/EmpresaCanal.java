@@ -1,5 +1,8 @@
 package com.gymprofit.bot.commands.economia;
 
+import com.gymprofit.bot.db.Empresa;
+import com.gymprofit.bot.db.EmpresaRepositorio;
+import com.gymprofit.bot.db.MiembroEmpresa;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -32,6 +35,27 @@ public final class EmpresaCanal {
     private EmpresaCanal() {
     }
 
+    /**
+     * Materializa el canal de una empresa sin canal (creación perezosa) de forma segura ante carreras: crea
+     * el canal y, en el callback, intenta persistir su id con {@code fijarCanal} CONDICIONAL. Si otro disparo
+     * concurrente ya había creado y persistido el canal (fijarCanal devuelve false), borra este canal recién
+     * creado para no dejar huérfanos. Si gana la carrera, sincroniza a todos los miembros (el dueño ya tiene
+     * override de la creación). Best-effort.
+     */
+    public static void materializar(Guild guild, Empresa emp, EmpresaRepositorio repo) {
+        crear(guild, emp.nombre(), emp.duenoId(), canalId -> {
+            if (!repo.fijarCanal(emp.id(), canalId)) {
+                eliminar(guild, canalId); // perdimos la carrera: este canal es huérfano
+                return;
+            }
+            for (MiembroEmpresa m : repo.miembros(emp.id())) {
+                if (m.discordId() != emp.duenoId()) {
+                    anadir(guild, canalId, m.discordId());
+                }
+            }
+        });
+    }
+
     /** Crea el canal privado y devuelve su id por callback (solo si se creó). */
     public static void crear(Guild guild, String nombre, long duenoId, LongConsumer onCreado) {
         guild.createTextChannel("🏢・" + nombre)
@@ -48,9 +72,11 @@ public final class EmpresaCanal {
             return;
         }
         guild.retrieveMemberById(miembroId).queue(
-                m -> canal.upsertPermissionOverride(m).grant(PERMISOS).queue(null, e -> {
-                }),
-                e -> { });
+                m -> canal.upsertPermissionOverride(m).grant(PERMISOS).queue(null,
+                        e -> log.warn("No se pudo dar acceso al miembro {} en el canal {}",
+                                miembroId, canalId, e)),
+                e -> log.warn("No se pudo resolver al miembro {} para el canal {}",
+                        miembroId, canalId, e));
     }
 
     /** Quita el acceso al canal a un miembro. */
@@ -62,16 +88,19 @@ public final class EmpresaCanal {
         guild.retrieveMemberById(miembroId).queue(m -> {
             var ov = canal.getPermissionOverride(m);
             if (ov != null) {
-                ov.delete().queue(null, e -> { });
+                ov.delete().queue(null, e -> log.warn(
+                        "No se pudo quitar el acceso al miembro {} del canal {}", miembroId, canalId, e));
             }
-        }, e -> { });
+        }, e -> log.warn("No se pudo resolver al miembro {} para quitarlo del canal {}",
+                miembroId, canalId, e));
     }
 
     /** Borra el canal de la empresa. */
     public static void eliminar(Guild guild, Long canalId) {
         TextChannel canal = canal(guild, canalId);
         if (canal != null) {
-            canal.delete().queue(null, e -> { });
+            canal.delete().queue(null,
+                    e -> log.warn("No se pudo eliminar el canal {}", canalId, e));
         }
     }
 

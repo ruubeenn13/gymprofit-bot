@@ -5,7 +5,6 @@ import com.gymprofit.bot.commands.economia.EmpresaComando;
 import com.gymprofit.bot.db.Empresa;
 import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
-import com.gymprofit.bot.db.MiembroEmpresa;
 import com.gymprofit.bot.db.Pendiente;
 import com.gymprofit.bot.db.Propuesta;
 import com.gymprofit.bot.embeds.EmbedFactory;
@@ -142,14 +141,7 @@ public final class EmpresaBotonesListener extends ListenerAdapter {
             empresa.infoDe(miembroId).ifPresent(info -> {
                 Empresa emp = info.empresa();
                 if (emp.canalId() == null) {
-                    EmpresaCanal.crear(evento.getGuild(), emp.nombre(), emp.duenoId(), canalId -> {
-                        repo.fijarCanal(emp.id(), canalId);
-                        for (MiembroEmpresa m : repo.miembros(emp.id())) {
-                            if (m.discordId() != emp.duenoId()) {
-                                EmpresaCanal.anadir(evento.getGuild(), canalId, m.discordId());
-                            }
-                        }
-                    });
+                    EmpresaCanal.materializar(evento.getGuild(), emp, repo);
                 } else {
                     EmpresaCanal.anadir(evento.getGuild(), emp.canalId(), miembroId);
                 }

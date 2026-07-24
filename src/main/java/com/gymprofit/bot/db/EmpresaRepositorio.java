@@ -209,14 +209,22 @@ public final class EmpresaRepositorio {
         }
     }
 
-    /** Persiste el id del canal privado recién creado de una empresa (creación perezosa de F4). */
-    public void fijarCanal(long empresaId, long canalId) {
-        String sql = "UPDATE empresas SET canal_id = ? WHERE id = ?";
+    /**
+     * Persiste el id del canal privado recién creado de una empresa (creación perezosa de F4) de forma
+     * <b>atómica y condicional</b>: solo escribe si la empresa aún NO tenía canal ({@code canal_id IS
+     * NULL}). Devuelve {@code true} si ganó la carrera y persistió; {@code false} si otro disparo
+     * concurrente ya había fijado un canal (o la empresa ya no existe). Esto evita canales huérfanos:
+     * quien recibe {@code false} sabe que su canal recién creado sobra y debe borrarlo.
+     *
+     * @return {@code true} si este llamador fijó el canal; {@code false} si otro ya lo había hecho
+     */
+    public boolean fijarCanal(long empresaId, long canalId) {
+        String sql = "UPDATE empresas SET canal_id = ? WHERE id = ? AND canal_id IS NULL";
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, canalId);
             ps.setLong(2, empresaId);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new DatabaseException("Error fijando el canal de la empresa " + empresaId, e);
         }

@@ -215,12 +215,16 @@ public final class EmpresaComando implements ComandoAutocompletable {
         SalidaFundar r = empresa.fundar(evento.getUser().getIdLong(), nombre);
         if (r.estado() == ResultadoFundar.OK) {
             // F4: se crea el canal privado inmediatamente (ya hay Guild y el dueño es quien funda) y se
-            // persiste su id con fijarCanal. Best-effort: si falla, la empresa queda sin canal y este se
-            // materializará luego de forma perezosa (info/ingreso).
+            // persiste su id con fijarCanal CONDICIONAL. Si otro disparo (p.ej. un /empresa info inmediato)
+            // ya materializó el canal, fijarCanal devuelve false y se borra este para no dejar huérfanos.
+            // Best-effort: si el canal no se crea, se materializará luego de forma perezosa (info/ingreso).
             Guild guild = evento.getGuild();
             if (guild != null) {
-                EmpresaCanal.crear(guild, nombre, evento.getUser().getIdLong(),
-                        canalId -> repo.fijarCanal(r.empresaId(), canalId));
+                EmpresaCanal.crear(guild, nombre, evento.getUser().getIdLong(), canalId -> {
+                    if (!repo.fijarCanal(r.empresaId(), canalId)) {
+                        EmpresaCanal.eliminar(guild, canalId); // perdimos la carrera: canal huérfano
+                    }
+                });
             }
             evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "empresa.fundada.titulo"),
@@ -319,14 +323,7 @@ public final class EmpresaComando implements ComandoAutocompletable {
         if (guild == null || emp.canalId() != null) {
             return;
         }
-        EmpresaCanal.crear(guild, emp.nombre(), emp.duenoId(), canalId -> {
-            repo.fijarCanal(emp.id(), canalId);
-            for (MiembroEmpresa m : repo.miembros(emp.id())) {
-                if (m.discordId() != emp.duenoId()) {
-                    EmpresaCanal.anadir(guild, canalId, m.discordId());
-                }
-            }
-        });
+        EmpresaCanal.materializar(guild, emp, repo);
     }
 
     /** Busca una empresa por nombre recorriendo las ramas (nombre único por rama; primera coincide). */
