@@ -461,4 +461,49 @@ class EmpresaRepositorioTest {
             }
         }
     }
+
+    /**
+     * Préstamos de F5d: {@code deuda} y {@code cuota_prestamo} arrancan en 0 (DEFAULT V34) y
+     * {@code fijarPrestamo} persiste ambos valores, que se leen de vuelta por {@code porId}.
+     */
+    @Test
+    void prestamoDefaultYFijarPrestamo() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar (RGPD).
+                long dueno = 1101L;
+                usuarios.obtenerOCrear(dueno);
+
+                long id = empresas.fundar("SALUD", dueno, "Gimnasio Endeudado");
+
+                // deuda y cuota_prestamo arrancan en 0 (DEFAULT V34): empresa sin préstamo.
+                Empresa recien = empresas.porId(id).orElseThrow();
+                assertEquals(0L, recien.deuda(), "una empresa recién fundada no tiene deuda");
+                assertEquals(0L, recien.cuotaPrestamo(), "ni cuota de préstamo");
+
+                // fijarPrestamo persiste deuda y cuota (concesión de un préstamo de 20 000 con interés).
+                empresas.fijarPrestamo(id, 24_000L, 6_000L);
+                Empresa conPrestamo = empresas.porId(id).orElseThrow();
+                assertEquals(24_000L, conPrestamo.deuda(), "fijarPrestamo persiste la deuda");
+                assertEquals(6_000L, conPrestamo.cuotaPrestamo(), "y la cuota semanal");
+
+                // saldar: ambos a 0 cuando se termina de devolver.
+                empresas.fijarPrestamo(id, 0L, 0L);
+                Empresa saldada = empresas.porId(id).orElseThrow();
+                assertEquals(0L, saldada.deuda(), "saldar deja la deuda a 0");
+                assertEquals(0L, saldada.cuotaPrestamo(), "y la cuota a 0");
+            }
+        }
+    }
 }

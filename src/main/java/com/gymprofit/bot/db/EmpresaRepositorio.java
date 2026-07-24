@@ -103,7 +103,7 @@ public final class EmpresaRepositorio {
 
     /** Empresa a la que pertenece el jugador, si está en alguna (JOIN con {@code empresa_miembros}). */
     public Optional<Empresa> deMiembro(long discordId) {
-        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia, e.impagos, e.contratando "
+        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia, e.impagos, e.contratando, e.deuda, e.cuota_prestamo "
                 + "FROM empresas e JOIN empresa_miembros m ON m.empresa_id = e.id "
                 + "WHERE m.discord_id = ?";
         try (Connection con = dataSource.getConnection();
@@ -241,6 +241,26 @@ public final class EmpresaRepositorio {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Error fijando el flag de contratando de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Fija la deuda y la cuota semanal del préstamo de una empresa (F5d). Setter único que sirve para
+     * las tres operaciones del módulo: <b>conceder</b> (deuda y cuota &gt; 0 al pedir el préstamo),
+     * <b>amortizar</b> (bajar la deuda tras cobrar una cuota) y <b>saldar</b> (poner ambas a 0 cuando se
+     * termina de devolver). No comprueba límites ni saldo: eso es responsabilidad del service; aquí solo
+     * se persiste el estado calculado.
+     */
+    public void fijarPrestamo(long empresaId, long deuda, long cuota) {
+        String sql = "UPDATE empresas SET deuda = ?, cuota_prestamo = ? WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, deuda);
+            ps.setLong(2, cuota);
+            ps.setLong(3, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error fijando el préstamo de la empresa " + empresaId, e);
         }
     }
 
@@ -557,7 +577,7 @@ public final class EmpresaRepositorio {
     }
 
     private static final String SELECT_EMPRESA =
-            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia, impagos, contratando FROM empresas";
+            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia, impagos, contratando, deuda, cuota_prestamo FROM empresas";
 
     private static final String SELECT_PENDIENTE =
             "SELECT id, empresa_id, discord_id, tipo, motivo, creada FROM empresa_pendientes";
@@ -580,7 +600,9 @@ public final class EmpresaRepositorio {
                 sinCanal ? null : canalId,
                 rs.getLong("mercancia"),
                 rs.getInt("impagos"),
-                rs.getBoolean("contratando"));
+                rs.getBoolean("contratando"),
+                rs.getLong("deuda"),
+                rs.getLong("cuota_prestamo"));
     }
 
     private static MiembroEmpresa mapearMiembro(ResultSet rs) throws SQLException {

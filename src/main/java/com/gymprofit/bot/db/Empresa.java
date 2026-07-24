@@ -17,7 +17,10 @@ import java.time.Instant;
  * @param mercancia unidades de mercancia en el almacen (F5a); 0 al fundar
  * @param impagos   impagos consecutivos de la cuota semanal (F5b); 0 = al dia
  * @param contratando abierta a solicitudes en la bolsa de empleo (F5c); false por defecto
+ * @param deuda       lo que queda por devolver del préstamo empresarial (F5d); 0 = sin préstamo activo
+ * @param cuotaPrestamo cuota semanal del préstamo que cobra el job de F5b junto al impuesto (F5d); 0 = sin préstamo
  */
 public record Empresa(long id, String rama, long duenoId, String nombre, int nivel, long bote,
-                      Instant creada, Long canalId, long mercancia, int impagos, boolean contratando) {
+                      Instant creada, Long canalId, long mercancia, int impagos, boolean contratando,
+                      long deuda, long cuotaPrestamo) {
 }

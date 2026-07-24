@@ -82,7 +82,7 @@ class EmpresaServiceContratandoTest {
     // ------------------------------------------------------------------ helpers
 
     private static Empresa empresa(boolean contratando) {
-        return new Empresa(EMPRESA_ID, "HIERRO", DUENO, "Acme", 1, 0L, AHORA, null, 0L, 0, contratando);
+        return new Empresa(EMPRESA_ID, "HIERRO", DUENO, "Acme", 1, 0L, AHORA, null, 0L, 0, contratando, 0L, 0L);
     }
 
     private static MiembroEmpresa miembro(long discordId, RangoEmpresa rango) {
