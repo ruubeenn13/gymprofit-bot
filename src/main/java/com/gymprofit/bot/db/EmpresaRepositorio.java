@@ -103,7 +103,7 @@ public final class EmpresaRepositorio {
 
     /** Empresa a la que pertenece el jugador, si está en alguna (JOIN con {@code empresa_miembros}). */
     public Optional<Empresa> deMiembro(long discordId) {
-        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia "
+        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia, e.impagos "
                 + "FROM empresas e JOIN empresa_miembros m ON m.empresa_id = e.id "
                 + "WHERE m.discord_id = ?";
         try (Connection con = dataSource.getConnection();
@@ -206,6 +206,44 @@ public final class EmpresaRepositorio {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Error subiendo el nivel de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Fija el contador de impagos consecutivos de la cuota semanal (F5b). Lo usa el job del impuesto:
+     * lo pone a 0 cuando la empresa paga la cuota y lo incrementa (pasando el nuevo valor) cuando no
+     * puede pagarla. A {@link com.gymprofit.bot.services.Impuesto#MOROSIDAD_MAX} impagos la empresa
+     * quiebra.
+     */
+    public void fijarImpagos(long empresaId, int impagos) {
+        String sql = "UPDATE empresas SET impagos = ? WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, impagos);
+            ps.setLong(2, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error fijando los impagos de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Todas las empresas, sin filtro. La recorre el job de la cuota semanal (F5b), que debe cobrar el
+     * impuesto a cada empresa exista o no bote; por eso no reutiliza {@link #conBote()} (que excluye
+     * las de bote 0, precisamente las que pueden acabar en impago y quiebra).
+     */
+    public List<Empresa> todas() {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(SELECT_EMPRESA)) {
+            try (ResultSet rs = ps.executeQuery()) {
+                List<Empresa> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(mapearEmpresa(rs));
+                }
+                return lista;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error listando todas las empresas", e);
         }
     }
 
@@ -480,7 +518,7 @@ public final class EmpresaRepositorio {
     }
 
     private static final String SELECT_EMPRESA =
-            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia FROM empresas";
+            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia, impagos FROM empresas";
 
     private static final String SELECT_PENDIENTE =
             "SELECT id, empresa_id, discord_id, tipo, motivo, creada FROM empresa_pendientes";
@@ -501,7 +539,8 @@ public final class EmpresaRepositorio {
                 rs.getLong("bote"),
                 rs.getTimestamp("creada").toInstant(),
                 sinCanal ? null : canalId,
-                rs.getLong("mercancia"));
+                rs.getLong("mercancia"),
+                rs.getInt("impagos"));
     }
 
     private static MiembroEmpresa mapearMiembro(ResultSet rs) throws SQLException {

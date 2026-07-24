@@ -349,4 +349,50 @@ class EmpresaRepositorioTest {
             }
         }
     }
+
+    /**
+     * Impuestos de F5b: {@code fijarImpagos} escribe y resetea el contador de impagos consecutivos
+     * (arranca en 0 por el DEFAULT de V32) y {@code todas} lista TODAS las empresas (incluidas las de
+     * bote 0, que {@code conBote} excluye), como necesita el job de la cuota semanal.
+     */
+    @Test
+    void fijarImpagosYListarTodas() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar (RGPD).
+                long duenoAlfa = 901L;
+                long duenoBeta = 902L;
+                for (long id : new long[]{duenoAlfa, duenoBeta}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                long a = empresas.fundar("SALUD", duenoAlfa, "Alfa");
+                long b = empresas.fundar("TECNICA", duenoBeta, "Beta");
+
+                // impagos arranca en 0 (DEFAULT V32).
+                assertEquals(0, empresas.porId(a).orElseThrow().impagos());
+                // fijarImpagos escribe el valor...
+                empresas.fijarImpagos(a, 2);
+                assertEquals(2, empresas.porId(a).orElseThrow().impagos());
+                // ...y lo resetea a 0 (empresa que paga la cuota).
+                empresas.fijarImpagos(a, 0);
+                assertEquals(0, empresas.porId(a).orElseThrow().impagos());
+
+                // todas lista ambas empresas (ninguna tiene bote, conBote las excluiria).
+                assertTrue(empresas.todas().stream().map(Empresa::nombre).toList()
+                        .containsAll(List.of("Alfa", "Beta")));
+            }
+        }
+    }
 }
