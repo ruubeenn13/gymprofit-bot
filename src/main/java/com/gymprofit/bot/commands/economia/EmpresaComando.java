@@ -16,6 +16,7 @@ import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaVentaService;
 import com.gymprofit.bot.services.Impuesto;
+import com.gymprofit.bot.services.PrestamoEmpresasService;
 import com.gymprofit.bot.services.Produccion;
 import com.gymprofit.bot.services.EmpresaService.InfoEmpresa;
 import com.gymprofit.bot.services.EmpresaService.ResultadoFundar;
@@ -92,16 +93,20 @@ public final class EmpresaComando implements ComandoAutocompletable {
     private final TrabajoService trabajos;
     /** Venta de la mercancia del almacen (F5a): neto al bote, impuesto quemado, gate atomico. */
     private final EmpresaVentaService venta;
+    /** Prestamos empresariales (F5d): conceder (principal al bote) y amortizar desde el bote. */
+    private final PrestamoEmpresasService prestamos;
 
     public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo,
                           EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo,
-                          TrabajoService trabajos, EmpresaVentaService venta) {
+                          TrabajoService trabajos, EmpresaVentaService venta,
+                          PrestamoEmpresasService prestamos) {
         this.empresa = empresa;
         this.repo = repo;
         this.gestion = gestion;
         this.propuestasRepo = propuestasRepo;
         this.trabajos = trabajos;
         this.venta = venta;
+        this.prestamos = prestamos;
     }
 
     @Override
@@ -164,6 +169,18 @@ public final class EmpresaComando implements ComandoAutocompletable {
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.empresa.vender.cantidad"))
                 .setMinValue(1);
+        // F5d — prestamo. Al pedir, la cantidad (principal) es obligatoria y >= 1. Al amortizar es opcional:
+        // vacio = pagar lo que permita el bote.
+        OptionData cantidadPrestamo = new OptionData(OptionType.INTEGER, "cantidad",
+                Messages.get(Messages.ES, "comando.empresa.prestamo.cantidad"), true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.prestamo.cantidad"))
+                .setMinValue(1);
+        OptionData cantidadPagar = new OptionData(OptionType.INTEGER, "cantidad",
+                Messages.get(Messages.ES, "comando.empresa.pagarprestamo.cantidad"), false)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.pagarprestamo.cantidad"))
+                .setMinValue(1);
 
         return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.empresa.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
@@ -188,6 +205,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
                                 .addOptions(miembroAscender, puestoAscender),
                         sub("propuestas", "comando.empresa.propuestas.descripcion"),
                         sub("vender", "comando.empresa.vender.desc").addOptions(cantidadVender),
+                        sub("prestamo", "comando.empresa.prestamo.desc").addOptions(cantidadPrestamo),
+                        sub("pagar-prestamo", "comando.empresa.pagarprestamo.desc").addOptions(cantidadPagar),
                         sub("ranking", "comando.empresa.ranking.desc"));
     }
 
@@ -214,6 +233,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
             case "ascender" -> ascender(evento, locale);
             case "propuestas" -> propuestas(evento, locale);
             case "vender" -> vender(evento, locale);
+            case "prestamo" -> prestamo(evento, locale);
+            case "pagar-prestamo" -> pagarPrestamo(evento, locale);
             case "ranking" -> ranking(evento, locale);
             default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
@@ -309,6 +330,10 @@ public final class EmpresaComando implements ComandoAutocompletable {
         // F5c: si está abierta a la bolsa de empleo, se marca para que se vea desde la propia ficha.
         if (e.contratando()) {
             cuerpo += "\n" + Messages.get(locale, "empresa.info.contratando");
+        }
+        // F5d: si arrastra un préstamo, se muestra la deuda pendiente y su cuota semanal.
+        if (e.deuda() > 0) {
+            cuerpo += "\n" + Messages.get(locale, "empresa.info.deuda", e.deuda(), e.cuotaPrestamo());
         }
         evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "empresa.info.titulo"), cuerpo).build()).queue();
@@ -721,6 +746,47 @@ public final class EmpresaComando implements ComandoAutocompletable {
         };
         evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "empresa.venta.titulo"), msg).build()).queue();
+    }
+
+    /**
+     * Pide un prestamo para el bote de tu empresa (F5d): solo altos cargos, uno a la vez y hasta el limite
+     * del nivel. El principal entra al bote y queda anotada la deuda con interes y su cuota semanal; toda la
+     * regla de dinero vive en {@link PrestamoEmpresasService}. Publico, con el mismo {@code Tipo.ECONOMIA}.
+     */
+    private void prestamo(SlashCommandInteractionEvent evento, Locale locale) {
+        long cantidad = evento.getOption("cantidad").getAsLong();
+        PrestamoEmpresasService.ResultadoConceder r = prestamos.conceder(evento.getUser().getIdLong(), cantidad);
+        String msg = switch (r.estado()) {
+            case SIN_EMPRESA -> Messages.get(locale, "empresa.prestamo.sin_empresa");
+            case NO_AUTORIZADO -> Messages.get(locale, "empresa.prestamo.no_autorizado");
+            case CANTIDAD_INVALIDA -> Messages.get(locale, "empresa.prestamo.cantidad_invalida");
+            case YA_TIENE_PRESTAMO -> Messages.get(locale, "empresa.prestamo.ya_tiene");
+            case LIMITE -> Messages.get(locale, "empresa.prestamo.limite", r.limite());
+            case OK -> Messages.get(locale, "empresa.prestamo.ok", r.principal(), r.deuda(), r.cuota());
+        };
+        evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, "empresa.prestamo.titulo"), msg).build()).queue();
+    }
+
+    /**
+     * Amortiza el prestamo de tu empresa desde el bote (F5d): solo altos cargos. Con cantidad paga eso (sin
+     * pasar de la deuda); sin cantidad paga lo que permita el bote. El gate de dinero (nunca baja la deuda
+     * sin descontar) vive en {@link PrestamoEmpresasService}. Publico, con el mismo {@code Tipo.ECONOMIA}.
+     */
+    private void pagarPrestamo(SlashCommandInteractionEvent evento, Locale locale) {
+        OptionMapping opt = evento.getOption("cantidad");
+        // Sin opcion = pagar lo que se pueda (OptionalLong.empty); el service acota con Math.min.
+        OptionalLong cantidad = opt == null ? OptionalLong.empty() : OptionalLong.of(opt.getAsLong());
+        PrestamoEmpresasService.ResultadoPago r = prestamos.pagar(evento.getUser().getIdLong(), cantidad);
+        String msg = switch (r.estado()) {
+            case SIN_EMPRESA -> Messages.get(locale, "empresa.prestamo.sin_empresa");
+            case NO_AUTORIZADO -> Messages.get(locale, "empresa.prestamo.no_autorizado");
+            case SIN_DEUDA -> Messages.get(locale, "empresa.prestamo.sin_deuda");
+            case SIN_FONDOS -> Messages.get(locale, "empresa.prestamo.sin_fondos");
+            case OK -> Messages.get(locale, "empresa.prestamo.pagado", r.pagado(), r.deudaRestante(), r.cuota());
+        };
+        evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, "empresa.prestamo.titulo"), msg).build()).queue();
     }
 
     /**

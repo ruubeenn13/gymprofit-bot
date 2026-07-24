@@ -114,6 +114,7 @@ import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaVentaService;
 import com.gymprofit.bot.services.ImpuestoEmpresasService;
+import com.gymprofit.bot.services.PrestamoEmpresasService;
 import com.gymprofit.bot.services.EjercicioService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
@@ -494,9 +495,13 @@ public final class Main {
             // Empresas (Fase 5a): venta de la mercancia del almacen. Un alto cargo la vende, entra el neto
             // al bote y se quema el impuesto (sumidero antiinflacion). El gate atomico vive en el service.
             EmpresaVentaService empresaVenta = new EmpresaVentaService(empresaRepo);
+            // Empresas (Fase 5d): banco empresarial. Un alto cargo pide un prestamo (el principal entra al
+            // bote y se fija deuda+cuota con interes) o lo amortiza desde el bote. Uno a la vez; el gate de
+            // dinero (incrementarBote/gastarDelBote/fijarPrestamo) y las reglas viven en el service.
+            PrestamoEmpresasService empresaPrestamo = new PrestamoEmpresasService(empresaRepo);
             comandos.add(new EmpresaComando(
                     empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService,
-                    empresaVenta));
+                    empresaVenta, empresaPrestamo));
             // Empresas (Fase 5c): bolsa de empleo. /empleo ver lista las empresas de tu rama que
             // contratan (con botón de solicitud) y /empleo contratar abre/cierra la tuya a la bolsa.
             comandos.add(new EmpleoComando(empresaService, empresaRepo));
