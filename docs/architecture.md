@@ -37,7 +37,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |
 | `i18n/` | `Messages` sobre `ResourceBundle` (ES/EN) |
-| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `NominaEmpresasJob` (reparte a las **03:00 Europe/Madrid** una fracción del bote de cada empresa entre sus miembros según su rango), `SorteoJob`, retención de datos |
+| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `NominaEmpresasJob` (reparte a las **03:00 Europe/Madrid** una fracción del bote de cada empresa entre sus miembros según su rango), `ImpuestoEmpresasJob` (cobra la cuota semanal `nivel × 2.500` los **lunes 02:00 Europe/Madrid**, quemándola del bote; morosidad y quiebra si no llega), `SorteoJob`, retención de datos |
 
 ## Flujo de un slash command (objetivo F1)
 
@@ -120,10 +120,15 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   (`5 + nivel`) al almacén de su empresa, con tope `nivel × 100` (el rebose se pierde). `/empresa vender`
   (altos cargos) la convierte en coins al bote menos un **15 % de impuesto quemado**. Números en
   `Produccion`; el descuento de mercancía es el gate atómico. Migración V31 (`mercancia`).
-- **Migraciones Flyway V6–V31**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 5b)**: impuestos y quiebra. Una **cuota semanal** `nivel × 2.500` se quema del bote los
+  lunes 02:00 (antes de la nómina); si el bote no llega, la empresa se vuelve **morosa** (`impagos`) y a
+  las 3 semanas **quiebra** (disolución; los miembros conservan su trabajo). Decisión pura en
+  `ImpuestoEmpresasService`; el `ImpuestoEmpresasJob` la aplica y avisa al canal privado. Migración V32
+  (`impagos`).
+- **Migraciones Flyway V6–V32**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
-  economía, estatus y producción).
+  economía, estatus, producción e impuestos).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

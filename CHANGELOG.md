@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5b)**: impuesto semanal. Cada empresa paga una cuota `nivel × 2.500` quemada del bote
+  los lunes; si no puede, se vuelve morosa y a las 3 semanas quiebra (los miembros conservan su trabajo).
+  Migración `V32`.
 - **Empresas (Fase 5a)** (`/empresa vender`): la empresa produce **mercancía** con el trabajo de sus
   miembros (tope por nivel) y la vende para engordar el bote, con un impuesto de venta quemado. Migración
   `V31`.

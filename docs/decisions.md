@@ -393,3 +393,21 @@ atómico (nunca se abona una venta que no pudo descontar). Números tunables en 
 **Consecuencias.** Migración V31 (`empresas.mercancia`). La producción es una fuente de coins moderada y
 triplemente frenada (energía del curro, tope de almacén, impuesto quemado). Impuestos al Estado, insumos,
 precio fluctuante y venta B2B quedan para subsistemas posteriores de F5.
+
+## ADR-021 — impuestos y quiebra de empresas
+
+**Estado:** aceptada e implementada (Fase 5b).
+
+**Contexto.** Tras F5a la empresa tenía fuentes de ingresos pero ningún coste recurrente que las
+equilibrara ni riesgo real de desaparecer.
+
+**Decisión.** Una **cuota semanal** `nivel × 2.500` se **quema** del bote cada lunes 02:00 Europe/Madrid
+(antes de la nómina). Si el bote no cubre la cuota, la empresa queda **morosa** (contador `impagos`); a
+los **3** impagos consecutivos **quiebra** (disolución forzosa; los miembros conservan su trabajo, porque
+`disolver` no toca `personajes.trabajo`). Los avisos van al canal privado de la empresa (F4). La decisión
+vive en `ImpuestoEmpresasService` (pura, testeable) con `gastarDelBote` como gate atómico; el
+`ImpuestoEmpresasJob` la ejecuta y avisa.
+
+**Consecuencias.** Migración V32 (`empresas.impagos`). Nuevo `ImpuestoEmpresasJob` (semanal). La cuota es
+un sumidero recurrente que escala con el nivel. Impuesto progresivo, rescate y deuda acumulada quedan
+fuera.
