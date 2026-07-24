@@ -297,8 +297,8 @@ private void ranking(SlashCommandInteractionEvent evento, Locale locale) {
     List<EmpresaService.FilaRanking> top = empresa.ranking(TOP);
     if (top.isEmpty()) {
         evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
-                Messages.get(locale, "empresa.ranking.titulo"))
-                .setDescription(Messages.get(locale, "empresa.ranking.vacio")).build()).queue();
+                Messages.get(locale, "empresa.ranking.titulo"),
+                Messages.get(locale, "empresa.ranking.vacio")).build()).queue();
         return;
     }
     StringBuilder sb = new StringBuilder();
@@ -310,23 +310,22 @@ private void ranking(SlashCommandInteractionEvent evento, Locale locale) {
             case 3 -> "🥉"; // 🥉
             default -> "**" + puesto + ".**";
         };
-        sb.append(Messages.get(locale, "empresa.ranking.fila")
-                .replace("{medalla}", medalla)
-                .replace("{nombre}", f.nombre())
-                .replace("{rama}", Messages.get(locale, "rama." + f.rama().toLowerCase(Locale.ROOT)))
-                .replace("{nivel}", String.valueOf(f.nivel()))
-                .replace("{miembros}", String.valueOf(f.miembros()))
-                .replace("{bote}", String.valueOf(f.bote())))
-                .append('\n');
+        // Messages.get usa MessageFormat POSICIONAL ({0}..{5}), como comando.top.linea en TopComando.
+        // nivel/miembros/bote van como numero (MessageFormat agrupa miles en el bote, deseable en dinero).
+        sb.append(Messages.get(locale, "empresa.ranking.fila",
+                medalla, f.nombre(),
+                Messages.get(locale, "rama." + f.rama().toLowerCase(Locale.ROOT)),
+                f.nivel(), f.miembros(), f.bote()));
+        sb.append('\n');
         puesto++;
     }
-    evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
-            Messages.get(locale, "empresa.ranking.titulo"))
-            .setDescription(sb.toString()).build()).queue();
+    var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+            Messages.get(locale, "empresa.ranking.titulo"), sb.toString().strip()).build();
+    evento.replyEmbeds(embed).queue();
 }
 ```
 
-Nota: si `EmbedFactory.base` tiene otra firma (p. ej. devuelve `MessageEmbed` ya construido, o toma descripción), adáptalo a como lo usan `TopComando` y los demás métodos de `EmpresaComando` — NO inventes API.
+Firma real (verificada): `EmbedFactory.base(Tipo, Locale, String titulo, String descripcion)` devuelve un `EmbedBuilder` → `.build()`, exactamente como `TopComando`. El caso vacío (Step 3 arriba) usa la misma firma de 4 args con la descripción `empresa.ranking.vacio`. NO inventes otra API.
 
 - [ ] **Step 4: i18n ES**
 
@@ -335,9 +334,10 @@ En `messages_es.properties`:
 ```properties
 comando.empresa.ranking.desc=Ranking de empresas por prestigio
 empresa.ranking.titulo=🏆 Ranking de empresas
-empresa.ranking.fila={medalla} **{nombre}** — {rama} · Nv.{nivel} · {miembros} miembros · 💰 {bote}
+empresa.ranking.fila={0} **{1}** — {2} · Nv.{3} · {4} miembros · 💰 {5}
 empresa.ranking.vacio=Aún no hay ninguna empresa fundada. ¡Sé el primero!
 ```
+(Placeholders POSICIONALES de MessageFormat: `{0}` medalla, `{1}` nombre, `{2}` rama, `{3}` nivel, `{4}` miembros, `{5}` bote.)
 
 - [ ] **Step 5: i18n EN**
 
@@ -346,7 +346,7 @@ En `messages_en.properties`:
 ```properties
 comando.empresa.ranking.desc=Company prestige ranking
 empresa.ranking.titulo=🏆 Company ranking
-empresa.ranking.fila={medalla} **{nombre}** — {rama} · Lv.{nivel} · {miembros} members · 💰 {bote}
+empresa.ranking.fila={0} **{1}** — {2} · Lv.{3} · {4} members · 💰 {5}
 empresa.ranking.vacio=No company has been founded yet. Be the first!
 ```
 
