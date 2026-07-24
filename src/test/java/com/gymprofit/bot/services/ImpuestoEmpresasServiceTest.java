@@ -35,9 +35,14 @@ class ImpuestoEmpresasServiceTest {
         return new ImpuestoEmpresasService(repo);
     }
 
-    // Empresa de test: todos los args del record, con canalId null y mercancia 0.
+    // Empresa de test: todos los args del record, con canalId null y mercancia 0, sin prestamo (deuda/cuota 0).
     private static Empresa empresa(int nivel, long bote, int impagos) {
         return new Empresa(EMPRESA_ID, "rama", 1L, "Acme", nivel, bote, AHORA, null, 0L, impagos, false, 0L, 0L);
+    }
+
+    // Empresa con prestamo activo: fija deuda y cuota del prestamo para los casos de amortizacion (F5d).
+    private static Empresa empresaConPrestamo(int nivel, long bote, int impagos, long deuda, long cuotaPrestamo) {
+        return new Empresa(EMPRESA_ID, "rama", 1L, "Acme", nivel, bote, AHORA, null, 0L, impagos, false, deuda, cuotaPrestamo);
     }
 
     @Test
@@ -122,5 +127,68 @@ class ImpuestoEmpresasServiceTest {
         Resolucion aplicada = svc().aplicar(e);
         assertEquals(Tipo.QUIEBRA, aplicada.tipo());
         verify(repo).disolver(EMPRESA_ID);
+    }
+
+    // --- F5d: obligacion semanal = impuesto + cuota del prestamo; al pagar, amortiza la deuda ---
+
+    @Test
+    @DisplayName("paga la obligacion (impuesto + cuota): quema el total y amortiza la deuda")
+    void pagaObligacionConCuotaAmortiza() {
+        long impuesto = Impuesto.cuota(2); // 5.000
+        long obligacion = impuesto + 6_000L;
+        Empresa e = empresaConPrestamo(2, 20_000L, 0, 10_000L, 6_000L);
+        when(repo.gastarDelBote(EMPRESA_ID, obligacion)).thenReturn(true);
+
+        Resolucion r = svc().evaluar(e);
+        assertEquals(Tipo.PAGA, r.tipo());
+        assertEquals(obligacion, r.cuota());
+
+        svc().aplicar(e);
+        verify(repo).gastarDelBote(EMPRESA_ID, obligacion);
+        verify(repo).fijarImpagos(EMPRESA_ID, 0);
+        // deuda 10.000 - 6.000 = 4.000; cuota nueva = min(6.000, 4.000) = 4.000
+        verify(repo).fijarPrestamo(EMPRESA_ID, 4_000L, 4_000L);
+    }
+
+    @Test
+    @DisplayName("ultima cuota salda el prestamo: deuda y cuota a 0")
+    void saldaPrestamoEnLaUltimaCuota() {
+        long impuesto = Impuesto.cuota(2);
+        long obligacion = impuesto + 6_000L;
+        Empresa e = empresaConPrestamo(2, 20_000L, 0, 6_000L, 6_000L);
+        when(repo.gastarDelBote(EMPRESA_ID, obligacion)).thenReturn(true);
+
+        svc().aplicar(e);
+        verify(repo).fijarPrestamo(EMPRESA_ID, 0L, 0L);
+    }
+
+    @Test
+    @DisplayName("bote no cubre la obligacion: impago, no paga ni amortiza")
+    void obligacionNoCubierta_impagoNoAmortiza() {
+        long impuesto = Impuesto.cuota(2);
+        long obligacion = impuesto + 6_000L; // 11.000
+        Empresa e = empresaConPrestamo(2, 1_000L, 0, 10_000L, 6_000L); // bote < obligacion
+
+        Resolucion r = svc().evaluar(e);
+        assertEquals(Tipo.MOROSA, r.tipo());
+        assertEquals(obligacion, r.cuota());
+        assertEquals(obligacion - 1_000L, r.falta());
+
+        svc().aplicar(e);
+        verify(repo).fijarImpagos(EMPRESA_ID, 1);
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+        verify(repo, never()).fijarPrestamo(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("sin deuda: paga el impuesto pero no toca el prestamo")
+    void sinDeuda_noLlamaFijarPrestamo() {
+        Empresa e = empresa(2, 8_000L, 0); // deuda 0, cuotaPrestamo 0
+        when(repo.gastarDelBote(EMPRESA_ID, 5_000L)).thenReturn(true);
+
+        svc().aplicar(e);
+        verify(repo).gastarDelBote(EMPRESA_ID, 5_000L);
+        verify(repo).fijarImpagos(EMPRESA_ID, 0);
+        verify(repo, never()).fijarPrestamo(anyLong(), anyLong(), anyLong());
     }
 }

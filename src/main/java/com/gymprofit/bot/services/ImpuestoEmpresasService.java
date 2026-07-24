@@ -4,10 +4,14 @@ import com.gymprofit.bot.db.Empresa;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 
 /**
- * Cobro del impuesto semanal de una empresa (F5b): decide y aplica PAGA / MOROSA / QUIEBRA. La decision
+ * Cobro semanal de una empresa (F5b): decide y aplica PAGA / MOROSA / QUIEBRA. La decision
  * ({@link #evaluar}) es pura y testeable; {@link #aplicar} ejecuta el efecto sobre el repo. El dinero se
  * quema con {@link EmpresaRepositorio#gastarDelBote} (gate atomico): si el bote bajo entre evaluar y
  * cobrar, el gasto falla y se cuenta como impago (nunca se quema de mas ni se paga a medias).
+ *
+ * <p>Desde F5d la obligacion semanal no es solo el impuesto: es {@code impuesto + cuotaPrestamo}. Al
+ * pagar con exito, ademas de resetear impagos, se amortiza la deuda del prestamo (se resta la cuota y se
+ * recalcula la del proximo cobro; al saldar, deuda y cuota quedan a 0). El impago no toca la deuda.
  */
 public final class ImpuestoEmpresasService {
 
@@ -24,7 +28,7 @@ public final class ImpuestoEmpresasService {
 
     /** Decide (sin tocar nada) que hacer con una empresa este cobro. */
     public Resolucion evaluar(Empresa e) {
-        long cuota = Impuesto.cuota(e.nivel());
+        long cuota = Impuesto.cuota(e.nivel()) + e.cuotaPrestamo(); // obligacion semanal = impuesto + cuota del prestamo (F5d)
         if (e.bote() >= cuota) {
             return new Resolucion(Tipo.PAGA, cuota, 0, 0);
         }
@@ -44,6 +48,13 @@ public final class ImpuestoEmpresasService {
             case PAGA -> {
                 if (repo.gastarDelBote(e.id(), r.cuota())) {
                     repo.fijarImpagos(e.id(), 0);
+                    if (e.deuda() > 0) {
+                        // Amortiza SOLO tras cobrar con exito: resta la cuota del prestamo (topada a la deuda
+                        // restante) y recalcula la del proximo cobro; al saldar (deudaNueva==0) la cuota va a 0.
+                        long deudaNueva = e.deuda() - Math.min(e.cuotaPrestamo(), e.deuda());
+                        long cuotaNueva = deudaNueva == 0 ? 0 : Math.min(e.cuotaPrestamo(), deudaNueva);
+                        repo.fijarPrestamo(e.id(), deudaNueva, cuotaNueva);
+                    }
                     return r;
                 }
                 return recaerEnImpago(e, r.cuota()); // carrera: el bote ya no cubre
