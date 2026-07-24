@@ -24,6 +24,7 @@ import com.gymprofit.bot.services.RangoEmpresa;
 import com.gymprofit.bot.services.TipoPendiente;
 import com.gymprofit.bot.services.TipoPropuesta;
 import com.gymprofit.bot.services.TrabajoService;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -213,6 +214,14 @@ public final class EmpresaComando implements ComandoAutocompletable {
         evento.deferReply(false).queue();
         SalidaFundar r = empresa.fundar(evento.getUser().getIdLong(), nombre);
         if (r.estado() == ResultadoFundar.OK) {
+            // F4: se crea el canal privado inmediatamente (ya hay Guild y el dueño es quien funda) y se
+            // persiste su id con fijarCanal. Best-effort: si falla, la empresa queda sin canal y este se
+            // materializará luego de forma perezosa (info/ingreso).
+            Guild guild = evento.getGuild();
+            if (guild != null) {
+                EmpresaCanal.crear(guild, nombre, evento.getUser().getIdLong(),
+                        canalId -> repo.fijarCanal(r.empresaId(), canalId));
+            }
             evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "empresa.fundada.titulo"),
                     Messages.get(locale, "empresa.fundada.desc",
@@ -252,6 +261,11 @@ public final class EmpresaComando implements ComandoAutocompletable {
             return;
         }
         Empresa e = infoOpt.get().empresa();
+        // F4: solo al mirar la PROPIA empresa (sin nombre) se garantiza su canal de forma perezosa; al
+        // buscar otra por nombre no se toca nada (no eres miembro, no debes provocar su creación).
+        if (nombreOpt == null) {
+            ensureCanal(evento.getGuild(), e);
+        }
         List<MiembroEmpresa> miembros = infoOpt.get().miembros();
         StringBuilder lista = new StringBuilder();
         for (MiembroEmpresa m : miembros) {
@@ -294,6 +308,25 @@ public final class EmpresaComando implements ComandoAutocompletable {
         };
         evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale, mensaje))
                 .setEphemeral(true).queue();
+    }
+
+    /**
+     * Garantiza que la empresa tiene canal privado (F4, creación perezosa): si {@code canalId} es null, lo
+     * crea, persiste su id con fijarCanal y resincroniza a TODOS los miembros actuales. Cubre las empresas
+     * fundadas antes de F4. Best-effort.
+     */
+    private void ensureCanal(Guild guild, Empresa emp) {
+        if (guild == null || emp.canalId() != null) {
+            return;
+        }
+        EmpresaCanal.crear(guild, emp.nombre(), emp.duenoId(), canalId -> {
+            repo.fijarCanal(emp.id(), canalId);
+            for (MiembroEmpresa m : repo.miembros(emp.id())) {
+                if (m.discordId() != emp.duenoId()) {
+                    EmpresaCanal.anadir(guild, canalId, m.discordId());
+                }
+            }
+        });
     }
 
     /** Busca una empresa por nombre recorriendo las ramas (nombre único por rama; primera coincide). */
@@ -476,10 +509,20 @@ public final class EmpresaComando implements ComandoAutocompletable {
         evento.deferReply(false).queue();
         ResultadoGestion r = gestion.gestionar(actorId, tipo, objetivo.getIdLong(), rangoNuevo);
         switch (r) {
-            case EJECUTADA -> evento.getHook().sendMessageEmbeds(
-                    EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
-                            Messages.get(locale, "empresa.gestion.hecha.titulo"),
-                            mensajeEjecutada(locale, tipo, objetivo, rangoNuevo)).build()).queue();
+            case EJECUTADA -> {
+                evento.getHook().sendMessageEmbeds(
+                        EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                                Messages.get(locale, "empresa.gestion.hecha.titulo"),
+                                mensajeEjecutada(locale, tipo, objetivo, rangoNuevo)).build()).queue();
+                // F4: sacar/despedir saca al objetivo de la plantilla → se le quita también el acceso al
+                // canal. Cambiar de rango NO (sigue siendo miembro). Best-effort. El canalId sale de la
+                // empresa del actor (dueño), que permanece tras la acción.
+                if ((tipo == TipoPropuesta.SACAR || tipo == TipoPropuesta.DESPEDIR)
+                        && evento.getGuild() != null) {
+                    empresa.infoDe(actorId).map(i -> i.empresa().canalId()).ifPresent(canalId ->
+                            EmpresaCanal.quitar(evento.getGuild(), canalId, objetivo.getIdLong()));
+                }
+            }
             case PROPUESTA_CREADA -> anunciarPropuesta(evento, locale, actorId, tipo, objetivo.getIdLong());
             default -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA,
                     locale, mensajeGestionFallida(locale, r))).setEphemeral(true).queue();

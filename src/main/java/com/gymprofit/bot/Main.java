@@ -478,7 +478,11 @@ public final class Main {
                     empresaRepo, empresaPropuestaRepo, personajeRepo, trabajoService, Clock.systemUTC());
             comandos.add(new EmpresaComando(
                     empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService));
-            listeners.add(new EmpresaBotonesListener(empresaService, empresaGestion));
+            // El listener recibe además los repos de empresa y de propuestas (F4): sincroniza el canal
+            // privado con la BD al aceptar un ingreso, sacar/despedir por voto o disolver, y necesita leer
+            // la pendiente y la propuesta ANTES de que la operación las borre.
+            listeners.add(new EmpresaBotonesListener(
+                    empresaService, empresaGestion, empresaRepo, empresaPropuestaRepo));
             // Empresas (Fase 3): nómina diaria a las 03:00 Europe/Madrid. Reparte una fracción del
             // bote entre los miembros según su rango; reloj de Madrid para clavar la hora local.
             new NominaEmpresasJob(empresaRepo, economiaRepo, Clock.system(ZoneId.of("Europe/Madrid")))
