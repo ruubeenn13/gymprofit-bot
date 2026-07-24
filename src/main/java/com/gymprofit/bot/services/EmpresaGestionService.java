@@ -43,9 +43,13 @@ public final class EmpresaGestionService {
         EJECUTADA, PROPUESTA_CREADA, NO_AUTORIZADO, RANGO_INVALIDO, NO_ES_MIEMBRO, YA_HAY_PROPUESTA
     }
 
-    /** Resultado de {@link #votar}. */
+    /**
+     * Resultado de {@link #votar}. {@link #APROBADA_NO_EJECUTADA} distingue el caso en que la propuesta
+     * obtiene veredicto de aprobada pero su acción no llega a aplicarse (hoy solo el ASCENSO: bote sin
+     * fondos o requisitos caídos entre proponer y ejecutar), para no anunciar como hecho lo que no pasó.
+     */
     public enum ResultadoVoto {
-        REGISTRADO, APROBADA_EJECUTADA, RECHAZADA, CADUCADA, NO_AUTORIZADO, NO_EXISTE
+        REGISTRADO, APROBADA_EJECUTADA, APROBADA_NO_EJECUTADA, RECHAZADA, CADUCADA, NO_AUTORIZADO, NO_EXISTE
     }
 
     /** Resultado de {@link #ascensoPatrocinado} (camino directo del dueño y validaciones previas). */
@@ -250,13 +254,17 @@ public final class EmpresaGestionService {
             // ya no es ejecutable, se cierra sin efecto (se trata como rechazada: quedó resuelta).
             if (revalidaEjecutable(prop)) {
                 // ASCENSO tiene su propia ejecución (bote + carrera); el resto va por el switch de gestión.
-                // En ambos casos es best-effort: si al ejecutar ya no cumple (rango revalidado arriba, y
-                // para ascenso además requisitos/fondos), no aplica nada pero la propuesta queda resuelta.
                 if (prop.tipo() == TipoPropuesta.ASCENSO) {
-                    ejecutarAscenso(prop.empresaId(), prop.objetivoId(), prop.dato());
-                } else {
-                    ejecutar(prop.empresaId(), prop.tipo(), prop.objetivoId(), prop.rangoNuevo());
+                    // Best-effort: aunque el rango ya se revalidó arriba, al ejecutar puede fallar el bote
+                    // o los requisitos del objetivo. Si no se aplica, se cierra igual pero se avisa distinto
+                    // (APROBADA_NO_EJECUTADA) para no anunciar un ascenso que no ocurrió.
+                    ResultadoAscensoPatrocinado res =
+                            ejecutarAscenso(prop.empresaId(), prop.objetivoId(), prop.dato());
+                    propuestas.cerrar(prop.id());
+                    return res == ResultadoAscensoPatrocinado.OK
+                            ? ResultadoVoto.APROBADA_EJECUTADA : ResultadoVoto.APROBADA_NO_EJECUTADA;
                 }
+                ejecutar(prop.empresaId(), prop.tipo(), prop.objetivoId(), prop.rangoNuevo());
                 propuestas.cerrar(prop.id());
                 return ResultadoVoto.APROBADA_EJECUTADA;
             }

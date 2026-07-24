@@ -79,6 +79,9 @@ public final class EmpresaBotonesListener extends ListenerAdapter {
         }
         String desc = switch (r) {
             case APROBADA_EJECUTADA -> Messages.get(locale, "empresa.gestion.voto.aprobada");
+            // Aprobada por veredicto pero la acción no se aplicó (ascenso sin fondos o requisitos caídos):
+            // se dice claro para no anunciar como hecho lo que no ocurrió.
+            case APROBADA_NO_EJECUTADA -> Messages.get(locale, "empresa.gestion.voto.aprobada_no_ejecutada");
             case RECHAZADA -> Messages.get(locale, "empresa.gestion.voto.rechazada");
             case CADUCADA -> Messages.get(locale, "empresa.gestion.voto.caducada");
             case NO_EXISTE -> Messages.get(locale, "empresa.gestion.voto.no_existe");

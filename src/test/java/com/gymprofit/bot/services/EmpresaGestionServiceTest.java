@@ -547,7 +547,7 @@ class EmpresaGestionServiceTest {
     }
 
     @Test
-    @DisplayName("propuesta ASCENSO aprobada pero con el bote sin fondos: no aplica, cierra igual")
+    @DisplayName("propuesta ASCENSO aprobada pero con el bote sin fondos: no aplica y NO se anuncia como ejecutada")
     void ascensoVotoAprobadoSinFondos() {
         Propuesta prop = propuestaAscenso(PUESTO, futuro());
         when(propuestas.porId(77L)).thenReturn(Optional.of(prop));
@@ -560,8 +560,45 @@ class EmpresaGestionServiceTest {
         when(trabajos.costeAscenso(PUESTO)).thenReturn(COSTE);
         when(repo.gastarDelBote(EMPRESA, COSTE)).thenReturn(false);
 
-        // Best-effort: la propuesta queda resuelta (aprobada) aunque el ascenso no llegue a aplicarse.
-        assertEquals(ResultadoVoto.APROBADA_EJECUTADA, svc().votar(77L, DIRECTIVO, true));
+        // Aprobada de veredicto pero el ascenso no se aplicó: se distingue para no mentir a los votantes.
+        assertEquals(ResultadoVoto.APROBADA_NO_EJECUTADA, svc().votar(77L, DIRECTIVO, true));
+        verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
+        verify(propuestas).cerrar(77L);
+    }
+
+    @Test
+    @DisplayName("propuesta ASCENSO aprobada pero el objetivo ya no cumple requisitos al ejecutar: APROBADA_NO_EJECUTADA")
+    void ascensoVotoAprobadoRequisitosCaidos() {
+        Propuesta prop = propuestaAscenso(PUESTO, futuro());
+        when(propuestas.porId(77L)).thenReturn(Optional.of(prop));
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+        when(propuestas.votos(77L)).thenReturn(List.of(voto(DUENO, true), voto(DIRECTIVO, true)));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        // Entre proponer y aprobar el objetivo dejó de cumplir (p.ej. cambió de puesto): validarAscenso falla.
+        when(trabajos.validarAscenso(OBJETIVO, PUESTO))
+                .thenReturn(new ResultadoAscenso(EstadoAscenso.TURNOS, null, 3));
+
+        assertEquals(ResultadoVoto.APROBADA_NO_EJECUTADA, svc().votar(77L, DIRECTIVO, true));
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+        verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
+        verify(propuestas).cerrar(77L);
+    }
+
+    @Test
+    @DisplayName("propuesta ASCENSO aprobada pero el objetivo dejó la empresa: RECHAZADA (revalidación de rango)")
+    void ascensoVotoObjetivoFueraDeEmpresa() {
+        Propuesta prop = propuestaAscenso(PUESTO, futuro());
+        when(propuestas.porId(77L)).thenReturn(Optional.of(prop));
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+        when(propuestas.votos(77L)).thenReturn(List.of(voto(DUENO, true), voto(DIRECTIVO, true)));
+        // El objetivo ya no figura en la plantilla: revalidaEjecutable es false → se cierra como rechazada.
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+
+        assertEquals(ResultadoVoto.RECHAZADA, svc().votar(77L, DIRECTIVO, true));
+        verify(trabajos, never()).validarAscenso(anyLong(), anyString());
         verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
         verify(propuestas).cerrar(77L);
     }

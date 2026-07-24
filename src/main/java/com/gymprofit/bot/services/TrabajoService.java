@@ -240,8 +240,12 @@ public final class TrabajoService {
      * puesto destino (lo que además resetea la antigüedad). <b>No valida ni cobra</b>: presupone que
      * {@link #validarAscenso} devolvió OK y que el pago (del jugador o del bote de su empresa) ya se
      * hizo. El tier destino se deduce del propio puesto, así que la firma no lo arrastra.
+     *
+     * <p><b>Package-private a propósito:</b> solo lo llaman {@link #ascender} y el patrocinio de empresa
+     * ({@code EmpresaGestionService}), ambos en este paquete; no es superficie pública porque aplicar sin
+     * validar ni cobrar antes rompería las reglas de dinero.
      */
-    public void aplicarAscenso(long discordId, String puestoId) {
+    void aplicarAscenso(long discordId, String puestoId) {
         Trabajos destino = Trabajos.porId(puestoId).orElseThrow();
         Ascensos.Rama rama = Ascensos.ramaDe(destino.sector());
         carreras.fijarTier(discordId, rama.name(), destino.tier());
