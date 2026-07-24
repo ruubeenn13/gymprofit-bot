@@ -68,6 +68,9 @@ public final class EmpresaService {
     /** Resultado de disolver una empresa. */
     public enum ResultadoDisolver { OK, SIN_EMPRESA, NO_ERES_DUENO }
 
+    /** Resultado de alternar el flag de contratando de una empresa (bolsa de empleo F5c). */
+    public enum ResultadoContratar { ABIERTA, CERRADA, SIN_EMPRESA, NO_AUTORIZADO }
+
     /**
      * Salida de {@code fundar}: el estado y, cuando es {@link ResultadoFundar#OK}, el id de la empresa
      * creada y los coins quemados (para pintarlos en el embed de celebración).
@@ -276,6 +279,42 @@ public final class EmpresaService {
         }
         repo.borrarPendiente(pendienteId);
         return ResultadoResolver.ACEPTADO;
+    }
+
+    /**
+     * Alterna si la empresa del actor aparece en la bolsa de empleo (F5c). Solo un alto cargo
+     * (DUENO/DIRECTIVO) puede: es un opt-in de gestión, no una acción de cualquier miembro. Reusa
+     * {@code altosCargos} (mismo criterio que {@link EmpresaVentaService}) para la autorización.
+     *
+     * @param actorId jugador que ejecuta el toggle (debe ser dueño o directivo de su empresa)
+     * @return ABIERTA/CERRADA según el nuevo estado, o SIN_EMPRESA/NO_AUTORIZADO si no procede
+     */
+    public ResultadoContratar alternarContratando(long actorId) {
+        Optional<Empresa> emp = repo.deMiembro(actorId);
+        if (emp.isEmpty()) {
+            return ResultadoContratar.SIN_EMPRESA;
+        }
+        boolean altoCargo = repo.altosCargos(emp.get().id()).stream()
+                .anyMatch(m -> m.discordId() == actorId);
+        if (!altoCargo) {
+            return ResultadoContratar.NO_AUTORIZADO;
+        }
+        boolean nuevo = !emp.get().contratando();
+        repo.fijarContratando(emp.get().id(), nuevo);
+        return nuevo ? ResultadoContratar.ABIERTA : ResultadoContratar.CERRADA;
+    }
+
+    /**
+     * Rama de carrera del jugador según su trabajo actual (F5c, para el tablón {@code /empleo}).
+     * Vacío si aún no tiene trabajo (sin rama no hay empresa a la que optar). Reusa la regla única
+     * {@link #ramaDe(String)}, la misma que decide en qué rama funda o ingresa.
+     */
+    public Optional<Ascensos.Rama> ramaDeJugador(long discordId) {
+        Personaje p = personajes.obtenerOCrear(discordId);
+        if (p.trabajo() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(ramaDe(p.trabajo()));
     }
 
     /** Datos y miembros de la empresa del jugador, si pertenece a alguna. */

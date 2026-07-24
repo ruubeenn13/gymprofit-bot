@@ -306,6 +306,10 @@ public final class EmpresaComando implements ComandoAutocompletable {
         if (e.impagos() > 0) {
             cuerpo += "\n" + Messages.get(locale, "empresa.info.morosa", e.impagos(), Impuesto.MOROSIDAD_MAX);
         }
+        // F5c: si está abierta a la bolsa de empleo, se marca para que se vea desde la propia ficha.
+        if (e.contratando()) {
+            cuerpo += "\n" + Messages.get(locale, "empresa.info.contratando");
+        }
         evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "empresa.info.titulo"), cuerpo).build()).queue();
     }

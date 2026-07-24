@@ -21,6 +21,7 @@ import com.gymprofit.bot.commands.economia.CofresComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
 import com.gymprofit.bot.commands.economia.DescansoComando;
+import com.gymprofit.bot.commands.economia.EmpleoComando;
 import com.gymprofit.bot.commands.economia.EmpresaComando;
 import com.gymprofit.bot.commands.economia.GremioComando;
 import com.gymprofit.bot.commands.economia.DailyComando;
@@ -495,6 +496,9 @@ public final class Main {
             comandos.add(new EmpresaComando(
                     empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService,
                     empresaVenta));
+            // Empresas (Fase 5c): bolsa de empleo. /empleo ver lista las empresas de tu rama que
+            // contratan (con botón de solicitud) y /empleo contratar abre/cierra la tuya a la bolsa.
+            comandos.add(new EmpleoComando(empresaService, empresaRepo));
             // El listener recibe además los repos de empresa y de propuestas (F4): sincroniza el canal
             // privado con la BD al aceptar un ingreso, sacar/despedir por voto o disolver, y necesita leer
             // la pendiente y la propuesta ANTES de que la operación las borre.
