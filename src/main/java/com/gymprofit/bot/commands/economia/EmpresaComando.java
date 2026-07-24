@@ -15,6 +15,7 @@ import com.gymprofit.bot.services.EmpresaGestionService.ResultadoAscensoPatrocin
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaVentaService;
+import com.gymprofit.bot.services.Impuesto;
 import com.gymprofit.bot.services.Produccion;
 import com.gymprofit.bot.services.EmpresaService.InfoEmpresa;
 import com.gymprofit.bot.services.EmpresaService.ResultadoFundar;
@@ -301,6 +302,10 @@ public final class EmpresaComando implements ComandoAutocompletable {
                 Produccion.capacidad(e.nivel()), // tope del almacén: acoplado al nivel vía Produccion (F5a)
                 miembros.size(),
                 lista.toString().strip());
+        // F5b: si arrastra impagos de la cuota semanal, se avisa de la morosidad (cerca de la quiebra).
+        if (e.impagos() > 0) {
+            cuerpo += "\n" + Messages.get(locale, "empresa.info.morosa", e.impagos(), Impuesto.MOROSIDAD_MAX);
+        }
         evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "empresa.info.titulo"), cuerpo).build()).queue();
     }

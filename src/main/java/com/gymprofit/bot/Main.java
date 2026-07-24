@@ -95,6 +95,7 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.BolsaJob;
 import com.gymprofit.bot.jobs.EjercicioDiaJob;
+import com.gymprofit.bot.jobs.ImpuestoEmpresasJob;
 import com.gymprofit.bot.jobs.NominaEmpresasJob;
 import com.gymprofit.bot.jobs.SorteoJob;
 import com.gymprofit.bot.services.ApuestaService;
@@ -111,6 +112,7 @@ import com.gymprofit.bot.services.EjercicioDiaService;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaVentaService;
+import com.gymprofit.bot.services.ImpuestoEmpresasService;
 import com.gymprofit.bot.services.EjercicioService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
@@ -221,6 +223,16 @@ public final class Main {
         // Job que resuelve los sorteos vencidos (elige ganadores por reacción). Requiere BD + JDA.
         if (db != null && jda != null) {
             new SorteoJob(jda, new SorteoService(new SorteoRepositorio(db.dataSource()))).iniciar();
+        }
+
+        // Impuesto semanal de empresas (F5b): lunes 02:00 Europe/Madrid, ANTES de la nómina de las
+        // 03:00. Requiere BD + JDA (avisa de morosidad/quiebra por el canal privado de la empresa). Se
+        // crea aquí, no en iniciarDiscord, porque necesita el JDA ya construido, igual que EjercicioDiaJob.
+        if (db != null && jda != null) {
+            EmpresaRepositorio empresaRepoImpuesto = new EmpresaRepositorio(db.dataSource());
+            new ImpuestoEmpresasJob(empresaRepoImpuesto,
+                    new ImpuestoEmpresasService(empresaRepoImpuesto), jda,
+                    Clock.system(ZoneId.of("Europe/Madrid"))).iniciar();
         }
 
         // Publicación diaria del ejercicio (8:00 Europe/Madrid). Requiere BD + JDA + API.
