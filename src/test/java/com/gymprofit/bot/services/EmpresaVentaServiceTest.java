@@ -43,7 +43,7 @@ class EmpresaVentaServiceTest {
     @DisplayName("venta OK: quema el impuesto y abona SOLO el neto al bote")
     void ventaOkQuemaImpuestoYAbonaNeto() {
         when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(100L)));
-        when(repo.miembros(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
         when(repo.gastarMercancia(EMPRESA_ID, 100L)).thenReturn(true);
 
         Resultado r = svc().vender(DUENO, OptionalLong.of(100L));
@@ -63,7 +63,7 @@ class EmpresaVentaServiceTest {
     @DisplayName("sin cantidad vende toda la mercancia actual")
     void ventaSinCantidadVendeTodo() {
         when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(100L)));
-        when(repo.miembros(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
         when(repo.gastarMercancia(EMPRESA_ID, 100L)).thenReturn(true);
 
         Resultado r = svc().vender(DUENO, OptionalLong.empty());
@@ -79,7 +79,7 @@ class EmpresaVentaServiceTest {
     @DisplayName("venta parcial: gasta lo pedido y deja el resto en almacen")
     void ventaParcial() {
         when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(100L)));
-        when(repo.miembros(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
         when(repo.gastarMercancia(EMPRESA_ID, 40L)).thenReturn(true);
 
         Resultado r = svc().vender(DUENO, OptionalLong.of(40L));
@@ -95,10 +95,26 @@ class EmpresaVentaServiceTest {
     }
 
     @Test
+    @DisplayName("cantidad > disponible: se acota con Math.min y vende solo lo que hay")
+    void ventaCantidadMayorQueDisponibleVendeLoQueHay() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(100L)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.gastarMercancia(EMPRESA_ID, 100L)).thenReturn(true);
+
+        Resultado r = svc().vender(DUENO, OptionalLong.of(200L));
+
+        assertEquals(Estado.OK, r.estado());
+        assertEquals(100L, r.unidades()); // pidió 200 pero solo hay 100: Math.min gana
+        assertEquals(0L, r.restante());
+        verify(repo).gastarMercancia(EMPRESA_ID, 100L);
+        verify(repo).incrementarBote(EMPRESA_ID, 4_250L);
+    }
+
+    @Test
     @DisplayName("almacen vacio: SIN_MERCANCIA y no toca el bote")
     void ventaSinMercancia() {
         when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(0L)));
-        when(repo.miembros(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
 
         Resultado r = svc().vender(DUENO, OptionalLong.empty());
 
@@ -110,7 +126,8 @@ class EmpresaVentaServiceTest {
     @DisplayName("un empleado no puede vender: NO_AUTORIZADO y ni siquiera intenta descontar")
     void ventaNoAutorizadoSiNoEsAltoCargo() {
         when(repo.deMiembro(EMPLEADO)).thenReturn(Optional.of(empresa(100L)));
-        when(repo.miembros(EMPRESA_ID)).thenReturn(List.of(miembro(EMPLEADO, RangoEmpresa.EMPLEADO)));
+        // altosCargos filtra en SQL a DUENO/DIRECTIVO: un empleado no aparece → no es alto cargo.
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of());
 
         Resultado r = svc().vender(EMPLEADO, OptionalLong.of(100L));
 
@@ -135,7 +152,7 @@ class EmpresaVentaServiceTest {
     @DisplayName("carrera perdida: gastarMercancia false NO abona al bote (gate atomico)")
     void gastarMercanciaFalseNoAbona() {
         when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(100L)));
-        when(repo.miembros(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
         when(repo.gastarMercancia(EMPRESA_ID, 100L)).thenReturn(false);
 
         Resultado r = svc().vender(DUENO, OptionalLong.of(100L));

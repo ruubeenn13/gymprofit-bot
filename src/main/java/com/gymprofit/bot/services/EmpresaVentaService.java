@@ -2,9 +2,7 @@ package com.gymprofit.bot.services;
 
 import com.gymprofit.bot.db.Empresa;
 import com.gymprofit.bot.db.EmpresaRepositorio;
-import com.gymprofit.bot.db.MiembroEmpresa;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 
@@ -26,7 +24,8 @@ public final class EmpresaVentaService {
      * @param bruto    dinero bruto (unidades * precio)
      * @param impuesto parte quemada del bruto (no va a nadie)
      * @param neto     dinero ingresado al bote (bruto − impuesto)
-     * @param restante mercancia que queda en el almacen tras la venta
+     * @param restante mercancia que queda en el almacen tras la venta (estimacion de display: snapshot del
+     *                 disponible leido, no autoritativa; un currar concurrente pudo sumar mercancia)
      */
     public record Resultado(Estado estado, long unidades, long bruto, long impuesto, long neto, long restante) {
         static Resultado de(Estado estado) { return new Resultado(estado, 0, 0, 0, 0, 0); }
@@ -56,17 +55,22 @@ public final class EmpresaVentaService {
         if (aVender <= 0) return Resultado.de(Estado.SIN_MERCANCIA);
         // Gate atomico: si el descuento condicional no prospera (almacen ya vaciado), no se abona nada.
         if (!repo.gastarMercancia(emp.id(), aVender)) return Resultado.de(Estado.SIN_MERCANCIA);
+        // bruto acotado: mercancia <= nivel*100 (Produccion.capacidad), no desborda long
         long bruto = aVender * Produccion.PRECIO_UNIDAD;
         long impuesto = Produccion.impuesto(bruto);
         long neto = bruto - impuesto;
         repo.incrementarBote(emp.id(), neto); // el impuesto NO se ingresa a nadie: se quema
+        // restante es una estimacion de display (snapshot del disponible leido): un currar concurrente
+        // pudo sumar mercancia entre la lectura y ahora, asi que no es autoritativa (la BD lo es).
         return new Resultado(Estado.OK, aVender, bruto, impuesto, neto, disponible - aVender);
     }
 
-    /** Alto cargo = dueño o directivo: los unicos que pueden mover el dinero de la empresa. */
+    /**
+     * Alto cargo = dueño o directivo: los unicos que pueden mover el dinero de la empresa. Reusa
+     * {@code altosCargos} (filtra {@code rango IN ('DUENO','DIRECTIVO')} en SQL) en vez de traerse toda
+     * la plantilla y filtrar en memoria, misma fuente que {@code EmpresaGestionService}.
+     */
     private boolean esAltoCargo(long empresaId, long actorId) {
-        List<MiembroEmpresa> miembros = repo.miembros(empresaId);
-        return miembros.stream().filter(m -> m.discordId() == actorId)
-                .anyMatch(m -> m.rango() == RangoEmpresa.DUENO || m.rango() == RangoEmpresa.DIRECTIVO);
+        return repo.altosCargos(empresaId).stream().anyMatch(m -> m.discordId() == actorId);
     }
 }
