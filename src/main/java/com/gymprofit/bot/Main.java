@@ -147,6 +147,7 @@ import com.gymprofit.bot.events.CombateListener;
 import com.gymprofit.bot.events.DescansoListener;
 import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.events.DueloListener;
+import com.gymprofit.bot.events.EmpleoListener;
 import com.gymprofit.bot.events.EmpresaBotonesListener;
 import com.gymprofit.bot.events.TruequeListener;
 import com.gymprofit.bot.events.EjerciciosPaginadorListener;
@@ -499,6 +500,10 @@ public final class Main {
             // Empresas (Fase 5c): bolsa de empleo. /empleo ver lista las empresas de tu rama que
             // contratan (con botón de solicitud) y /empleo contratar abre/cierra la tuya a la bolsa.
             comandos.add(new EmpleoComando(empresaService, empresaRepo));
+            // El botón "Solicitar" del tablón /empleo abre un modal que pide el motivo y crea la solicitud
+            // (F5c). Comparte la misma instancia de EmpresaService que /empleo y /empresa: la validación de
+            // ingreso es única (solicitarPorId).
+            listeners.add(new EmpleoListener(empresaService));
             // El listener recibe además los repos de empresa y de propuestas (F4): sincroniza el canal
             // privado con la BD al aceptar un ingreso, sacar/despedir por voto o disolver, y necesita leer
             // la pendiente y la propuesta ANTES de que la operación las borre.
