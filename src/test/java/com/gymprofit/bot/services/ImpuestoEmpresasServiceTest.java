@@ -58,6 +58,20 @@ class ImpuestoEmpresasServiceTest {
     }
 
     @Test
+    @DisplayName("bote exactamente igual a la cuota: paga (pin del limite >=)")
+    void boteIgualALaCuota_paga() {
+        Empresa e = empresa(2, 5_000L, 0); // bote == cuota nivel 2
+        when(repo.gastarDelBote(EMPRESA_ID, 5_000L)).thenReturn(true);
+
+        Resolucion r = svc().evaluar(e);
+        assertEquals(Tipo.PAGA, r.tipo());
+
+        svc().aplicar(e);
+        verify(repo).gastarDelBote(EMPRESA_ID, 5_000L);
+        verify(repo).fijarImpagos(EMPRESA_ID, 0);
+    }
+
+    @Test
     @DisplayName("bote no cubre y es el primer impago: morosa, sin quemar nada")
     void boteNoCubre_primerImpago_morosa() {
         Empresa e = empresa(2, 1_000L, 0); // cuota 5.000, falta 4.000

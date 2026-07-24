@@ -57,11 +57,14 @@ public final class ImpuestoEmpresasService {
     /** Un pago que falla en el gate se trata como impago: cuenta uno mas y quiebra si toca. */
     private Resolucion recaerEnImpago(Empresa e, long cuota) {
         int nuevos = e.impagos() + 1;
+        // falta real segun el snapshot que teniamos (igual que evaluar), no la cuota entera: en la
+        // carrera el bote no cubre pero puede no estar a 0, y el aviso no debe exagerar cuanto falta.
+        long falta = cuota - e.bote();
         if (nuevos >= Impuesto.MOROSIDAD_MAX) {
             repo.disolver(e.id());
-            return new Resolucion(Tipo.QUIEBRA, cuota, nuevos, cuota);
+            return new Resolucion(Tipo.QUIEBRA, cuota, nuevos, falta);
         }
         repo.fijarImpagos(e.id(), nuevos);
-        return new Resolucion(Tipo.MOROSA, cuota, nuevos, cuota);
+        return new Resolucion(Tipo.MOROSA, cuota, nuevos, falta);
     }
 }
