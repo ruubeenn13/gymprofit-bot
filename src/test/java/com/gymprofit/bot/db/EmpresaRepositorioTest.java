@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -325,6 +326,15 @@ class EmpresaRepositorioTest {
                 empresas.sumarMercancia(tope, 50); // 130 -> LEAST recorta a 100
                 assertEquals(100, empresas.porId(tope).orElseThrow().mercancia(),
                         "el LEAST recorta la mercancia al tope por nivel");
+
+                // Regresion F4: canal_id NULL debe mapearse como null (no 0), o la creacion perezosa del
+                // canal nunca dispararia (ensureCanal creeria que ya existe). Antes del fix wasNull()
+                // reflejaba a 'creada' (NOT NULL) y esto devolvia 0.
+                assertNull(empresas.porId(tope).orElseThrow().canalId(),
+                        "empresa sin canal -> canalId null, no 0");
+                empresas.fijarCanal(tope, 555L);
+                assertEquals(555L, empresas.porId(tope).orElseThrow().canalId(),
+                        "tras fijarCanal, canalId se lee de vuelta");
 
                 // gastarMercancia condicional: descuenta si hay bastante, no baja de 0 si no.
                 long gasto = empresas.fundar("TECNICA", duenoGasto, "Beta"); // nivel 1

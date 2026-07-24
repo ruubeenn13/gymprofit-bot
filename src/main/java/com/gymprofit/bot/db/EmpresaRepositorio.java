@@ -487,7 +487,11 @@ public final class EmpresaRepositorio {
 
     private static Empresa mapearEmpresa(ResultSet rs) throws SQLException {
         // canal_id es NULL hasta que se crea el canal (F4): getLong da 0 en NULL, wasNull() lo distingue.
+        // wasNull() refleja el ULTIMO getter, asi que hay que capturarlo AQUI —antes de leer otras
+        // columnas—, no en el ternario del constructor (alli reflejaria a 'creada', NOT NULL, y canal_id
+        // NULL se leeria erroneamente como 0, rompiendo la creacion perezosa de F4).
         long canalId = rs.getLong("canal_id");
+        boolean sinCanal = rs.wasNull();
         return new Empresa(
                 rs.getLong("id"),
                 rs.getString("rama"),
@@ -496,7 +500,7 @@ public final class EmpresaRepositorio {
                 rs.getInt("nivel"),
                 rs.getLong("bote"),
                 rs.getTimestamp("creada").toInstant(),
-                rs.wasNull() ? null : canalId,
+                sinCanal ? null : canalId,
                 rs.getLong("mercancia"));
     }
 
