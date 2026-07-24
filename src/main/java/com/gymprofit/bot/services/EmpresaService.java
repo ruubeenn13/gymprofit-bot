@@ -87,6 +87,10 @@ public final class EmpresaService {
     public record InfoEmpresa(Empresa empresa, List<MiembroEmpresa> miembros) {
     }
 
+    /** Fila del ranking ya puntuada y ordenada para la vista (F4). */
+    public record FilaRanking(String nombre, String rama, int nivel, int miembros, long bote, long prestigio) {
+    }
+
     /** Tope de caracteres del motivo de una solicitud (columna {@code motivo VARCHAR(300)}). */
     private static final int MOTIVO_MAX = 300;
 
@@ -299,6 +303,22 @@ public final class EmpresaService {
         }
         repo.subirNivel(e.id());
         return new SalidaMejora(ResultadoMejora.OK, nivelActual + 1, coste);
+    }
+
+    /**
+     * Top de empresas por prestigio (F4). Trae todas (son pocas), puntua cada una con
+     * {@link Prestigio#calcular} y devuelve las {@code limite} de mayor prestigio, de mayor a menor.
+     *
+     * @param limite número máximo de filas a devolver (el top que se pinta)
+     * @return las empresas de mayor prestigio, ordenadas descendentemente
+     */
+    public List<FilaRanking> ranking(int limite) {
+        return repo.ranking().stream()
+                .map(e -> new FilaRanking(e.nombre(), e.rama(), e.nivel(), e.miembros(), e.bote(),
+                        Prestigio.calcular(e.nivel(), e.miembros(), e.bote())))
+                .sorted(java.util.Comparator.comparingLong(FilaRanking::prestigio).reversed())
+                .limit(limite)
+                .toList();
     }
 
     /** ¿Es {@code quienId} la parte con potestad para resolver esta pendiente? */

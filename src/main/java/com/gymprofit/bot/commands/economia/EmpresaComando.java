@@ -69,6 +69,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
     private static final int MAX_SUGERENCIAS = 25;
     /** Discord corta el nombre de una sugerencia a 100 caracteres. */
     private static final int MAX_LARGO_SUGERENCIA = 100;
+    /** Número de empresas que se listan en el ranking de prestigio (F4). */
+    private static final int TOP = 10;
     /** Prefijo del customId de resolver una pendiente: {@code empresa:resolver:<pendienteId>:<1|0>}. */
     public static final String BOTON_RESOLVER = "empresa:resolver";
     /** Prefijos del customId de la confirmación de disolver: {@code empresa:disolver:<accion>:<ownerId>}. */
@@ -170,7 +172,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
                         sub("despedir", "comando.empresa.despedir.descripcion").addOptions(usuarioDespedir),
                         sub("ascender", "comando.empresa.ascender.descripcion")
                                 .addOptions(miembroAscender, puestoAscender),
-                        sub("propuestas", "comando.empresa.propuestas.descripcion"));
+                        sub("propuestas", "comando.empresa.propuestas.descripcion"),
+                        sub("ranking", "comando.empresa.ranking.desc"));
     }
 
     private static SubcommandData sub(String nombre, String claveDesc) {
@@ -195,6 +198,7 @@ public final class EmpresaComando implements ComandoAutocompletable {
             case "despedir" -> gestionar(evento, locale, TipoPropuesta.DESPEDIR);
             case "ascender" -> ascender(evento, locale);
             case "propuestas" -> propuestas(evento, locale);
+            case "ranking" -> ranking(evento, locale);
             default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
         }
@@ -630,6 +634,40 @@ public final class EmpresaComando implements ComandoAutocompletable {
                                 Messages.get(locale, "empresa.propuesta.lista.titulo"),
                                 cuerpoPropuesta(locale, p)).build())
                 .setComponents(botonesVoto(locale, p.id())).queue());
+    }
+
+    /**
+     * Pinta el top {@value #TOP} de empresas por prestigio (F4). Público. Reusa el estilo de podio de
+     * {@code TopComando} (medallas para el podio, número para el resto).
+     */
+    private void ranking(SlashCommandInteractionEvent evento, Locale locale) {
+        List<EmpresaService.FilaRanking> top = empresa.ranking(TOP);
+        if (top.isEmpty()) {
+            evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+                    Messages.get(locale, "empresa.ranking.titulo"),
+                    Messages.get(locale, "empresa.ranking.vacio")).build()).queue();
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        int puesto = 1;
+        for (EmpresaService.FilaRanking f : top) {
+            // Podio con medallas, resto con el número de puesto en negrita (mismo criterio que TopComando).
+            String medalla = switch (puesto) {
+                case 1 -> "🥇";
+                case 2 -> "🥈";
+                case 3 -> "🥉";
+                default -> "**" + puesto + ".**";
+            };
+            sb.append(Messages.get(locale, "empresa.ranking.fila",
+                    medalla, f.nombre(),
+                    Messages.get(locale, "rama." + f.rama().toLowerCase(Locale.ROOT)),
+                    f.nivel(), f.miembros(), f.bote()));
+            sb.append('\n');
+            puesto++;
+        }
+        var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+                Messages.get(locale, "empresa.ranking.titulo"), sb.toString().strip()).build();
+        evento.replyEmbeds(embed).queue();
     }
 
     /** Texto de una propuesta: sobre quién, qué propone quién y cuándo caduca (timestamp relativo de Discord). */
