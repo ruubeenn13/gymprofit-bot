@@ -116,10 +116,14 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   creación perezosa (lo materializa la primera acción relevante, con guard atómico contra canales
   huérfanos). La lógica de canal vive en la capa comando/listener; los services siguen guild-agnostic.
   `/empresa` suma `ranking`. Migración V30 (`canal_id`).
-- **Migraciones Flyway V6–V30**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 5a)**: producción y ventas. Cada `/trabajo currar` de un miembro genera **mercancía**
+  (`5 + nivel`) al almacén de su empresa, con tope `nivel × 100` (el rebose se pierde). `/empresa vender`
+  (altos cargos) la convierte en coins al bote menos un **15 % de impuesto quemado**. Números en
+  `Produccion`; el descuento de mercancía es el gate atómico. Migración V31 (`mercancia`).
+- **Migraciones Flyway V6–V31**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
-  economía y estatus).
+  economía, estatus y producción).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

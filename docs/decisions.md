@@ -377,3 +377,19 @@ permisos, se registra y se sigue.
 
 **Consecuencias.** Migración V30 (columna `canal_id` en `empresas`). Los cosméticos comprables se
 difieren a una mini-fase posterior. La competición por rama (cuota de mercado) queda para F5.
+
+## ADR-020 — producción y ventas de empresas
+
+**Estado:** aceptada e implementada (Fase 5a).
+
+**Contexto.** Tras F4 la empresa tenía estatus pero ninguna actividad productiva propia.
+
+**Decisión.** Cada `/trabajo currar` de un miembro produce **mercancía** (`5 + nivel` unidades) al almacén
+de su empresa —además del corte del 10 % al bote de F3—, con **tope por nivel** (`nivel × 100`): el rebose
+se pierde (sumidero suave). `/empresa vender [cantidad]` (altos cargos, sin voto) convierte mercancía en
+coins al **bote** menos un **impuesto del 15 % que se quema**. El descuento de mercancía es el gate
+atómico (nunca se abona una venta que no pudo descontar). Números tunables en `Produccion`.
+
+**Consecuencias.** Migración V31 (`empresas.mercancia`). La producción es una fuente de coins moderada y
+triplemente frenada (energía del curro, tope de almacén, impuesto quemado). Impuestos al Estado, insumos,
+precio fluctuante y venta B2B quedan para subsistemas posteriores de F5.

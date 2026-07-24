@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5a)** (`/empresa vender`): la empresa produce **mercancía** con el trabajo de sus
+  miembros (tope por nivel) y la vende para engordar el bote, con un impuesto de venta quemado. Migración
+  `V31`.
 - **Empresas (Fase 4)** (`/empresa ranking`): tabla de prestigio de las empresas (nivel + miembros +
   bote) y un **canal privado** por empresa (permisos de miembro, sin roles), creado perezosamente para
   todas. Migración `V30`.
