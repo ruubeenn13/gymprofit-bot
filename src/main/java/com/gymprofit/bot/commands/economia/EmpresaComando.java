@@ -14,6 +14,8 @@ import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoAscensoPatrocinado;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
 import com.gymprofit.bot.services.EmpresaService;
+import com.gymprofit.bot.services.EmpresaVentaService;
+import com.gymprofit.bot.services.Produccion;
 import com.gymprofit.bot.services.EmpresaService.InfoEmpresa;
 import com.gymprofit.bot.services.EmpresaService.ResultadoFundar;
 import com.gymprofit.bot.services.EmpresaService.ResultadoIngreso;
@@ -43,6 +45,7 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * {@code /empresa} con subcomandos (fundar, info, disolver, invitar, solicitar, pendientes). Es la
@@ -86,15 +89,18 @@ public final class EmpresaComando implements ComandoAutocompletable {
     private final EmpresaPropuestaRepositorio propuestasRepo;
     /** Piezas de carrera para el ascenso patrocinado: opciones de ascenso (autocompletado) y coste. */
     private final TrabajoService trabajos;
+    /** Venta de la mercancia del almacen (F5a): neto al bote, impuesto quemado, gate atomico. */
+    private final EmpresaVentaService venta;
 
     public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo,
                           EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo,
-                          TrabajoService trabajos) {
+                          TrabajoService trabajos, EmpresaVentaService venta) {
         this.empresa = empresa;
         this.repo = repo;
         this.gestion = gestion;
         this.propuestasRepo = propuestasRepo;
         this.trabajos = trabajos;
+        this.venta = venta;
     }
 
     @Override
@@ -151,6 +157,12 @@ public final class EmpresaComando implements ComandoAutocompletable {
                 Messages.get(Messages.ES, "comando.empresa.ascender.opcion.puesto"), true, true)
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.empresa.ascender.opcion.puesto"));
+        // F5a — venta de mercancia. Cantidad opcional (>= 1): vacio = vender todo el almacen.
+        OptionData cantidadVender = new OptionData(OptionType.INTEGER, "cantidad",
+                Messages.get(Messages.ES, "comando.empresa.vender.cantidad"), false)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.vender.cantidad"))
+                .setMinValue(1);
 
         return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.empresa.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
@@ -174,6 +186,7 @@ public final class EmpresaComando implements ComandoAutocompletable {
                         sub("ascender", "comando.empresa.ascender.descripcion")
                                 .addOptions(miembroAscender, puestoAscender),
                         sub("propuestas", "comando.empresa.propuestas.descripcion"),
+                        sub("vender", "comando.empresa.vender.desc").addOptions(cantidadVender),
                         sub("ranking", "comando.empresa.ranking.desc"));
     }
 
@@ -199,6 +212,7 @@ public final class EmpresaComando implements ComandoAutocompletable {
             case "despedir" -> gestionar(evento, locale, TipoPropuesta.DESPEDIR);
             case "ascender" -> ascender(evento, locale);
             case "propuestas" -> propuestas(evento, locale);
+            case "vender" -> vender(evento, locale);
             case "ranking" -> ranking(evento, locale);
             default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
@@ -283,6 +297,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
                 e.nivel(),
                 e.nivel() * 2, // bonus de ingresos actual: +2 % por nivel
                 e.bote(),
+                e.mercancia(),
+                Produccion.capacidad(e.nivel()), // tope del almacén: acoplado al nivel vía Produccion (F5a)
                 miembros.size(),
                 lista.toString().strip());
         evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
@@ -674,6 +690,28 @@ public final class EmpresaComando implements ComandoAutocompletable {
                                 Messages.get(locale, "empresa.propuesta.lista.titulo"),
                                 cuerpoPropuesta(locale, p)).build())
                 .setComponents(botonesVoto(locale, p.id())).queue());
+    }
+
+    /**
+     * Vende la mercancía del almacén de tu empresa (F5a): solo altos cargos. El neto entra al bote y el
+     * impuesto se quema; toda la regla de dinero (gate atómico incluido) vive en {@link EmpresaVentaService}.
+     * Público (la economía se juega a la vista): el éxito celebra las cifras y los errores llevan el dato
+     * exacto, todo con el mismo {@code Tipo.ECONOMIA} que el resto del comando.
+     */
+    private void vender(SlashCommandInteractionEvent evento, Locale locale) {
+        OptionMapping opt = evento.getOption("cantidad");
+        // Sin opción = vender todo el almacén (OptionalLong.empty); el service acota con Math.min.
+        OptionalLong cantidad = opt == null ? OptionalLong.empty() : OptionalLong.of(opt.getAsLong());
+        EmpresaVentaService.Resultado r = venta.vender(evento.getUser().getIdLong(), cantidad);
+        String msg = switch (r.estado()) {
+            case SIN_EMPRESA -> Messages.get(locale, "empresa.venta.sin_empresa");
+            case NO_AUTORIZADO -> Messages.get(locale, "empresa.venta.no_autorizado");
+            case SIN_MERCANCIA -> Messages.get(locale, "empresa.venta.sin_mercancia");
+            case OK -> Messages.get(locale, "empresa.venta.ok",
+                    r.unidades(), r.bruto(), r.impuesto(), r.neto(), r.restante());
+        };
+        evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, "empresa.venta.titulo"), msg).build()).queue();
     }
 
     /**

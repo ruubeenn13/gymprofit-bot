@@ -110,6 +110,7 @@ import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.EjercicioDiaService;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
+import com.gymprofit.bot.services.EmpresaVentaService;
 import com.gymprofit.bot.services.EjercicioService;
 import com.gymprofit.bot.services.EncantarService;
 import com.gymprofit.bot.services.EventoService;
@@ -476,8 +477,12 @@ public final class Main {
             // requisitos, el coste del salto y la aplicación del ascenso salen de sus piezas reutilizables.
             EmpresaGestionService empresaGestion = new EmpresaGestionService(
                     empresaRepo, empresaPropuestaRepo, personajeRepo, trabajoService, Clock.systemUTC());
+            // Empresas (Fase 5a): venta de la mercancia del almacen. Un alto cargo la vende, entra el neto
+            // al bote y se quema el impuesto (sumidero antiinflacion). El gate atomico vive en el service.
+            EmpresaVentaService empresaVenta = new EmpresaVentaService(empresaRepo);
             comandos.add(new EmpresaComando(
-                    empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService));
+                    empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService,
+                    empresaVenta));
             // El listener recibe además los repos de empresa y de propuestas (F4): sincroniza el canal
             // privado con la BD al aceptar un ingreso, sacar/despedir por voto o disolver, y necesita leer
             // la pendiente y la propuesta ANTES de que la operación las borre.
