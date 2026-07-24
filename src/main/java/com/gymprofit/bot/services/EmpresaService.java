@@ -210,6 +210,38 @@ public final class EmpresaService {
     }
 
     /**
+     * Variante por id de {@link #solicitar}: el jugador solicita entrar en la empresa cuyo id sale del
+     * tablón {@code /empleo} (bolsa de empleo F5c), con un motivo. Aplica exactamente las mismas reglas
+     * que {@code solicitar} (tener trabajo, no estar ya en una empresa, y que la empresa sea de la propia
+     * rama), pero identifica la empresa por id en vez de por nombre porque el jugador la elige de la lista
+     * de contratación, no la escribe.
+     *
+     * @param discordId jugador que solicita
+     * @param empresaId id de la empresa objetivo (elegida en el tablón de empleo)
+     * @param motivo    carta del jugador (se recorta a {@value #MOTIVO_MAX} chars), puede ser {@code null}
+     */
+    public ResultadoIngreso solicitarPorId(long discordId, long empresaId, String motivo) {
+        Personaje p = personajes.obtenerOCrear(discordId);
+        if (p.trabajo() == null) {
+            return ResultadoIngreso.SIN_TRABAJO;
+        }
+        if (repo.deMiembro(discordId).isPresent()) {
+            return ResultadoIngreso.YA_EN_EMPRESA;
+        }
+        Optional<Empresa> empresa = repo.porId(empresaId);
+        if (empresa.isEmpty()) {
+            return ResultadoIngreso.EMPRESA_NO_EXISTE;
+        }
+        Ascensos.Rama rama = ramaDe(p.trabajo());
+        // Solo se puede solicitar a empresas de la propia rama (aquí se valida a mano, ya que la búsqueda
+        // por id no filtra por rama como sí lo hace porNombreYRama en solicitar).
+        if (!empresa.get().rama().equals(rama.name())) {
+            return ResultadoIngreso.OTRA_RAMA;
+        }
+        return crearPendiente(empresa.get().id(), discordId, TipoPendiente.SOLICITUD, recortar(motivo));
+    }
+
+    /**
      * Resuelve una pendiente. Valida que quien resuelve es la parte correcta (una {@code INVITACION}
      * la resuelve el jugador invitado; una {@code SOLICITUD}, el dueño de la empresa) y revalida, al
      * aceptar, que el jugador no se haya metido en otra empresa entretanto. Aceptar lo añade como

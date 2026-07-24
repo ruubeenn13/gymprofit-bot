@@ -164,7 +164,7 @@ class EmpresaVentaServiceTest {
     // ------------------------------------------------------------------ helpers
 
     private static Empresa empresa(long mercancia) {
-        return new Empresa(EMPRESA_ID, "HIERRO", DUENO, "Acme", 1, 0L, AHORA, null, mercancia, 0);
+        return new Empresa(EMPRESA_ID, "HIERRO", DUENO, "Acme", 1, 0L, AHORA, null, mercancia, 0, false);
     }
 
     private static MiembroEmpresa miembro(long discordId, RangoEmpresa rango) {

@@ -103,7 +103,7 @@ public final class EmpresaRepositorio {
 
     /** Empresa a la que pertenece el jugador, si está en alguna (JOIN con {@code empresa_miembros}). */
     public Optional<Empresa> deMiembro(long discordId) {
-        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia, e.impagos "
+        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia, e.impagos, e.contratando "
                 + "FROM empresas e JOIN empresa_miembros m ON m.empresa_id = e.id "
                 + "WHERE m.discord_id = ?";
         try (Connection con = dataSource.getConnection();
@@ -224,6 +224,45 @@ public final class EmpresaRepositorio {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Error fijando los impagos de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Abre o cierra la empresa a la bolsa de empleo (F5c). Al activarlo, la empresa aparece en la lista
+     * {@code /empleo} de los jugadores de su rama; al desactivarlo, deja de mostrarse. Es un simple
+     * opt-in del dueño, sin efecto sobre pertenencias existentes.
+     */
+    public void fijarContratando(long empresaId, boolean valor) {
+        String sql = "UPDATE empresas SET contratando = ? WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setBoolean(1, valor);
+            ps.setLong(2, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error fijando el flag de contratando de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Empresas de una rama que están contratando (F5c), para el tablón {@code /empleo}: solo las abiertas
+     * a solicitudes y de la rama del que busca. Ordenadas por nivel descendente (las más potentes primero)
+     * y, a igual nivel, por nombre.
+     */
+    public List<Empresa> contratandoDeRama(String rama) {
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     SELECT_EMPRESA + " WHERE contratando = TRUE AND rama = ? ORDER BY nivel DESC, nombre ASC")) {
+            ps.setString(1, rama);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<Empresa> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(mapearEmpresa(rs));
+                }
+                return lista;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error listando empresas contratando de la rama " + rama, e);
         }
     }
 
@@ -518,7 +557,7 @@ public final class EmpresaRepositorio {
     }
 
     private static final String SELECT_EMPRESA =
-            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia, impagos FROM empresas";
+            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia, impagos, contratando FROM empresas";
 
     private static final String SELECT_PENDIENTE =
             "SELECT id, empresa_id, discord_id, tipo, motivo, creada FROM empresa_pendientes";
@@ -540,7 +579,8 @@ public final class EmpresaRepositorio {
                 rs.getTimestamp("creada").toInstant(),
                 sinCanal ? null : canalId,
                 rs.getLong("mercancia"),
-                rs.getInt("impagos"));
+                rs.getInt("impagos"),
+                rs.getBoolean("contratando"));
     }
 
     private static MiembroEmpresa mapearMiembro(ResultSet rs) throws SQLException {

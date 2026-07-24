@@ -16,7 +16,8 @@ import java.time.Instant;
  * @param canalId   id del canal privado de Discord (F4); null si aún no se ha creado
  * @param mercancia unidades de mercancia en el almacen (F5a); 0 al fundar
  * @param impagos   impagos consecutivos de la cuota semanal (F5b); 0 = al dia
+ * @param contratando abierta a solicitudes en la bolsa de empleo (F5c); false por defecto
  */
 public record Empresa(long id, String rama, long duenoId, String nombre, int nivel, long bote,
-                      Instant creada, Long canalId, long mercancia, int impagos) {
+                      Instant creada, Long canalId, long mercancia, int impagos, boolean contratando) {
 }

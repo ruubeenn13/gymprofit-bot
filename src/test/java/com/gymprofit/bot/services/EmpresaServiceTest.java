@@ -209,6 +209,60 @@ class EmpresaServiceTest {
         verify(repo, never()).crearPendiente(anyLong(), anyLong(), any(), any());
     }
 
+    // ------------------------------------------------------------ solicitarPorId
+
+    @Test
+    @DisplayName("solicitarPorId OK crea una pendiente de SOLICITUD con el motivo recortado")
+    void solicitarPorIdOk() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(camarero());
+        when(repo.deMiembro(1L)).thenReturn(Optional.empty());
+        when(repo.porId(10L)).thenReturn(Optional.of(empresa(10L, 9L, "HOSTELERIA", "Gimnasio")));
+
+        assertEquals(ResultadoIngreso.OK, svc().solicitarPorId(1L, 10L, "Curro duro"));
+        verify(repo).crearPendiente(10L, 1L, TipoPendiente.SOLICITUD, "Curro duro");
+    }
+
+    @Test
+    @DisplayName("solicitarPorId sin trabajo devuelve SIN_TRABAJO y no crea pendiente")
+    void solicitarPorIdSinTrabajo() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(conTrabajo(null));
+
+        assertEquals(ResultadoIngreso.SIN_TRABAJO, svc().solicitarPorId(1L, 10L, "hola"));
+        verify(repo, never()).crearPendiente(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("solicitarPorId estando ya en una empresa devuelve YA_EN_EMPRESA")
+    void solicitarPorIdYaEnEmpresa() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(camarero());
+        when(repo.deMiembro(1L)).thenReturn(Optional.of(empresa(20L, 5L, "HOSTELERIA", "Rival")));
+
+        assertEquals(ResultadoIngreso.YA_EN_EMPRESA, svc().solicitarPorId(1L, 10L, "hola"));
+        verify(repo, never()).crearPendiente(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("solicitarPorId a un id que no existe devuelve EMPRESA_NO_EXISTE")
+    void solicitarPorIdNoExiste() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(camarero());
+        when(repo.deMiembro(1L)).thenReturn(Optional.empty());
+        when(repo.porId(404L)).thenReturn(Optional.empty());
+
+        assertEquals(ResultadoIngreso.EMPRESA_NO_EXISTE, svc().solicitarPorId(1L, 404L, null));
+        verify(repo, never()).crearPendiente(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("solicitarPorId a una empresa de otra rama devuelve OTRA_RAMA")
+    void solicitarPorIdOtraRama() {
+        when(personajes.obtenerOCrear(1L)).thenReturn(camarero()); // HOSTELERIA
+        when(repo.deMiembro(1L)).thenReturn(Optional.empty());
+        when(repo.porId(10L)).thenReturn(Optional.of(empresa(10L, 9L, "SALUD", "Clínica")));
+
+        assertEquals(ResultadoIngreso.OTRA_RAMA, svc().solicitarPorId(1L, 10L, "hola"));
+        verify(repo, never()).crearPendiente(anyLong(), anyLong(), any(), any());
+    }
+
     // ------------------------------------------------------------------ resolver
 
     @Test
@@ -362,7 +416,7 @@ class EmpresaServiceTest {
 
     /** Empresa con un nivel concreto (para las reglas de {@code mejorar}). */
     private static Empresa empresa(long id, long duenoId, String rama, String nombre, int nivel) {
-        return new Empresa(id, rama, duenoId, nombre, nivel, 0L, Instant.now(), null, 0L, 0);
+        return new Empresa(id, rama, duenoId, nombre, nivel, 0L, Instant.now(), null, 0L, 0, false);
     }
 
     private static Pendiente pendiente(long id, long empresaId, long discordId, TipoPendiente tipo,

@@ -395,4 +395,70 @@ class EmpresaRepositorioTest {
             }
         }
     }
+
+    /**
+     * Bolsa de empleo de F5c: {@code contratando} arranca en false (DEFAULT V33), {@code fijarContratando}
+     * lo persiste y {@code contratandoDeRama} devuelve solo las empresas de esa rama con el flag activo,
+     * ordenadas por nivel descendente y luego por nombre.
+     */
+    @Test
+    void contratandoDefaultFijarYListarPorRama() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar (RGPD).
+                long duenoBaja = 1001L;
+                long duenoAlta = 1002L;
+                long duenoOtra = 1003L;
+                for (long id : new long[]{duenoBaja, duenoAlta, duenoOtra}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                long baja = empresas.fundar("SALUD", duenoBaja, "Gimnasio Bajo");   // nivel 1
+                long alta = empresas.fundar("SALUD", duenoAlta, "Gimnasio Alto");   // se subira a nivel 2
+                long otraRama = empresas.fundar("ARTE", duenoOtra, "Taller");       // otra rama
+
+                // contratando arranca en false (DEFAULT V33).
+                assertFalse(empresas.porId(baja).orElseThrow().contratando(),
+                        "una empresa recien fundada no esta contratando");
+
+                // contratandoDeRama con ninguna activa: lista vacia.
+                assertTrue(empresas.contratandoDeRama("SALUD").isEmpty(),
+                        "sin empresas activas la bolsa de empleo de la rama esta vacia");
+
+                // fijarContratando(true) persiste el flag.
+                empresas.fijarContratando(baja, true);
+                assertTrue(empresas.porId(baja).orElseThrow().contratando(),
+                        "fijarContratando(true) abre la empresa a la bolsa de empleo");
+
+                empresas.subirNivel(alta); // nivel 2, para comprobar el orden por nivel DESC
+                empresas.fijarContratando(alta, true);
+                empresas.fijarContratando(otraRama, true); // activa pero de otra rama: no debe salir
+
+                // contratandoDeRama("SALUD"): solo las de SALUD activas, ordenadas por nivel DESC.
+                List<Empresa> ofertas = empresas.contratandoDeRama("SALUD");
+                assertEquals(2, ofertas.size(), "solo las dos de SALUD con el flag activo");
+                assertEquals("Gimnasio Alto", ofertas.get(0).nombre(),
+                        "la de mayor nivel va primera (ORDER BY nivel DESC)");
+                assertEquals("Gimnasio Bajo", ofertas.get(1).nombre());
+                assertTrue(ofertas.stream().noneMatch(e -> e.nombre().equals("Taller")),
+                        "la empresa de otra rama no aparece aunque este contratando");
+
+                // fijarContratando(false) la retira de la bolsa.
+                empresas.fijarContratando(baja, false);
+                assertEquals(1, empresas.contratandoDeRama("SALUD").size(),
+                        "tras cerrar una, solo queda la otra");
+            }
+        }
+    }
 }

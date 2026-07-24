@@ -616,7 +616,7 @@ class EmpresaGestionServiceTest {
     }
 
     private static Empresa empresa() {
-        return new Empresa(EMPRESA, "HIERRO", DUENO, "Acme", 1, 0L, AHORA, null, 0L, 0);
+        return new Empresa(EMPRESA, "HIERRO", DUENO, "Acme", 1, 0L, AHORA, null, 0L, 0, false);
     }
 
     private static MiembroEmpresa miembro(long discordId, RangoEmpresa rango) {

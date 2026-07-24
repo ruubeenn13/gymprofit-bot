@@ -37,7 +37,7 @@ class ImpuestoEmpresasServiceTest {
 
     // Empresa de test: todos los args del record, con canalId null y mercancia 0.
     private static Empresa empresa(int nivel, long bote, int impagos) {
-        return new Empresa(EMPRESA_ID, "rama", 1L, "Acme", nivel, bote, AHORA, null, 0L, impagos);
+        return new Empresa(EMPRESA_ID, "rama", 1L, "Acme", nivel, bote, AHORA, null, 0L, impagos, false);
     }
 
     @Test
