@@ -103,7 +103,7 @@ public final class EmpresaRepositorio {
 
     /** Empresa a la que pertenece el jugador, si está en alguna (JOIN con {@code empresa_miembros}). */
     public Optional<Empresa> deMiembro(long discordId) {
-        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id "
+        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id, e.mercancia "
                 + "FROM empresas e JOIN empresa_miembros m ON m.empresa_id = e.id "
                 + "WHERE m.discord_id = ?";
         try (Connection con = dataSource.getConnection();
@@ -206,6 +206,45 @@ public final class EmpresaRepositorio {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Error subiendo el nivel de la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Suma {@code cantidad} de mercancia al almacen de la empresa, recortando al tope por nivel en la
+     * MISMA sentencia con {@code LEAST}: si lo producido rebasa la capacidad, la mercancia se queda en
+     * el tope y el excedente se pierde (no hay sobreproducción). El {@code nivel * 100} del SQL debe
+     * coincidir con {@link com.gymprofit.bot.services.Produccion#capacidad(int)} (su
+     * {@code FACTOR_CAPACIDAD}); si se cambia uno hay que cambiar el otro.
+     */
+    public void sumarMercancia(long empresaId, long cantidad) {
+        String sql = "UPDATE empresas SET mercancia = LEAST(mercancia + ?, nivel * 100) WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, cantidad);
+            ps.setLong(2, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error sumando mercancia a la empresa " + empresaId, e);
+        }
+    }
+
+    /**
+     * Gasta {@code cantidad} de mercancia y devuelve {@code true} si se pudo. La resta y la
+     * comprobación de existencias van en la MISMA sentencia ({@code WHERE ... AND mercancia >= ?}): es
+     * atómica y la mercancia nunca queda negativa aunque dos ventas concurran; si no hay bastante, no
+     * afecta filas y devuelve {@code false} sin tocar el almacen. Espejo de {@link
+     * #gastarDelBote(long, long)}.
+     */
+    public boolean gastarMercancia(long empresaId, long cantidad) {
+        String sql = "UPDATE empresas SET mercancia = mercancia - ? WHERE id = ? AND mercancia >= ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, cantidad);
+            ps.setLong(2, empresaId);
+            ps.setLong(3, cantidad);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error gastando mercancia de la empresa " + empresaId, e);
         }
     }
 
@@ -441,7 +480,7 @@ public final class EmpresaRepositorio {
     }
 
     private static final String SELECT_EMPRESA =
-            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id FROM empresas";
+            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id, mercancia FROM empresas";
 
     private static final String SELECT_PENDIENTE =
             "SELECT id, empresa_id, discord_id, tipo, motivo, creada FROM empresa_pendientes";
@@ -457,7 +496,8 @@ public final class EmpresaRepositorio {
                 rs.getInt("nivel"),
                 rs.getLong("bote"),
                 rs.getTimestamp("creada").toInstant(),
-                rs.wasNull() ? null : canalId);
+                rs.wasNull() ? null : canalId,
+                rs.getLong("mercancia"));
     }
 
     private static MiembroEmpresa mapearMiembro(ResultSet rs) throws SQLException {

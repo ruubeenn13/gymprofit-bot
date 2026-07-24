@@ -229,7 +229,7 @@ class TrabajoServiceTest {
 
     /** Empresa mínima para los tests del corte: solo importan el id y el nivel. */
     private static Empresa empresa(long id, int nivel) {
-        return new Empresa(id, "HOSTELERIA", 1L, "Acme", nivel, 0, Instant.now(), null);
+        return new Empresa(id, "HOSTELERIA", 1L, "Acme", nivel, 0, Instant.now(), null, 0L);
     }
 
     // ------------------------------------------------------------------ ascensos de carrera

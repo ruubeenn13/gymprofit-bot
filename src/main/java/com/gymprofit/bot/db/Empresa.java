@@ -12,9 +12,10 @@ import java.time.Instant;
  * @param nombre  nombre visible (único dentro de la rama)
  * @param nivel   nivel de la empresa (economía de F2; 1 al fundar)
  * @param bote    fondo común acumulado (economía de F2; 0 al fundar)
- * @param creada  instante de fundación
- * @param canalId id del canal privado de Discord (F4); null si aún no se ha creado
+ * @param creada    instante de fundación
+ * @param canalId   id del canal privado de Discord (F4); null si aún no se ha creado
+ * @param mercancia unidades de mercancia en el almacen (F5a); 0 al fundar
  */
 public record Empresa(long id, String rama, long duenoId, String nombre, int nivel, long bote,
-                      Instant creada, Long canalId) {
+                      Instant creada, Long canalId, long mercancia) {
 }

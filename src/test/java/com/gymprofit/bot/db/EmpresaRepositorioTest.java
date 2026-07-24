@@ -291,4 +291,52 @@ class EmpresaRepositorioTest {
             }
         }
     }
+
+    /**
+     * Produccion de F5a: {@code sumarMercancia} acumula en el almacen recortando al tope por nivel
+     * ({@code LEAST(mercancia + ?, nivel * 100)}) y {@code gastarMercancia} descuenta de forma atómica,
+     * devolviendo false y sin bajar de 0 si no hay existencias suficientes.
+     */
+    @Test
+    void mercanciaTopePorNivelYGastoCondicional() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar (RGPD).
+                long duenoTope = 801L;
+                long duenoGasto = 802L;
+                for (long id : new long[]{duenoTope, duenoGasto}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                // sumarMercancia recorta al tope por nivel: nivel 1 -> capacidad 100.
+                long tope = empresas.fundar("SALUD", duenoTope, "Alfa"); // fundar deja nivel 1
+                empresas.sumarMercancia(tope, 80);
+                empresas.sumarMercancia(tope, 50); // 130 -> LEAST recorta a 100
+                assertEquals(100, empresas.porId(tope).orElseThrow().mercancia(),
+                        "el LEAST recorta la mercancia al tope por nivel");
+
+                // gastarMercancia condicional: descuenta si hay bastante, no baja de 0 si no.
+                long gasto = empresas.fundar("TECNICA", duenoGasto, "Beta"); // nivel 1
+                empresas.subirNivel(gasto); // nivel 2 -> capacidad 200, caben los 40
+                empresas.sumarMercancia(gasto, 40);
+                assertTrue(empresas.gastarMercancia(gasto, 30), "gasta con existencias y devuelve true");
+                assertEquals(10, empresas.porId(gasto).orElseThrow().mercancia(),
+                        "la mercancia queda en 10 tras gastar 30 de 40");
+                assertFalse(empresas.gastarMercancia(gasto, 999), "sin existencias devuelve false");
+                assertEquals(10, empresas.porId(gasto).orElseThrow().mercancia(),
+                        "la mercancia no cambia si el gasto no cabe (nunca negativa)");
+            }
+        }
+    }
 }
