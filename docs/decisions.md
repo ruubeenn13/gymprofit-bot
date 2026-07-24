@@ -358,3 +358,22 @@ se anuncia como **aprobado pero no ejecutado**: no se toca el bote ni se miente 
 **Consecuencias.** Migración mínima V29 (columna `dato` en las propuestas para el puesto del ascenso);
 `bote`/`nivel` ya existían. `TrabajoService.currar` depende ahora de `EmpresaRepositorio`. Nuevo
 `NominaEmpresasJob` (03:00 Europe/Madrid).
+
+## ADR-019 — estatus de empresas
+
+**Estado:** aceptada e implementada (Fase 4).
+
+**Contexto.** Tras la economía (F3) las empresas necesitaban un motivo para competir y un espacio propio.
+
+**Decisión.** Un **ranking de prestigio** (`/empresa ranking`) ordena las empresas por un score puro
+`nivel*10.000 + miembros*1.000 + bote/1.000` (el nivel domina; el bote pesa poco a propósito para no
+premiar acaparar). Cada empresa tiene un **canal privado** por permisos de miembro (sin rol, como los
+gremios), para **todas** las empresas y con **creación perezosa**: si `canal_id` es null, la primera
+acción relevante (fundar, ingreso o `/empresa info` de la propia empresa) lo crea y sincroniza a los
+miembros actuales. La materialización usa un `UPDATE ... WHERE canal_id IS NULL` condicional y borra el
+canal recién creado si pierde la carrera, para no dejar huérfanos. Toda la lógica de canal vive en la
+capa comando/listener (necesita el `Guild`); los services siguen guild-agnostic. Best-effort: sin
+permisos, se registra y se sigue.
+
+**Consecuencias.** Migración V30 (columna `canal_id` en `empresas`). Los cosméticos comprables se
+difieren a una mini-fase posterior. La competición por rama (cuota de mercado) queda para F5.

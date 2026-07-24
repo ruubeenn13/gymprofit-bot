@@ -111,10 +111,15 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   validación/aplicación reutilizables; un ascenso aprobado que no puede aplicarse (bote o requisitos)
   se anuncia como aprobado **no ejecutado**. `/empresa` suma `mejorar · ascender`. Migración V29
   (columna `dato` en las propuestas para el puesto destino).
-- **Migraciones Flyway V6–V29**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 4)**: estatus. `/empresa ranking` ordena por un prestigio puro (nivel, miembros,
+  bote) y cada empresa tiene un **canal privado** por permisos de miembro (sin rol), para todas y con
+  creación perezosa (lo materializa la primera acción relevante, con guard atómico contra canales
+  huérfanos). La lógica de canal vive en la capa comando/listener; los services siguen guild-agnostic.
+  `/empresa` suma `ranking`. Migración V30 (`canal_id`).
+- **Migraciones Flyway V6–V30**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza y
-  economía).
+  estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
+  economía y estatus).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

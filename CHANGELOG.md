@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 4)** (`/empresa ranking`): tabla de prestigio de las empresas (nivel + miembros +
+  bote) y un **canal privado** por empresa (permisos de miembro, sin roles), creado perezosamente para
+  todas. Migración `V30`.
 - **Empresas (Fase 3)** (`/empresa mejorar · ascender`): la economía se enciende — un 10 % de cada
   curro va al bote, el nivel da +2 %/nivel de ingresos a todos, una nómina diaria reparte el bote por
   rango, y el bote patrocina ascensos de tier de los miembros. Migración `V29`.
