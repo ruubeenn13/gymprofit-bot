@@ -125,10 +125,15 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   las 3 semanas **quiebra** (disolución; los miembros conservan su trabajo). Decisión pura en
   `ImpuestoEmpresasService`; el `ImpuestoEmpresasJob` la aplica y avisa al canal privado. Migración V32
   (`impagos`).
-- **Migraciones Flyway V6–V32**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 5c)**: bolsa de empleo. Un flag opt-in `contratando` (lo alterna un alto cargo con
+  `/empleo contratar`) y un tablón `/empleo ver` que lista las empresas contratando de la rama del que
+  mira; cada una con un botón que abre un **modal** de motivo y crea una SOLICITUD por id (misma
+  validación que `/empresa solicitar`), resuelta por el flujo de pendientes de F1. Primer uso de modales
+  del bot (`EmpleoComando` + `EmpleoListener`). Migración V33 (`contratando`).
+- **Migraciones Flyway V6–V33**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
-  economía, estatus, producción e impuestos).
+  economía, estatus, producción, impuestos y empleo).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

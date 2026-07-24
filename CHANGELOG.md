@@ -7,6 +7,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5c)** (`/empleo`): bolsa de empleo. Las empresas se marcan como contratando y los
+  jugadores ven en `/empleo ver` las de su rama y solicitan entrar con un botón. Migración `V33`.
 - **Empresas (Fase 5b)**: impuesto semanal. Cada empresa paga una cuota `nivel × 2.500` quemada del bote
   los lunes; si no puede, se vuelve morosa y a las 3 semanas quiebra (los miembros conservan su trabajo).
   Migración `V32`.

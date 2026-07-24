@@ -411,3 +411,20 @@ vive en `ImpuestoEmpresasService` (pura, testeable) con `gastarDelBote` como gat
 **Consecuencias.** Migración V32 (`empresas.impagos`). Nuevo `ImpuestoEmpresasJob` (semanal). La cuota es
 un sumidero recurrente que escala con el nivel. Impuesto progresivo, rescate y deuda acumulada quedan
 fuera.
+
+## ADR-022 — bolsa de empleo de empresas
+
+**Estado:** aceptada e implementada (Fase 5c).
+
+**Contexto.** Entrar en una empresa exigía conocer su nombre (`/empresa solicitar <nombre>`); no había
+forma de descubrir quién contrata.
+
+**Decisión.** Un flag opt-in `contratando` por empresa (lo alterna un alto cargo con `/empleo contratar`)
+y un tablón `/empleo ver` que lista las empresas contratando **de la rama del que mira**, cada una con un
+botón que abre un **modal** de motivo y crea una SOLICITUD por id (`solicitarPorId`, misma validación que
+`solicitar`). La resolución la hace el dueño por el flujo de pendientes de F1, intacto. Es el primer uso
+de modales del bot.
+
+**Consecuencias.** Migración V33 (`empresas.contratando`). Nuevos `EmpleoComando` y `EmpleoListener`. El
+control de entrada es el flag on/off (las empresas no tienen tope de tamaño). Vacantes por puesto/plazas
+quedan fuera.
