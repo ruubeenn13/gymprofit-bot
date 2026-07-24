@@ -1,6 +1,6 @@
 package com.gymprofit.bot.commands.economia;
 
-import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.commands.ComandoAutocompletable;
 import com.gymprofit.bot.db.Empresa;
 import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
@@ -11,6 +11,7 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.Ascensos;
 import com.gymprofit.bot.services.EmpresaGestionService;
+import com.gymprofit.bot.services.EmpresaGestionService.ResultadoAscensoPatrocinado;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaService.InfoEmpresa;
@@ -22,10 +23,13 @@ import com.gymprofit.bot.services.EmpresaService.SalidaMejora;
 import com.gymprofit.bot.services.RangoEmpresa;
 import com.gymprofit.bot.services.TipoPendiente;
 import com.gymprofit.bot.services.TipoPropuesta;
+import com.gymprofit.bot.services.TrabajoService;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -56,11 +60,15 @@ import java.util.Optional;
  * y la resolución del id de una invitación recién creada son consultas puras (no reglas de negocio):
  * el service expone las operaciones, el repo las lecturas de apoyo.
  */
-public final class EmpresaComando implements Comando {
+public final class EmpresaComando implements ComandoAutocompletable {
 
     private static final String NOMBRE = "empresa";
     /** Discord admite como mucho 5 filas de botones por mensaje: tope de pendientes que se pintan. */
     private static final int MAX_PENDIENTES = 5;
+    /** Discord admite como mucho 25 sugerencias de autocompletado. */
+    private static final int MAX_SUGERENCIAS = 25;
+    /** Discord corta el nombre de una sugerencia a 100 caracteres. */
+    private static final int MAX_LARGO_SUGERENCIA = 100;
     /** Prefijo del customId de resolver una pendiente: {@code empresa:resolver:<pendienteId>:<1|0>}. */
     public static final String BOTON_RESOLVER = "empresa:resolver";
     /** Prefijos del customId de la confirmación de disolver: {@code empresa:disolver:<accion>:<ownerId>}. */
@@ -73,13 +81,17 @@ public final class EmpresaComando implements Comando {
     private final EmpresaRepositorio repo;
     private final EmpresaGestionService gestion;
     private final EmpresaPropuestaRepositorio propuestasRepo;
+    /** Piezas de carrera para el ascenso patrocinado: opciones de ascenso (autocompletado) y coste. */
+    private final TrabajoService trabajos;
 
     public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo,
-                          EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo) {
+                          EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo,
+                          TrabajoService trabajos) {
         this.empresa = empresa;
         this.repo = repo;
         this.gestion = gestion;
         this.propuestasRepo = propuestasRepo;
+        this.trabajos = trabajos;
     }
 
     @Override
@@ -126,6 +138,16 @@ public final class EmpresaComando implements Comando {
                 Messages.get(Messages.ES, "comando.empresa.despedir.opcion.usuario"), true)
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.empresa.despedir.opcion.usuario"));
+        // F3 — ascenso patrocinado. El objetivo se elige por mención; `puesto` se autocompleta con los
+        // puestos a los que ESE miembro puede ascender (el service revalida por si acaso).
+        OptionData miembroAscender = new OptionData(OptionType.USER, "miembro",
+                Messages.get(Messages.ES, "comando.empresa.ascender.opcion.miembro"), true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.ascender.opcion.miembro"));
+        OptionData puestoAscender = new OptionData(OptionType.STRING, "puesto",
+                Messages.get(Messages.ES, "comando.empresa.ascender.opcion.puesto"), true, true)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.ascender.opcion.puesto"));
 
         return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.empresa.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
@@ -146,6 +168,8 @@ public final class EmpresaComando implements Comando {
                                 .addOptions(usuarioRango, rangoDestino),
                         sub("sacar", "comando.empresa.sacar.descripcion").addOptions(usuarioSacar),
                         sub("despedir", "comando.empresa.despedir.descripcion").addOptions(usuarioDespedir),
+                        sub("ascender", "comando.empresa.ascender.descripcion")
+                                .addOptions(miembroAscender, puestoAscender),
                         sub("propuestas", "comando.empresa.propuestas.descripcion"));
     }
 
@@ -169,6 +193,7 @@ public final class EmpresaComando implements Comando {
             case "rango" -> gestionar(evento, locale, TipoPropuesta.CAMBIAR_RANGO);
             case "sacar" -> gestionar(evento, locale, TipoPropuesta.SACAR);
             case "despedir" -> gestionar(evento, locale, TipoPropuesta.DESPEDIR);
+            case "ascender" -> ascender(evento, locale);
             case "propuestas" -> propuestas(evento, locale);
             default -> evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
                     Messages.get(locale, "comando.error.generico"))).setEphemeral(true).queue();
@@ -482,6 +507,75 @@ public final class EmpresaComando implements Comando {
     }
 
     /**
+     * Patrocina el ascenso de carrera de un miembro pagándolo del bote (F3). El dueño lo ejecuta directo
+     * (embed <b>público</b> de celebración con la mención, el puesto y los coins quemados del bote); un
+     * directivo abre una propuesta pública con botones de voto. Los errores van <b>efímeros</b>. Toda la
+     * autoridad y las reglas de dinero viven en {@link EmpresaGestionService#ascensoPatrocinado}.
+     */
+    private void ascender(SlashCommandInteractionEvent evento, Locale locale) {
+        long actorId = evento.getUser().getIdLong();
+        User objetivo = evento.getOption("miembro").getAsUser();
+        String puesto = evento.getOption("puesto").getAsString();
+        long coste = trabajos.costeAscenso(puesto);
+        evento.deferReply(false).queue();
+        ResultadoAscensoPatrocinado r = gestion.ascensoPatrocinado(actorId, objetivo.getIdLong(), puesto);
+        switch (r) {
+            case OK -> evento.getHook().sendMessageEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA,
+                    locale, Messages.get(locale, "empresa.ascenso.ok.titulo"),
+                    Messages.get(locale, "empresa.ascenso.ok",
+                            objetivo.getAsMention(),
+                            Messages.get(locale, "trabajo." + puesto), coste)).build()).queue();
+            case PROPUESTA_CREADA ->
+                    anunciarPropuesta(evento, locale, actorId, TipoPropuesta.ASCENSO, objetivo.getIdLong());
+            default -> evento.getHook().sendMessageEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA,
+                    locale, mensajeAscensoFallido(locale, r, coste))).setEphemeral(true).queue();
+        }
+    }
+
+    /** Traduce un resultado de ascenso patrocinado fallido a su mensaje i18n (los éxitos se tratan aparte). */
+    private static String mensajeAscensoFallido(Locale locale, ResultadoAscensoPatrocinado r, long coste) {
+        return switch (r) {
+            case NO_AUTORIZADO -> Messages.get(locale, "empresa.ascenso.no_autorizado");
+            case NO_ES_MIEMBRO -> Messages.get(locale, "empresa.ascenso.no_es_miembro");
+            case RANGO_INVALIDO -> Messages.get(locale, "empresa.ascenso.rango_invalido");
+            case REQUISITOS -> Messages.get(locale, "empresa.ascenso.requisitos");
+            case SIN_FONDOS -> Messages.get(locale, "empresa.ascenso.sin_fondos", coste);
+            case YA_HAY_PROPUESTA -> Messages.get(locale, "empresa.ascenso.ya_hay_propuesta");
+            case OK, PROPUESTA_CREADA -> throw new IllegalStateException("éxito ya tratado");
+        };
+    }
+
+    /**
+     * Autocompleta el puesto del ascenso con los destinos válidos del <b>miembro elegido</b> (los del
+     * siguiente tier de su rama). Si aún no eligió a nadie, cae a las opciones del propio invocador; el
+     * service revalida en cualquier caso. Responde siempre (aunque vacío) y sin {@code defer}: Discord da
+     * 3 s. Mismo patrón que {@code /trabajo ascender}.
+     */
+    @Override
+    public void autocompletar(CommandAutoCompleteInteractionEvent evento) {
+        if (!"puesto".equals(evento.getFocusedOption().getName())) {
+            evento.replyChoices(List.of()).queue();
+            return;
+        }
+        Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
+        // El USER ya elegido se resuelve por su snowflake aunque no esté en caché (getAsLong).
+        OptionMapping miembro = evento.getOption("miembro");
+        long objetivoId = miembro != null ? miembro.getAsLong() : evento.getUser().getIdLong();
+        List<Command.Choice> opciones = trabajos.opcionesAscenso(objetivoId).stream()
+                .map(t -> new Command.Choice(etiqueta(locale, t.id()), t.id()))
+                .limit(MAX_SUGERENCIAS)
+                .toList();
+        evento.replyChoices(opciones).queue();
+    }
+
+    /** Nombre localizado del puesto para una sugerencia, recortado al máximo que admite Discord. */
+    private static String etiqueta(Locale locale, String puestoId) {
+        String texto = Messages.get(locale, "trabajo." + puestoId);
+        return texto.length() > MAX_LARGO_SUGERENCIA
+                ? texto.substring(0, MAX_LARGO_SUGERENCIA) : texto;
+    }
+
+    /**
      * Anuncia públicamente la propuesta recién creada por un directivo, con botones de voto Sí/No.
      * {@code gestionar} no devuelve el id de la propuesta, así que se recupera leyendo las propuestas
      * activas de la empresa y quedándose con la única que coincide en tipo y objetivo (la UNIQUE
@@ -545,8 +639,9 @@ public final class EmpresaComando implements Comando {
                     Messages.get(locale, p.rangoNuevo().claveI18n()));
             case SACAR -> Messages.get(locale, "empresa.propuesta.tipo.sacar");
             case DESPEDIR -> Messages.get(locale, "empresa.propuesta.tipo.despedir");
-            // ASCENSO (patrocinio de carrera) tiene su propio flujo de F3; aún no se anuncia por aquí.
-            case ASCENSO -> throw new IllegalStateException("ASCENSO no se anuncia por gestión");
+            // ASCENSO (patrocinio de carrera, F3): el puesto destino viaja en `dato`.
+            case ASCENSO -> Messages.get(locale, "empresa.propuesta.tipo.ascenso",
+                    Messages.get(locale, "trabajo." + p.dato()));
         };
         return Messages.get(locale, "empresa.propuesta.cuerpo",
                 "<@" + p.proponenteId() + ">",

@@ -170,8 +170,35 @@ public final class TrabajoService {
      * destino (existe, misma rama, tier correcto), nivel de servidor, antigüedad, estudios, stat y
      * por último el cobro <b>atómico</b> (gastar solo si todo lo demás cumple: nunca se cobra un
      * ascenso fallido). Los coins se queman: gasto sin contrapartida en el ledger.
+     *
+     * <p>Se compone de dos piezas reutilizables: {@link #validarAscenso} (todos los requisitos NO
+     * monetarios) y {@link #aplicarAscenso} (fijar carrera + puesto). El cobro del propio jugador vía
+     * {@link EconomiaRepositorio#gastar} queda <b>estrictamente entre ambas</b>, para que el orden y la
+     * regla de «nunca cobrar un ascenso fallido» sean idénticos al patrocinio de empresa, que reutiliza
+     * las mismas piezas quemando del bote en vez del bolsillo del jugador.
      */
     public ResultadoAscenso ascender(long discordId, String puestoId) {
+        ResultadoAscenso validacion = validarAscenso(discordId, puestoId);
+        if (validacion.estado() != EstadoAscenso.OK) {
+            return validacion;
+        }
+        // El cobro es lo último antes de aplicar: si no llega el saldo, no se toca ni carrera ni puesto.
+        if (!economia.gastar(discordId, validacion.requisito().coins(), "ascenso")) {
+            return new ResultadoAscenso(EstadoAscenso.COINS, validacion.requisito(), 0);
+        }
+        aplicarAscenso(discordId, puestoId);
+        return new ResultadoAscenso(EstadoAscenso.OK, validacion.requisito(), 0);
+    }
+
+    /**
+     * Comprueba todos los requisitos <b>no monetarios</b> de ascender a {@code puestoId} desde el
+     * trabajo actual, en el mismo orden que {@link #ascender}: destino (existe, misma rama, es el
+     * siguiente tier), nivel de servidor, antigüedad, estudios y stat dominante. Devuelve
+     * {@link EstadoAscenso#OK} con el requisito del salto si todo cumple; en otro caso, el primer motivo
+     * de fallo. <b>No cobra ni aplica nada</b>: es la parte pura que comparten el ascenso normal y el
+     * patrocinado por empresa (que decide aparte de dónde sale el dinero).
+     */
+    public ResultadoAscenso validarAscenso(long discordId, String puestoId) {
         Personaje p = personajes.obtenerOCrear(discordId);
         if (p.trabajo() == null) {
             return new ResultadoAscenso(EstadoAscenso.SIN_TRABAJO, null, 0);
@@ -205,12 +232,32 @@ public final class TrabajoService {
         if (stat < req.stat()) {
             return new ResultadoAscenso(EstadoAscenso.STAT, req, stat);
         }
-        if (!economia.gastar(discordId, req.coins(), "ascenso")) {
-            return new ResultadoAscenso(EstadoAscenso.COINS, req, 0);
-        }
-        carreras.fijarTier(discordId, rama.name(), siguiente.get());
-        personajes.fijarTrabajo(discordId, puestoId); // resetea también la antigüedad
         return new ResultadoAscenso(EstadoAscenso.OK, req, 0);
+    }
+
+    /**
+     * Aplica un ascenso ya validado: fija el tier de la rama en la carrera (nunca baja) y cambia al
+     * puesto destino (lo que además resetea la antigüedad). <b>No valida ni cobra</b>: presupone que
+     * {@link #validarAscenso} devolvió OK y que el pago (del jugador o del bote de su empresa) ya se
+     * hizo. El tier destino se deduce del propio puesto, así que la firma no lo arrastra.
+     */
+    public void aplicarAscenso(long discordId, String puestoId) {
+        Trabajos destino = Trabajos.porId(puestoId).orElseThrow();
+        Ascensos.Rama rama = Ascensos.ramaDe(destino.sector());
+        carreras.fijarTier(discordId, rama.name(), destino.tier());
+        personajes.fijarTrabajo(discordId, puestoId); // resetea también la antigüedad
+    }
+
+    /**
+     * Coste en coins de ascender a {@code puestoId}: los coins del requisito de su tier destino. Lo usa
+     * el patrocinio de empresa para saber cuánto quemar del bote sin recalcular la escala de ascensos.
+     * Un puesto inexistente o de tier de entrada (sin salto) cuesta {@code 0}.
+     */
+    public long costeAscenso(String puestoId) {
+        return Trabajos.porId(puestoId)
+                .map(t -> Ascensos.requisitosPara(t.tier()))
+                .map(Ascensos.Requisitos::coins)
+                .orElse(0L);
     }
 
     /**

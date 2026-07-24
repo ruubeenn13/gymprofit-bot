@@ -48,17 +48,26 @@ public final class EmpresaGestionService {
         REGISTRADO, APROBADA_EJECUTADA, RECHAZADA, CADUCADA, NO_AUTORIZADO, NO_EXISTE
     }
 
+    /** Resultado de {@link #ascensoPatrocinado} (camino directo del dueño y validaciones previas). */
+    public enum ResultadoAscensoPatrocinado {
+        OK, PROPUESTA_CREADA, YA_HAY_PROPUESTA, NO_AUTORIZADO, NO_ES_MIEMBRO, RANGO_INVALIDO,
+        REQUISITOS, SIN_FONDOS
+    }
+
     private final EmpresaRepositorio repo;
     private final EmpresaPropuestaRepositorio propuestas;
     private final PersonajeRepositorio personajes;
+    /** Piezas de carrera del ascenso: validar requisitos, coste del salto y aplicarlo (Task 5, F3). */
+    private final TrabajoService trabajos;
     private final Clock reloj;
 
     /** Reloj inyectable para deterministas la expira/caducidad en test. */
     public EmpresaGestionService(EmpresaRepositorio repo, EmpresaPropuestaRepositorio propuestas,
-                                 PersonajeRepositorio personajes, Clock reloj) {
+                                 PersonajeRepositorio personajes, TrabajoService trabajos, Clock reloj) {
         this.repo = repo;
         this.propuestas = propuestas;
         this.personajes = personajes;
+        this.trabajos = trabajos;
         this.reloj = reloj;
     }
 
@@ -108,6 +117,76 @@ public final class EmpresaGestionService {
         } catch (DatabaseException e) {
             return ResultadoGestion.YA_HAY_PROPUESTA;
         }
+    }
+
+    /**
+     * Patrocina el ascenso de carrera de un miembro pagándolo del bote (F3). Valida en orden: el actor
+     * pertenece a una empresa, el objetivo es miembro de la MISMA, el actor es alto cargo y la regla de
+     * rango (el objetivo debe ser inferior). Luego, si el actor es {@link RangoEmpresa#DUENO} lo ejecuta
+     * directo; si es {@link RangoEmpresa#DIRECTIVO} abre una propuesta {@link TipoPropuesta#ASCENSO} (con
+     * el puesto en {@code dato}) y la vota que sí; cualquier otro rango no está autorizado.
+     *
+     * <p>La ejecución (aquí o al aprobarse el voto) sigue el mismo orden riguroso que
+     * {@link TrabajoService#ascender}: requisitos no monetarios → quemar el coste del bote → aplicar SOLO
+     * si el gasto tuvo éxito. El coste se <b>quema</b> (sale del bote, no se abona a nadie).
+     *
+     * @param actorId    quien patrocina
+     * @param objetivoId miembro a ascender
+     * @param puestoId   puesto destino del ascenso
+     */
+    public ResultadoAscensoPatrocinado ascensoPatrocinado(long actorId, long objetivoId, String puestoId) {
+        Optional<Empresa> empresaOpt = repo.deMiembro(actorId);
+        if (empresaOpt.isEmpty()) {
+            return ResultadoAscensoPatrocinado.NO_AUTORIZADO;
+        }
+        Empresa empresa = empresaOpt.get();
+        List<MiembroEmpresa> miembros = repo.miembros(empresa.id());
+        RangoEmpresa rangoActor = rangoDe(miembros, actorId);
+        RangoEmpresa rangoObjetivo = rangoDe(miembros, objetivoId);
+        if (rangoObjetivo == null) {
+            return ResultadoAscensoPatrocinado.NO_ES_MIEMBRO;
+        }
+        if (rangoActor != RangoEmpresa.DUENO && rangoActor != RangoEmpresa.DIRECTIVO) {
+            return ResultadoAscensoPatrocinado.NO_AUTORIZADO;
+        }
+        // Regla de rango: como el tipo no es CAMBIAR_RANGO, rangoValido exige objetivo estrictamente inferior.
+        if (!rangoValido(rangoActor, rangoObjetivo, TipoPropuesta.ASCENSO, null)) {
+            return ResultadoAscensoPatrocinado.RANGO_INVALIDO;
+        }
+        if (rangoActor == RangoEmpresa.DUENO) {
+            return ejecutarAscenso(empresa.id(), objetivoId, puestoId);
+        }
+        // Directivo: no ejecuta, propone y firma su voto a favor. El puesto destino viaja en `dato`.
+        // La UNIQUE uq_propuesta_activa (empresa+tipo+objetivo) frena una segunda propuesta idéntica.
+        try {
+            long id = propuestas.crear(empresa.id(), TipoPropuesta.ASCENSO, objetivoId, null, actorId,
+                    Instant.now(reloj).plus(DURACION_PROPUESTA), puestoId);
+            propuestas.votar(id, actorId, true);
+            return ResultadoAscensoPatrocinado.PROPUESTA_CREADA;
+        } catch (DatabaseException e) {
+            return ResultadoAscensoPatrocinado.YA_HAY_PROPUESTA;
+        }
+    }
+
+    /**
+     * Ejecuta un ascenso patrocinado contra el estado actual (compartido por el camino directo del dueño
+     * y por la aprobación del voto): revalida los requisitos NO monetarios del objetivo, quema el coste
+     * del bote y, <b>solo si el gasto tuvo éxito</b>, aplica el ascenso. Si algo falla no aplica nada y lo
+     * refleja en el resultado ({@code REQUISITOS} o {@code SIN_FONDOS}); en el camino del voto ese
+     * resultado se ignora (best-effort: la propuesta queda resuelta igual).
+     */
+    private ResultadoAscensoPatrocinado ejecutarAscenso(long empresaId, long objetivoId, String puestoId) {
+        if (trabajos.validarAscenso(objetivoId, puestoId).estado()
+                != TrabajoService.EstadoAscenso.OK) {
+            return ResultadoAscensoPatrocinado.REQUISITOS;
+        }
+        long coste = trabajos.costeAscenso(puestoId);
+        // El coste se quema: sale del bote y no se abona a nadie. Nunca se aplica si el bote no llega.
+        if (!repo.gastarDelBote(empresaId, coste)) {
+            return ResultadoAscensoPatrocinado.SIN_FONDOS;
+        }
+        trabajos.aplicarAscenso(objetivoId, puestoId);
+        return ResultadoAscensoPatrocinado.OK;
     }
 
     /**
@@ -170,7 +249,14 @@ public final class EmpresaGestionService {
             // que la regla de rango se comprueba de nuevo contra el estado actual antes de tocar nada. Si
             // ya no es ejecutable, se cierra sin efecto (se trata como rechazada: quedó resuelta).
             if (revalidaEjecutable(prop)) {
-                ejecutar(prop.empresaId(), prop.tipo(), prop.objetivoId(), prop.rangoNuevo());
+                // ASCENSO tiene su propia ejecución (bote + carrera); el resto va por el switch de gestión.
+                // En ambos casos es best-effort: si al ejecutar ya no cumple (rango revalidado arriba, y
+                // para ascenso además requisitos/fondos), no aplica nada pero la propuesta queda resuelta.
+                if (prop.tipo() == TipoPropuesta.ASCENSO) {
+                    ejecutarAscenso(prop.empresaId(), prop.objetivoId(), prop.dato());
+                } else {
+                    ejecutar(prop.empresaId(), prop.tipo(), prop.objetivoId(), prop.rangoNuevo());
+                }
                 propuestas.cerrar(prop.id());
                 return ResultadoVoto.APROBADA_EJECUTADA;
             }

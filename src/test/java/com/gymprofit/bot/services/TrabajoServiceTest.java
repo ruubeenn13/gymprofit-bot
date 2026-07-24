@@ -286,6 +286,49 @@ class TrabajoServiceTest {
     }
 
     @Test
+    @DisplayName("validarAscenso: con todo cumplido devuelve OK sin cobrar ni aplicar nada")
+    void validarAscensoOkNoTocaNada() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+
+        var r = svcConPersonaje(camarero(10, 5, 10)).validarAscenso(1L, "cocinero");
+        assertEquals(EstadoAscenso.OK, r.estado());
+        assertEquals(Ascensos.requisitosPara(2), r.requisito(), "trae el requisito del salto");
+        // Es una comprobación pura: no cobra coins ni cambia el puesto/carrera.
+        verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
+        verify(carreras, never()).fijarTier(anyLong(), anyString(), anyInt());
+        verify(personajes, never()).fijarTrabajo(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("validarAscenso: un requisito incumplido corta sin cobrar (mismo orden que ascender)")
+    void validarAscensoRequisitoIncumplido() {
+        nivelServidor(50);
+        when(carreras.tierAlcanzado(1L, "HOSTELERIA")).thenReturn(0);
+        assertEquals(EstadoAscenso.TURNOS,
+                svcConPersonaje(camarero(9, 5, 10)).validarAscenso(1L, "cocinero").estado());
+        verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("aplicarAscenso: fija el tier de la rama y cambia el puesto, sin cobrar")
+    void aplicarAscensoFijaSinCobrar() {
+        svcConPersonaje(camarero(0, 0, 0)); // stub del personaje (aplicarAscenso no lo lee, pero uniforma)
+        svc().aplicarAscenso(1L, "cocinero");
+        verify(carreras).fijarTier(1L, "HOSTELERIA", 2);
+        verify(personajes).fijarTrabajo(1L, "cocinero");
+        verify(economia, never()).gastar(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("costeAscenso: devuelve los coins del tier destino del puesto")
+    void costeAscensoDelPuesto() {
+        // cocinero es t2 (500), gerente/jefes t3 (5000)... se comprueba con el t2 canónico.
+        assertEquals(500L, svc().costeAscenso("cocinero"));
+        assertEquals(0L, svc().costeAscenso("puesto_inexistente"), "puesto que no existe: sin coste");
+    }
+
+    @Test
     @DisplayName("ascender rechaza destino de otra rama, de tier equivocado o sin trabajo actual")
     void ascenderRechazaDestinosInvalidos() {
         nivelServidor(50);

@@ -8,8 +8,11 @@ import com.gymprofit.bot.db.MiembroEmpresa;
 import com.gymprofit.bot.db.PersonajeRepositorio;
 import com.gymprofit.bot.db.Propuesta;
 import com.gymprofit.bot.db.Voto;
+import com.gymprofit.bot.services.EmpresaGestionService.ResultadoAscensoPatrocinado;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoVoto;
+import com.gymprofit.bot.services.TrabajoService.EstadoAscenso;
+import com.gymprofit.bot.services.TrabajoService.ResultadoAscenso;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +49,7 @@ class EmpresaGestionServiceTest {
     private final EmpresaRepositorio repo = mock(EmpresaRepositorio.class);
     private final EmpresaPropuestaRepositorio propuestas = mock(EmpresaPropuestaRepositorio.class);
     private final PersonajeRepositorio personajes = mock(PersonajeRepositorio.class);
+    private final TrabajoService trabajos = mock(TrabajoService.class);
 
     /** Instante fijo del reloj de test; toda expira/caducidad se calcula relativa a él. */
     private static final Instant AHORA = Instant.parse("2026-07-23T12:00:00Z");
@@ -59,7 +63,7 @@ class EmpresaGestionServiceTest {
     private static final long DIRECTIVO_2 = 5L;
 
     private EmpresaGestionService svc() {
-        return new EmpresaGestionService(repo, propuestas, personajes, reloj);
+        return new EmpresaGestionService(repo, propuestas, personajes, trabajos, reloj);
     }
 
     // ------------------------------------------------------------------ autoridad
@@ -404,7 +408,175 @@ class EmpresaGestionServiceTest {
         verify(repo, never()).quitarMiembro(anyLong(), anyLong());
     }
 
+    // ------------------------------------------------------------------ ascenso patrocinado (F3)
+
+    private static final String PUESTO = "cocinero";
+    private static final long COSTE = 500L;
+
+    @Test
+    @DisplayName("el dueño patrocina a un inferior que cumple y hay bote: quema del bote y aplica (OK)")
+    void ascensoDuenoDirectoOk() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(trabajos.validarAscenso(OBJETIVO, PUESTO)).thenReturn(ascensoOk());
+        when(trabajos.costeAscenso(PUESTO)).thenReturn(COSTE);
+        when(repo.gastarDelBote(EMPRESA, COSTE)).thenReturn(true);
+
+        assertEquals(ResultadoAscensoPatrocinado.OK,
+                svc().ascensoPatrocinado(DUENO, OBJETIVO, PUESTO));
+        // Orden riguroso: el coste se quema del bote y SOLO entonces se aplica el ascenso.
+        verify(repo).gastarDelBote(EMPRESA, COSTE);
+        verify(trabajos).aplicarAscenso(OBJETIVO, PUESTO);
+    }
+
+    @Test
+    @DisplayName("patrocinio con el bote sin fondos: no aplica el ascenso (SIN_FONDOS)")
+    void ascensoSinFondos() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(trabajos.validarAscenso(OBJETIVO, PUESTO)).thenReturn(ascensoOk());
+        when(trabajos.costeAscenso(PUESTO)).thenReturn(COSTE);
+        when(repo.gastarDelBote(EMPRESA, COSTE)).thenReturn(false);
+
+        assertEquals(ResultadoAscensoPatrocinado.SIN_FONDOS,
+                svc().ascensoPatrocinado(DUENO, OBJETIVO, PUESTO));
+        verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("patrocinio de un miembro que no cumple requisitos: no toca el bote (REQUISITOS)")
+    void ascensoRequisitos() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(trabajos.validarAscenso(OBJETIVO, PUESTO))
+                .thenReturn(new ResultadoAscenso(EstadoAscenso.TURNOS, null, 3));
+
+        assertEquals(ResultadoAscensoPatrocinado.REQUISITOS,
+                svc().ascensoPatrocinado(DUENO, OBJETIVO, PUESTO));
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+        verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("patrocinar a quien no es miembro: NO_ES_MIEMBRO")
+    void ascensoNoEsMiembro() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+
+        assertEquals(ResultadoAscensoPatrocinado.NO_ES_MIEMBRO,
+                svc().ascensoPatrocinado(DUENO, OBJETIVO, PUESTO));
+    }
+
+    @Test
+    @DisplayName("patrocinar a un igual o superior: RANGO_INVALIDO")
+    void ascensoRangoInvalido() {
+        when(repo.deMiembro(DIRECTIVO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(DIRECTIVO_2, RangoEmpresa.DIRECTIVO)));
+
+        assertEquals(ResultadoAscensoPatrocinado.RANGO_INVALIDO,
+                svc().ascensoPatrocinado(DIRECTIVO, DIRECTIVO_2, PUESTO));
+        verify(trabajos, never()).validarAscenso(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("un empleado no patrocina: NO_AUTORIZADO")
+    void ascensoEmpleadoNoAutorizado() {
+        when(repo.deMiembro(EMPLEADO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(EMPLEADO, RangoEmpresa.EMPLEADO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+
+        assertEquals(ResultadoAscensoPatrocinado.NO_AUTORIZADO,
+                svc().ascensoPatrocinado(EMPLEADO, OBJETIVO, PUESTO));
+    }
+
+    @Test
+    @DisplayName("el directivo no ejecuta: abre propuesta ASCENSO con el puesto en dato y vota Sí")
+    void ascensoDirectivoPropone() {
+        when(repo.deMiembro(DIRECTIVO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(propuestas.crear(anyLong(), any(), anyLong(), any(), anyLong(), any(), any())).thenReturn(77L);
+
+        assertEquals(ResultadoAscensoPatrocinado.PROPUESTA_CREADA,
+                svc().ascensoPatrocinado(DIRECTIVO, OBJETIVO, PUESTO));
+        // El puesto destino viaja en `dato`; sin rango; expira a 48 h del reloj fijo.
+        verify(propuestas).crear(EMPRESA, TipoPropuesta.ASCENSO, OBJETIVO, null, DIRECTIVO,
+                AHORA.plus(Duration.ofHours(48)), PUESTO);
+        verify(propuestas).votar(77L, DIRECTIVO, true);
+        // Proponer no ejecuta: nada de bote ni de aplicar aún.
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+        verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("propuesta ASCENSO duplicada (UNIQUE) se traduce a YA_HAY_PROPUESTA")
+    void ascensoDirectivoDuplicada() {
+        when(repo.deMiembro(DIRECTIVO)).thenReturn(Optional.of(empresa()));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(propuestas.crear(anyLong(), any(), anyLong(), any(), anyLong(), any(), any()))
+                .thenThrow(new DatabaseException("dup", new RuntimeException()));
+
+        assertEquals(ResultadoAscensoPatrocinado.YA_HAY_PROPUESTA,
+                svc().ascensoPatrocinado(DIRECTIVO, OBJETIVO, PUESTO));
+    }
+
+    @Test
+    @DisplayName("al aprobar una propuesta ASCENSO se quema del bote y se aplica el ascenso")
+    void ascensoVotoAprobadoEjecuta() {
+        Propuesta prop = propuestaAscenso(PUESTO, futuro());
+        when(propuestas.porId(77L)).thenReturn(Optional.of(prop));
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+        when(propuestas.votos(77L)).thenReturn(List.of(voto(DUENO, true), voto(DIRECTIVO, true)));
+        // Revalidación de rango al ejecutar: el objetivo (BECARIO) sigue siendo inferior al proponente.
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(trabajos.validarAscenso(OBJETIVO, PUESTO)).thenReturn(ascensoOk());
+        when(trabajos.costeAscenso(PUESTO)).thenReturn(COSTE);
+        when(repo.gastarDelBote(EMPRESA, COSTE)).thenReturn(true);
+
+        assertEquals(ResultadoVoto.APROBADA_EJECUTADA, svc().votar(77L, DIRECTIVO, true));
+        verify(repo).gastarDelBote(EMPRESA, COSTE);
+        verify(trabajos).aplicarAscenso(OBJETIVO, PUESTO);
+        verify(propuestas).cerrar(77L);
+    }
+
+    @Test
+    @DisplayName("propuesta ASCENSO aprobada pero con el bote sin fondos: no aplica, cierra igual")
+    void ascensoVotoAprobadoSinFondos() {
+        Propuesta prop = propuestaAscenso(PUESTO, futuro());
+        when(propuestas.porId(77L)).thenReturn(Optional.of(prop));
+        when(repo.altosCargos(EMPRESA)).thenReturn(List.of(
+                miembro(DUENO, RangoEmpresa.DUENO), miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO)));
+        when(propuestas.votos(77L)).thenReturn(List.of(voto(DUENO, true), voto(DIRECTIVO, true)));
+        when(repo.miembros(EMPRESA)).thenReturn(List.of(
+                miembro(DIRECTIVO, RangoEmpresa.DIRECTIVO), miembro(OBJETIVO, RangoEmpresa.BECARIO)));
+        when(trabajos.validarAscenso(OBJETIVO, PUESTO)).thenReturn(ascensoOk());
+        when(trabajos.costeAscenso(PUESTO)).thenReturn(COSTE);
+        when(repo.gastarDelBote(EMPRESA, COSTE)).thenReturn(false);
+
+        // Best-effort: la propuesta queda resuelta (aprobada) aunque el ascenso no llegue a aplicarse.
+        assertEquals(ResultadoVoto.APROBADA_EJECUTADA, svc().votar(77L, DIRECTIVO, true));
+        verify(trabajos, never()).aplicarAscenso(anyLong(), anyString());
+        verify(propuestas).cerrar(77L);
+    }
+
     // ------------------------------------------------------------------ helpers
+
+    /** Resultado OK de validarAscenso (el requisito no lo lee el service: usa costeAscenso aparte). */
+    private static ResultadoAscenso ascensoOk() {
+        return new ResultadoAscenso(EstadoAscenso.OK, null, 0);
+    }
+
+    private static Propuesta propuestaAscenso(String dato, Instant expira) {
+        return new Propuesta(77L, EMPRESA, TipoPropuesta.ASCENSO, OBJETIVO, null, DIRECTIVO,
+                AHORA, expira, dato);
+    }
 
     private static Empresa empresa() {
         return new Empresa(EMPRESA, "HIERRO", DUENO, "Acme", 1, 0L, AHORA);

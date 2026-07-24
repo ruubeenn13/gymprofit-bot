@@ -472,10 +472,12 @@ public final class Main {
             // los listados y recuperar el id de la propuesta recién creada (consultas de apoyo).
             EmpresaPropuestaRepositorio empresaPropuestaRepo =
                     new EmpresaPropuestaRepositorio(db.dataSource());
+            // trabajoService entra en la gobernanza por el ascenso patrocinado (F3): la validación de
+            // requisitos, el coste del salto y la aplicación del ascenso salen de sus piezas reutilizables.
             EmpresaGestionService empresaGestion = new EmpresaGestionService(
-                    empresaRepo, empresaPropuestaRepo, personajeRepo, Clock.systemUTC());
+                    empresaRepo, empresaPropuestaRepo, personajeRepo, trabajoService, Clock.systemUTC());
             comandos.add(new EmpresaComando(
-                    empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo));
+                    empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService));
             listeners.add(new EmpresaBotonesListener(empresaService, empresaGestion));
             // Empresas (Fase 3): nómina diaria a las 03:00 Europe/Madrid. Reparte una fracción del
             // bote entre los miembros según su rango; reloj de Madrid para clavar la hora local.
