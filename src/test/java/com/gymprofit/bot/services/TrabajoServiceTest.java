@@ -214,6 +214,23 @@ class TrabajoServiceTest {
         verify(empresas, never()).incrementarBote(anyLong(), anyLong());
     }
 
+    @Test
+    @DisplayName("currar en una empresa nivel 3 produce mercancía para su almacén (5 + nivel)")
+    void currarSumaMercanciaSiEsMiembroDeEmpresa() {
+        var svc = svcParaCurrar(Optional.of(empresa(42L, 3)));
+        svc.trabajar(1L, Instant.now());
+        // Producción del curro = BASE (5) + nivel (3) = 8 unidades al almacén de la empresa.
+        verify(empresas).sumarMercancia(eq(42L), eq(8L));
+    }
+
+    @Test
+    @DisplayName("currar sin empresa no produce mercancía para ningún almacén")
+    void currarNoSumaMercanciaSinEmpresa() {
+        var svc = svcParaCurrar(Optional.empty());
+        svc.trabajar(1L, Instant.now());
+        verify(empresas, never()).sumarMercancia(anyLong(), anyLong());
+    }
+
     /**
      * Service listo para un turno de curro que llega a pagar (despierto, con trabajo, sin cooldown ni
      * fatiga, energía de sobra) y con el repo de empresas devolviendo la empresa dada para el jugador.

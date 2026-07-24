@@ -396,6 +396,9 @@ public final class TrabajoService {
             }
             IngresoEmpresa ingreso = ingresoEmpresa(sueldo, emp.get().nivel());
             empresas.incrementarBote(emp.get().id(), ingreso.corte());
+            // F5a: el curro también produce mercancía para el almacén de la empresa (tope por nivel vía
+            // LEAST en el repo). Mismo bloque best-effort que el corte: si falla, degrada sin romper el curro.
+            empresas.sumarMercancia(emp.get().id(), Produccion.unidadesPorCurro(emp.get().nivel()));
             return ingreso.neto();
         } catch (RuntimeException e) {
             log.warn("No se pudo aplicar el corte de empresa al curro de {}: {}", discordId, e.toString());
