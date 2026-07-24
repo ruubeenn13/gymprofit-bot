@@ -26,3 +26,6 @@ buildNumber.properties
 .env
 logs/
 *.log
+
+# ===== Config local de Claude Code (rutas absolutas de la maquina) =====
+.claude/
