@@ -362,7 +362,7 @@ class EmpresaServiceTest {
 
     /** Empresa con un nivel concreto (para las reglas de {@code mejorar}). */
     private static Empresa empresa(long id, long duenoId, String rama, String nombre, int nivel) {
-        return new Empresa(id, rama, duenoId, nombre, nivel, 0L, Instant.now());
+        return new Empresa(id, rama, duenoId, nombre, nivel, 0L, Instant.now(), null);
     }
 
     private static Pendiente pendiente(long id, long empresaId, long discordId, TipoPendiente tipo,

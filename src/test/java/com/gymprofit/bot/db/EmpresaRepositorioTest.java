@@ -241,4 +241,54 @@ class EmpresaRepositorioTest {
             }
         }
     }
+
+    /**
+     * Ranking de F4: {@code ranking()} devuelve una fila por empresa con su número de miembros contado
+     * por el LEFT JOIN. Comprueba que (a) el COUNT agrupa bien (la empresa del dueño + un empleado da 2)
+     * y (b) una empresa sin miembros no se pierde y aparece con {@code miembros = 0}.
+     */
+    @Test
+    void rankingCuentaMiembrosEIncluyeEmpresasVacias() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar/añadir miembros (RGPD).
+                long duenoAlfa = 701L;
+                long empleadoAlfa = 702L;
+                long duenoBeta = 703L;
+                for (long id : new long[]{duenoAlfa, empleadoAlfa, duenoBeta}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                // Alfa: el dueño (fundar lo da de alta) + un empleado -> 2 miembros.
+                long alfa = empresas.fundar("SALUD", duenoAlfa, "Alfa");
+                empresas.anadirMiembro(alfa, empleadoAlfa, RangoEmpresa.EMPLEADO);
+                // Beta: se funda y se saca al dueño para forzar una empresa con 0 miembros.
+                long beta = empresas.fundar("TECNICA", duenoBeta, "Beta");
+                empresas.quitarMiembro(beta, duenoBeta);
+
+                List<EmpresaRepositorio.EmpresaRanking> r = empresas.ranking();
+                assertEquals(2, r.size(), "el ranking incluye ambas empresas, también la vacía");
+
+                EmpresaRepositorio.EmpresaRanking filaAlfa = r.stream()
+                        .filter(e -> e.nombre().equals("Alfa")).findFirst().orElseThrow();
+                assertEquals(2, filaAlfa.miembros(), "el COUNT agrupa dueño + empleado");
+
+                EmpresaRepositorio.EmpresaRanking filaBeta = r.stream()
+                        .filter(e -> e.nombre().equals("Beta")).findFirst().orElseThrow();
+                assertEquals(0, filaBeta.miembros(),
+                        "la empresa sin miembros aparece con miembros = 0 (LEFT JOIN)");
+            }
+        }
+    }
 }

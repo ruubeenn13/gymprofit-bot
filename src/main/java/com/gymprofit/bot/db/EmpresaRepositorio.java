@@ -103,7 +103,7 @@ public final class EmpresaRepositorio {
 
     /** Empresa a la que pertenece el jugador, si está en alguna (JOIN con {@code empresa_miembros}). */
     public Optional<Empresa> deMiembro(long discordId) {
-        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada "
+        String sql = "SELECT e.id, e.rama, e.dueno_discord_id, e.nombre, e.nivel, e.bote, e.creada, e.canal_id "
                 + "FROM empresas e JOIN empresa_miembros m ON m.empresa_id = e.id "
                 + "WHERE m.discord_id = ?";
         try (Connection con = dataSource.getConnection();
@@ -209,6 +209,19 @@ public final class EmpresaRepositorio {
         }
     }
 
+    /** Persiste el id del canal privado recién creado de una empresa (creación perezosa de F4). */
+    public void fijarCanal(long empresaId, long canalId) {
+        String sql = "UPDATE empresas SET canal_id = ? WHERE id = ?";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, canalId);
+            ps.setLong(2, empresaId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Error fijando el canal de la empresa " + empresaId, e);
+        }
+    }
+
     /** Empresas con bote positivo (las que tienen dinero acumulado por repartir/gastar). */
     public List<Empresa> conBote() {
         try (Connection con = dataSource.getConnection();
@@ -222,6 +235,38 @@ public final class EmpresaRepositorio {
             }
         } catch (SQLException e) {
             throw new DatabaseException("Error listando empresas con bote", e);
+        }
+    }
+
+    /** Fila del ranking de empresas (F4): datos mínimos para pintar la tabla de prestigio. */
+    public record EmpresaRanking(String nombre, String rama, int nivel, int miembros, long bote) {}
+
+    /**
+     * Todas las empresas con su número de miembros, para calcular el ranking de prestigio (F4). El
+     * LEFT JOIN conserva las empresas sin miembros (aparecen con {@code miembros = 0}); el orden por
+     * prestigio NO va aquí: lo aplica el service (la fórmula {@link
+     * com.gymprofit.bot.services.Prestigio} no es expresable de forma limpia en SQL portable).
+     */
+    public List<EmpresaRanking> ranking() {
+        String sql = "SELECT e.nombre, e.rama, e.nivel, e.bote, COUNT(m.discord_id) AS miembros "
+                + "FROM empresas e LEFT JOIN empresa_miembros m ON m.empresa_id = e.id "
+                + "GROUP BY e.id, e.nombre, e.rama, e.nivel, e.bote";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            try (ResultSet rs = ps.executeQuery()) {
+                List<EmpresaRanking> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(new EmpresaRanking(
+                            rs.getString("nombre"),
+                            rs.getString("rama"),
+                            rs.getInt("nivel"),
+                            rs.getInt("miembros"),
+                            rs.getLong("bote")));
+                }
+                return lista;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error calculando el ranking de empresas", e);
         }
     }
 
@@ -388,12 +433,14 @@ public final class EmpresaRepositorio {
     }
 
     private static final String SELECT_EMPRESA =
-            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada FROM empresas";
+            "SELECT id, rama, dueno_discord_id, nombre, nivel, bote, creada, canal_id FROM empresas";
 
     private static final String SELECT_PENDIENTE =
             "SELECT id, empresa_id, discord_id, tipo, motivo, creada FROM empresa_pendientes";
 
     private static Empresa mapearEmpresa(ResultSet rs) throws SQLException {
+        // canal_id es NULL hasta que se crea el canal (F4): getLong da 0 en NULL, wasNull() lo distingue.
+        long canalId = rs.getLong("canal_id");
         return new Empresa(
                 rs.getLong("id"),
                 rs.getString("rama"),
@@ -401,7 +448,8 @@ public final class EmpresaRepositorio {
                 rs.getString("nombre"),
                 rs.getInt("nivel"),
                 rs.getLong("bote"),
-                rs.getTimestamp("creada").toInstant());
+                rs.getTimestamp("creada").toInstant(),
+                rs.wasNull() ? null : canalId);
     }
 
     private static MiembroEmpresa mapearMiembro(ResultSet rs) throws SQLException {
