@@ -55,7 +55,9 @@ class EmpresaPropuestaRepositorioTest {
                     usuarios.obtenerOCrear(id);
                 }
                 long empresaId = empresas.fundar("SALUD", dueno, "Gimnasio Central");
-                Instant expira = Instant.now().plus(1, ChronoUnit.DAYS);
+                // Truncado a segundos: la columna DATETIME redondea al guardar
+                // (p.ej. :15.6 -> :16) y el assert trunca (:15) -> flaky off-by-one.
+                Instant expira = Instant.now().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
 
                 // crear + porId con rangoNuevo (CAMBIAR_RANGO): el record vuelve completo. dato NULL.
                 long idCambio = propuestas.crear(
