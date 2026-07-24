@@ -127,6 +127,23 @@ class PrestamoEmpresasServiceTest {
         verify(repo, never()).fijarPrestamo(anyLong(), anyLong(), anyLong());
     }
 
+    @Test
+    @DisplayName("conceder con cantidad == limite: el borde pasa (OK, no LIMITE)")
+    void concederCantidadIgualAlLimite_ok() {
+        // nivel 1 → limite 20 000; pedir EXACTAMENTE el limite debe conceder (la comparacion es cantidad > limite).
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(1, 0L, 0L, 0L)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+
+        long limite = Prestamo.limite(1);
+        ResultadoConceder r = svc().conceder(DUENO, limite);
+
+        assertEquals(EstadoConceder.OK, r.estado());
+        assertEquals(limite, r.principal());
+        verify(repo).incrementarBote(EMPRESA_ID, limite);
+        verify(repo).fijarPrestamo(EMPRESA_ID,
+                Prestamo.deudaConInteres(limite), Prestamo.cuota(Prestamo.deudaConInteres(limite)));
+    }
+
     // ------------------------------------------------------------------ pagar
 
     @Test
@@ -242,6 +259,24 @@ class PrestamoEmpresasServiceTest {
         assertEquals(EstadoPago.SIN_FONDOS, r.estado());
         verify(repo, never()).gastarDelBote(anyLong(), anyLong());
         verify(repo, never()).fijarPrestamo(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("pagar cantidad > deuda: se acota a la deuda (Math.min) y salda el prestamo")
+    void pagarCantidadMayorQueDeuda_pagaSoloLaDeuda() {
+        // deuda 6 000, se pide pagar 9 999: el cap Math.min(cantidad, deuda) descuenta SOLO 6 000 y salda.
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(1, 20_000L, 6_000L, 2_000L)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.gastarDelBote(EMPRESA_ID, 6_000L)).thenReturn(true);
+
+        ResultadoPago r = svc().pagar(DUENO, OptionalLong.of(9_999L));
+
+        assertEquals(EstadoPago.OK, r.estado());
+        assertEquals(6_000L, r.pagado());
+        assertEquals(0L, r.deudaRestante());
+        assertEquals(0L, r.cuota());
+        verify(repo).gastarDelBote(EMPRESA_ID, 6_000L); // NO 9 999: nunca se paga de mas
+        verify(repo).fijarPrestamo(EMPRESA_ID, 0L, 0L);
     }
 
     // ------------------------------------------------------------------ helpers
