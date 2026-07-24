@@ -339,3 +339,22 @@ economía (lo patrocina el bote).
 **Consecuencias.** Migración V28 (empresa_propuestas, empresa_votos). `EmpresaGestionService` separado
 de `EmpresaService`. La regla de rango se revalida al ejecutar (el objetivo pudo cambiar entre
 proponer y aprobar).
+
+## ADR-018 — economía de empresas
+
+**Estado:** aceptada e implementada (Fase 3).
+
+**Contexto.** El bote y el nivel de las empresas (columnas desde V27) estaban inertes; faltaba el
+motor económico y el sentido de pertenecer.
+
+**Decisión.** Un **10 % del curro** de cada miembro va al **bote**; el **nivel** (subido gastando del
+bote, `/empresa mejorar`) da **+2 %/nivel de ingresos** a todos (tope +20 %); una **nómina diaria**
+reparte el 20 % del bote por rango; y el bote **patrocina ascensos de tier** de los miembros
+(`/empresa ascender`, vía la gobernanza de F2). Se refactoriza `TrabajoService.ascender` en
+validación/aplicación reutilizables para el patrocinio sin duplicar reglas. Un ascenso patrocinado
+que se aprueba pero no puede aplicarse (bote insuficiente o requisitos ya no cumplidos al ejecutar)
+se anuncia como **aprobado pero no ejecutado**: no se toca el bote ni se miente al votante.
+
+**Consecuencias.** Migración mínima V29 (columna `dato` en las propuestas para el puesto del ascenso);
+`bote`/`nivel` ya existían. `TrabajoService.currar` depende ahora de `EmpresaRepositorio`. Nuevo
+`NominaEmpresasJob` (03:00 Europe/Madrid).

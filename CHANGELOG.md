@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 3)** (`/empresa mejorar · ascender`): la economía se enciende — un 10 % de cada
+  curro va al bote, el nivel da +2 %/nivel de ingresos a todos, una nómina diaria reparte el bote por
+  rango, y el bote patrocina ascensos de tier de los miembros. Migración `V29`.
 - **Empresas (Fase 2)** (`/empresa rango · sacar · despedir · propuestas`): el dueño gestiona la
   plantilla directo (cambiar rango, echar); un directivo lo propone y los altos cargos lo votan
   (mayoría, desempate del dueño, caduca a 48 h). Despedir manda al paro; sacar conserva el trabajo.

@@ -37,7 +37,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |
 | `i18n/` | `Messages` sobre `ResourceBundle` (ES/EN) |
-| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `SorteoJob`, retención de datos |
+| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `NominaEmpresasJob` (reparte a las **03:00 Europe/Madrid** una fracción del bote de cada empresa entre sus miembros según su rango), `SorteoJob`, retención de datos |
 
 ## Flujo de un slash command (objetivo F1)
 
@@ -103,9 +103,18 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   ya dejó de ser alto cargo). **Sacar** conserva el trabajo; **despedir** manda al paro. `/empresa`
   suma `rango · sacar · despedir · propuestas` (más botones de voto). El ascenso de tier de un
   miembro queda para F3. Tablas `empresa_propuestas` y `empresa_votos` con FKs RGPD.
-- **Migraciones Flyway V6–V28**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 3)**: la economía se enciende sobre F1/F2. Un **10 % del curro** de cada miembro
+  va al **bote** y el **nivel** de la empresa (subido con `/empresa mejorar`, gastando del bote) da
+  **+2 %/nivel de ingresos** a todos (tope +20 %). Una **nómina diaria** reparte el 20 % del bote por
+  rango, y el bote **patrocina ascensos de tier** (`/empresa ascender`, por la gobernanza de F2:
+  dueño directo o directivo propone y se vota). `TrabajoService.ascender` se refactoriza en
+  validación/aplicación reutilizables; un ascenso aprobado que no puede aplicarse (bote o requisitos)
+  se anuncia como aprobado **no ejecutado**. `/empresa` suma `mejorar · ascender`. Migración V29
+  (columna `dato` en las propuestas para el puesto destino).
+- **Migraciones Flyway V6–V29**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
-  estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura y gobernanza).
+  estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza y
+  economía).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).
