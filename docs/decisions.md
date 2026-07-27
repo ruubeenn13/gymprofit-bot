@@ -562,3 +562,23 @@ en **español** (best-effort: si el DM falla —usuario con DMs cerrados—, la 
 y solo se registra el fallo). Fuera de alcance: modal o *claim* de tickets, filtro de enlaces
 externos genéricos (solo invitaciones de Discord), y auto-registro de sanciones aplicadas fuera del
 bot (kicks/bans manuales de un moderador desde la UI de Discord).
+
+## ADR-028 — trivia jugable
+
+**Estado:** aceptada e implementada (F4 trivia).
+
+**Contexto.** F1 sembró 50 preguntas de trivia en la BD del bot, pero nunca se construyó ningún
+comando que las leyera: el banco existía y no se jugaba nunca.
+
+**Decisión.** `/trivia jugar [categoria]` plantea una pregunta con botones A-D y **un intento por
+pregunta** (estado one-shot); acertar paga un **premio único por dificultad** (fácil 40 coins/20 XP,
+media 80/35, difícil 120/50) — al ser único por pregunta, es un faucet acotado por diseño
+(antiinflación, ADR-010). `/trivia ranking` ordena por aciertos totales. El banco se amplía de 50 a
+**~200 preguntas en 6 categorías** (FITNESS, NUTRICION, ENTRENAMIENTO, ANATOMIA, SUPLEMENTACION,
+CULTURA_FITNESS). La respuesta es **efímera** (quiz personal, no spamea el canal).
+
+**Consecuencias.** Migración V37 (`trivia_respuestas`, estado one-shot por jugador/pregunta) + V38
+(amplía el `CHECK` de categorías y siembra las ~150 preguntas nuevas). Nuevos `Trivia` (recompensas
+puras), `TriviaService`, `TriviaRepositorio`, `TriviaComando`, `TriviaListener`. Sin cambios en jobs.
+Fuera de alcance: quiz de varias preguntas seguidas, trivia del día automática, alta de preguntas
+por comando (siguen sembradas por migración).

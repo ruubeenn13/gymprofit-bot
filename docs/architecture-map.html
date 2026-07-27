@@ -449,7 +449,7 @@
             <tr><td>núcleo</td><td class="k">/ping · /nivel · /top · /rank · /perfil</td></tr>
             <tr><td>config / admin</td><td class="k">/setup · /config · /canal · /publicar · /privacidad</td></tr>
             <tr><td>moderación</td><td class="k">/warn · /silenciar · /ban · /unban · /kick · /limpiar · /modlogs</td></tr>
-            <tr><td>comunidad</td><td class="k">/reto · /evento · /sugerencia</td></tr>
+            <tr><td>comunidad</td><td class="k">/reto · /evento · /sugerencia · /trivia</td></tr>
             <tr><td>consultas api</td><td class="k">/ejercicios · /ejercicio-dia · /frase</td></tr>
             <tr><td>economía / rpg</td><td class="k">/daily · /tienda · /banco · /bolsa · /casino · /pelear · /minar · /gremio</td></tr>
             <tr><td>trabajo / empresas</td><td class="k">/trabajo · /empresa · /empleo · /economia · /acciones</td></tr>
@@ -468,12 +468,13 @@
         <li><span class="n">AntiAbusoListener</span><span class="dsc">Anti-flood (5msg/7s) + anti-invites: borra + warn.</span></li>
         <li><span class="n">AutoModWarnListener</span><span class="dsc">AutoMod nativo → warn interno (anti-ráfaga compartido).</span></li>
         <li><span class="n">TicketListener</span><span class="dsc">Panel/apertura/cierre de tickets con transcript.</span></li>
+        <li><span class="n">TriviaListener</span><span class="dsc">Botones A-D de /trivia jugar; un intento por pregunta.</span></li>
         <li><span class="n">Combate · Duelo · Empresa · Empleo</span><span class="dsc">Interacciones por botones y modales.</span></li>
       </ul></div>
     </details>
     <details class="layer"><summary>persistencia y api<span class="ltag">db (JDBC+Flyway) · api (Retrofit)</span></summary>
       <div class="lbody"><ul class="comp">
-        <li><span class="n">db/Database</span><span class="dsc">Pool HikariCP; repos JDBC; Flyway V1–V36. Aiven MySQL <code>gymprofit_bot</code>, separada.</span></li>
+        <li><span class="n">db/Database</span><span class="dsc">Pool HikariCP; repos JDBC; Flyway V1–V38. Aiven MySQL <code>gymprofit_bot</code>, separada.</span></li>
         <li><span class="n">ApiClient · TokenManager</span><span class="dsc">Cliente de la API con cuenta de servicio (Bearer + refresh ante 401).</span></li>
         <li><span class="n">AuthApi · EjerciciosApi</span><span class="dsc">Solo consume auth + ejercicios.</span></li>
       </ul></div>

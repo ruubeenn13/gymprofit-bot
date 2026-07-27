@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Trivia jugable (Fase 4)** (`/trivia jugar · ranking`): banco ampliado a ~200 preguntas en 6
+  categorías (fitness, nutrición, entrenamiento, anatomía, suplementación, cultura fitness), un
+  intento por pregunta, premio por dificultad (coins + XP) y ranking de aciertos. Migraciones
+  `V37` + `V38`.
 - **Moderación robusta y panel de tickets**: las infracciones del AutoMod nativo de Discord cuentan
   ahora como warn interno para el escalado y salen en `/modlogs` (con anti-ráfaga de 30 s
   compartido); anti-flood (5 msgs/7 s) y anti-invites propios que borran el mensaje y avisan;

@@ -95,6 +95,8 @@ convertible. By block:
   track's prestige), which swings their sales income up or down by up to ±25 %; `/empresa ranking`
   now takes an optional track filter showing each company's market-share %.
 - **Social:** `/gremio` (groups with a private channel, subcommands).
+- **Trivia:** `/trivia` (jugar · ranking) — a fitness/nutrition question with A-D buttons, one
+  attempt per question, coins + XP reward scaled by difficulty.
 
 Design details in [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).
 

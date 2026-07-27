@@ -159,7 +159,7 @@
 
     "bot": {
       "displayName": "GymProBot (Discord)",
-      "role": "Bot oficial de Discord: comunidad gamificada (XP, economia/RPG, empresas, moderacion, tickets) + puente en vivo con la API (ejercicios, frases, ejercicio del dia).",
+      "role": "Bot oficial de Discord: comunidad gamificada (XP, economia/RPG, empresas, moderacion, tickets, trivia) + puente en vivo con la API (ejercicios, frases, ejercicio del dia).",
       "path": "gymprofit-bot",
       "rootPackage": "com.gymprofit.bot",
       "language": "Java 21 (JDA 5, sin Spring)",
@@ -185,7 +185,7 @@
             "nucleo": ["/ping", "/nivel", "/top", "/rank", "/perfil"],
             "config_admin": ["/setup", "/config", "/canal", "/publicar", "/privacidad"],
             "moderacion": ["/warn", "/silenciar", "/ban", "/unban", "/kick", "/nick", "/limpiar", "/motivo", "/modlogs"],
-            "comunidad": ["/reto", "/evento", "/sugerencia", "/sugres"],
+            "comunidad": ["/reto", "/evento", "/sugerencia", "/sugres", "/trivia"],
             "consultas_api": ["/ejercicios", "/ejercicio-dia", "/frase"],
             "economia_rpg": ["/daily", "/entrenar", "/tienda", "/comprar", "/inventario", "/banco", "/bolsa", "/casino", "/mercado", "/robar", "/trueque", "/pelear", "/mazmorra", "/minar", "/craftear", "/gremio"],
             "trabajo_empresas": ["/trabajo", "/empresa", "/empleo", "/economia", "/acciones"]
@@ -205,6 +205,7 @@
             {"name": "BienvenidaListener + PanelRolesListener", "role": "Bienvenida/auto-roles + paneles de roles."},
             {"name": "AntiAbusoListener + AutoModWarnListener", "role": "Anti-flood/invites propio + AutoMod nativo -> warn interno (anti-rafaga compartido)."},
             {"name": "TicketListener", "role": "Panel/apertura/cierre de tickets con transcript."},
+            {"name": "TriviaListener", "role": "Botones A-D de /trivia jugar; un intento por pregunta (estado one-shot)."},
             {"name": "CombateListener / DueloListener / TruequeListener / DescansoListener / EmpresaBotonesListener / EmpleoListener", "role": "Interacciones por botones/modales."}
           ]
         },
@@ -212,7 +213,7 @@
           "name": "Persistencia + API",
           "packages": ["db (JDBC + Flyway)", "api (cliente Retrofit)"],
           "components": [
-            {"name": "db/Database (HikariCP)", "role": "Pool + DataSource; repos JDBC puros; Flyway V1-V36."},
+            {"name": "db/Database (HikariCP)", "role": "Pool + DataSource; repos JDBC puros; Flyway V1-V38."},
             {"name": "ApiClient + TokenManager", "role": "Cliente de la API GymProFit con cuenta de servicio (Bearer + refresh ante 401)."},
             {"name": "AuthApi + EjerciciosApi", "role": "Solo consume auth + ejercicios (el resto de la API no lo usa el bot)."}
           ]
@@ -231,7 +232,7 @@
       ],
       "persistence": {
         "engine": "Aiven MySQL - database gymprofit_bot (SEPARADA de la BD de la app)",
-        "flyway": "V1-V36",
+        "flyway": "V1-V38",
         "rule": "El bot NUNCA toca la BD de la app; todo dato de la app pasa por la API REST."
       },
       "integrations": ["api", "discord"],

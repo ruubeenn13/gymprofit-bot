@@ -97,6 +97,8 @@ ni convertibles. Por bloques:
   la rama), que sube o baja hasta un ±25 % sus ingresos por venta; `/empresa ranking` admite filtro
   por rama con el % de cuota de cada empresa.
 - **Social:** `/gremio` (grupos con canal privado, subcomandos).
+- **Trivia:** `/trivia` (jugar · ranking) — pregunta de fitness/nutrición con botones A-D, un
+  intento por pregunta, premio en coins + XP según dificultad.
 
 Detalle y diseño en [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).
 
