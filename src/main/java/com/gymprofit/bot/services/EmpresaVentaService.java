@@ -32,8 +32,12 @@ public final class EmpresaVentaService {
     }
 
     private final EmpresaRepositorio repo;
+    private final EventoEconomicoService eventos;
 
-    public EmpresaVentaService(EmpresaRepositorio repo) { this.repo = repo; }
+    public EmpresaVentaService(EmpresaRepositorio repo, EventoEconomicoService eventos) {
+        this.repo = repo;
+        this.eventos = eventos;
+    }
 
     /**
      * Vende mercancia del almacen de la empresa del actor. {@code cantidad} vacio = vender todo. Valida:
@@ -56,7 +60,8 @@ public final class EmpresaVentaService {
         // Gate atomico: si el descuento condicional no prospera (almacen ya vaciado), no se abona nada.
         if (!repo.gastarMercancia(emp.id(), aVender)) return Resultado.de(Estado.SIN_MERCANCIA);
         // bruto acotado: mercancia <= nivel*100 (Produccion.capacidad), no desborda long
-        long bruto = aVender * Produccion.PRECIO_UNIDAD;
+        // F5 eventos: el clima económico escala el bruto (boom/recesión de ventas) antes del impuesto.
+        long bruto = Math.round(aVender * Produccion.PRECIO_UNIDAD * eventos.ventaMult());
         long impuesto = Produccion.impuesto(bruto);
         long neto = bruto - impuesto;
         repo.incrementarBote(emp.id(), neto); // el impuesto NO se ingresa a nadie: se quema

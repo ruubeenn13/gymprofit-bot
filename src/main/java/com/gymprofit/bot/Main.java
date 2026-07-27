@@ -513,7 +513,7 @@ public final class Main {
                     empresaRepo, empresaPropuestaRepo, personajeRepo, trabajoService, Clock.systemUTC());
             // Empresas (Fase 5a): venta de la mercancia del almacen. Un alto cargo la vende, entra el neto
             // al bote y se quema el impuesto (sumidero antiinflacion). El gate atomico vive en el service.
-            EmpresaVentaService empresaVenta = new EmpresaVentaService(empresaRepo);
+            EmpresaVentaService empresaVenta = new EmpresaVentaService(empresaRepo, eventosEconomicos);
             // Empresas (Fase 5d): banco empresarial. Un alto cargo pide un prestamo (el principal entra al
             // bote y se fija deuda+cuota con interes) o lo amortiza desde el bote. Uno a la vez; el gate de
             // dinero (incrementarBote/gastarDelBote/fijarPrestamo) y las reglas viven en el service.

@@ -5,6 +5,7 @@ import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.MiembroEmpresa;
 import com.gymprofit.bot.services.EmpresaVentaService.Estado;
 import com.gymprofit.bot.services.EmpresaVentaService.Resultado;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -29,14 +30,21 @@ import static org.mockito.Mockito.when;
 class EmpresaVentaServiceTest {
 
     private final EmpresaRepositorio repo = mock(EmpresaRepositorio.class);
+    private final EventoEconomicoService eventos = mock(EventoEconomicoService.class);
 
     private static final Instant AHORA = Instant.parse("2026-07-24T12:00:00Z");
     private static final long EMPRESA_ID = 10L;
     private static final long DUENO = 1L;
     private static final long EMPLEADO = 3L;
 
+    @BeforeEach
+    void setUp() {
+        // Neutro por defecto: sin evento activo, ventaMult() = 1.0 (no afecta a los tests existentes).
+        when(eventos.ventaMult()).thenReturn(1.0);
+    }
+
     private EmpresaVentaService svc() {
-        return new EmpresaVentaService(repo);
+        return new EmpresaVentaService(repo, eventos);
     }
 
     @Test
@@ -159,6 +167,20 @@ class EmpresaVentaServiceTest {
 
         assertEquals(Estado.SIN_MERCANCIA, r.estado());
         verify(repo, never()).incrementarBote(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("con boom de ventas activo, el bruto rinde x1.30")
+    void ventaConBoom() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(10L)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.gastarMercancia(EMPRESA_ID, 10L)).thenReturn(true);
+        when(eventos.ventaMult()).thenReturn(1.30);
+
+        Resultado r = svc().vender(DUENO, OptionalLong.of(10));
+
+        // bruto neutro = 10*50 = 500; con x1.30 = 650
+        assertEquals(650, r.bruto());
     }
 
     // ------------------------------------------------------------------ helpers
