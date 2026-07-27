@@ -40,6 +40,7 @@ class EventoEconomicoTest {
         EventoEconomico[] v = EventoEconomico.values();
         assertEquals(v[0], EventoEconomico.aleatorio(0.0));
         assertEquals(v[v.length - 1], EventoEconomico.aleatorio(0.999));
+        assertEquals(v[v.length - 1], EventoEconomico.aleatorio(1.0));
         for (double a = 0; a < 1; a += 0.05) {
             assertNotNull(EventoEconomico.aleatorio(a));
         }
