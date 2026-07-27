@@ -267,9 +267,8 @@ public final class SetupServidorPlan {
                             .conTopic("Logros desbloqueados por la comunidad (los publica el bot). 🏆"),
                     info("📊・ranking", null, "intro.ranking")
                             .conTopic("Clasificación de XP y niveles del servidor (la publica el bot)."),
-                    texto("🧠・trivia", null, "intro.proximamente")
-                            .conTopic("Preguntas de fitness para ganar XP. (Próximamente)")
-                            .conSoloLectura(),
+                    texto("🧠・trivia", null, "intro.trivia")
+                            .conTopic("Preguntas de fitness para ganar coins y XP: /trivia jugar."),
                     texto("⚔️・duelos", null, "intro.proximamente")
                             .conTopic("Rétate con otros miembros. (Próximamente)")
                             .conSoloLectura(),

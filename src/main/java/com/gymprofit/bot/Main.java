@@ -8,6 +8,7 @@ import com.gymprofit.bot.commands.comunidad.EventoComando;
 import com.gymprofit.bot.commands.comunidad.RetoComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaComando;
 import com.gymprofit.bot.commands.comunidad.SugerenciaResolverComando;
+import com.gymprofit.bot.commands.comunidad.TriviaComando;
 import com.gymprofit.bot.commands.config.ConfigComando;
 import com.gymprofit.bot.commands.consultas.EjercicioDiaComando;
 import com.gymprofit.bot.commands.consultas.EjerciciosComando;
@@ -75,6 +76,7 @@ import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.EmpresaAccionRepositorio;
+import com.gymprofit.bot.db.TriviaRepositorio;
 import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
@@ -160,6 +162,7 @@ import com.gymprofit.bot.events.CombateListener;
 import com.gymprofit.bot.events.DescansoListener;
 import com.gymprofit.bot.events.ReintentoRegistro;
 import com.gymprofit.bot.events.DueloListener;
+import com.gymprofit.bot.events.TriviaListener;
 import com.gymprofit.bot.events.EmpleoListener;
 import com.gymprofit.bot.events.EmpresaBotonesListener;
 import com.gymprofit.bot.events.TruequeListener;
@@ -174,6 +177,7 @@ import com.gymprofit.bot.jobs.RetencionJob;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.EstadisticasService;
 import com.gymprofit.bot.services.LimpiezaService;
+import com.gymprofit.bot.services.TriviaService;
 import com.gymprofit.bot.services.XpService;
 import net.dv8tion.jda.api.JDA;
 import org.slf4j.Logger;
@@ -496,6 +500,12 @@ public final class Main {
                     new EconomiaService(economiaRepo, personajeRepo, usuarios);
             comandos.add(new DailyComando(economiaService));
             comandos.add(new RankComando(economiaService, usuarios, rangoService));
+
+            // Trivia (F4): banco de preguntas con respuesta one-shot; al acertar paga coins + XP.
+            TriviaService triviaService = new TriviaService(
+                    new TriviaRepositorio(db.dataSource()), economiaRepo, xpService, usuarios);
+            comandos.add(new TriviaComando(triviaService));
+            listeners.add(new TriviaListener(triviaService));
 
             // Descanso: dormir es un estado; al despertar se gana energía según cama y tiempo.
             // Se construye antes que TrabajoService, BatallaService y MineriaService: los tres lo
