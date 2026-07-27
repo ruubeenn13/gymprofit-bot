@@ -31,7 +31,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `db/Database` | Pool HikariCP + ejecución de migraciones Flyway; expone el `DataSource` a los repos |
 | `config/` | Carga de env vars y constantes (`BotConfig`) |
 | `commands/` | Un archivo por slash command (subpaquetes por categoría). Las familias van agrupadas en **subcomandos** (`/warn`, `/silenciar`, `/canal`, `/privacidad`, `/perfil`, `/inventario`, `/trabajo`, `/publicar`, `/descansar`, `/gremio`, `/banco`, `/mercado`, `/bolsa`, `/casino`, `/empresa`) para no rebasar el límite de 100 slash commands de Discord: 60 de nivel superior (ADR-011). `commands/consultas` agrupa lo que lee de la API/contenido de la app: `/ejercicios`, `/ejercicio-dia` y `/frase`, con `ConsultaAsincrona` como **punto único** de ejecución asíncrona y manejo de errores del módulo (lo usan también los componentes del paginador): API caída → aviso amable, cualquier otro fallo → log a nivel error + aviso genérico, y consumidor de fallo en los `queue()` para las interacciones caducadas |
-| `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, auto-mod, `EjerciciosPaginadorListener` (flechas y ficha del catálogo, con el estado codificado en el customId) |
+| `events/` | Listeners: bienvenida/auto-roles, XP por mensaje, botones, `EjerciciosPaginadorListener` (flechas y ficha del catálogo, con el estado codificado en el customId), `AntiAbusoListener` (anti-flood/anti-invites propio: borra + warn) y `AutoModWarnListener` (AutoMod nativo de Discord → warn interno, anti-ráfaga compartido con `AntiAbusoListener`) |
 | `services/` | Lógica de negocio testeable (`XpService`, `EstadisticasService` —contadores en vivo—, `EventoService` —reto/evento—, `EconomyService`…) |
 | `api/` | Cliente Retrofit2+OkHttp3 hacia la API GymProFit: `ApiClient` (Bearer por interceptor, renovación ante 401 —contando 401 en la cadena, no cualquier `priorResponse`—, timeouts 60 s por Render free más `callTimeout` de la llamada completa, executor propio de 4 hilos daemon y `cerrar()` que los libera), `TokenManager` (refresh serializado con caída a login), interfaces por dominio (`AuthApi`, `EjerciciosApi`) y DTOs como records. Lo consume `services/EjercicioService` (caché TTL 5 min acotada y de vuelo único por consulta+idioma + reintentos con backoff acotado, 429 respeta `Retry-After`) |
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
@@ -165,6 +165,25 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).
 
+## Moderación
+
+`AplicadorSanciones` es la **vía única** de aplicación de un aviso: escalado (timeout/ban, incluso
+si el objetivo ya salió del servidor), registro en `#bot-logs` y **DM al sancionado** (best-effort,
+ES). La usan tanto `/warn` como los listeners automáticos, así que el escalado es el mismo sea cual
+sea el origen del aviso:
+
+- `AutoModWarnListener` convierte cada infracción del **AutoMod nativo** de Discord en un warn
+  interno (cuenta para el escalado y sale en `/modlogs`).
+- `AntiAbusoListener` + `DeteccionAbuso` (pura) implementan **anti-flood** (5 mensajes/7 s) y
+  **anti-invites** propios (`discord.gg`/`discord.com/invite`): borran el mensaje y generan un warn.
+  Staff y bots quedan exentos.
+- Ambos listeners comparten **una sola instancia** del anti-ráfaga (30 s por usuario) para no contar
+  doble la misma infracción vista por los dos caminos.
+- Si falta `BOT_CRYPTO_KEY`, `ResultadoAviso.motivoGuardado` viaja en `false` y `/warn` avisa al
+  moderador de que el motivo no se persistió. `/warn quitar` audita la revocación en `#bot-logs`.
+
+Sin cambio de migraciones (ADR-027).
+
 ## Setup del servidor
 
 `/setup` (y `/setup desde_cero`) monta la estructura del servidor de forma idempotente y, además,
@@ -173,7 +192,9 @@ permite fijar ese campo vía API en el resto). Cada ejecución produce un **info
 colector `RegistroCambios` anota lo creado/actualizado/eliminado por nombre —el contenido reaplicado
 (intros, welcome, AFK, descripción) solo cuenta si **difiere** del actual—, `InformeSetup` lo
 renderiza y `util/Embeds` lo trocea en varios embeds; el informe va a la respuesta del comando y, como
-registro persistente, a `#bot-logs` (ADR-015).
+registro persistente, a `#bot-logs` (ADR-015). Desde ADR-027, `/setup` también publica de forma
+**idempotente** el panel de tickets (botón "Abrir ticket") fijado en `🎫・soporte`, sin depender de
+`/publicar panel`.
 
 ## Autenticación bot → API
 

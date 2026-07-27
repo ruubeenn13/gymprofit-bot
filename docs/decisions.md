@@ -523,3 +523,42 @@ redistribución aproximada entre empresas de la rama, no una fuente ni un sumide
 alcance: reputación como stat persistente con decadencia, cuota calculada sobre ventas recientes
 en vez de sobre prestigio, efectos de la cuota en impuesto/contratación/acciones, guerra de
 precios o carteles entre empresas.
+
+## ADR-027 — moderación robusta y panel de tickets
+
+**Estado:** aceptada e implementada.
+
+**Contexto.** El AutoMod nativo de Discord bloqueaba mensajes pero vivía desconectado del sistema
+de avisos interno: sus infracciones no contaban para el escalado de `/warn` ni salían en
+`/modlogs`. El servidor no tenía anti-flood ni anti-invites propio (solo lo que cubre AutoMod). Si
+faltaba `BOT_CRYPTO_KEY`, `/warn` guardaba el aviso sin motivo y no lo decía: el moderador creía que
+había quedado registrado. El escalado a ban se saltaba si el objetivo ya no estaba en el servidor.
+El panel de tickets dependía de ejecutar `/publicar panel` a mano tras el `/setup`.
+
+**Decisión.**
+1. **`AplicadorSanciones`** centraliza la aplicación de un aviso — escalado (timeout/ban), registro
+   en `bot-logs` y **DM al sancionado** (best-effort, ES) — para que lo reusen tanto `/warn` como los
+   listeners automáticos.
+2. El escalado a **ban se aplica aunque el objetivo haya salido** del servidor (antes se saltaba).
+3. **AutoMod nativo → warn interno:** `AutoModWarnListener` convierte cada infracción de Discord
+   AutoMod en un warn interno que cuenta para el escalado y sale en `/modlogs`, con **anti-ráfaga**
+   de 30 s por usuario para no duplicar avisos por la misma infracción.
+4. **Anti-flood/anti-invites propio:** `AntiAbusoListener` + `DeteccionAbuso` (pura) detectan flood
+   (5 mensajes/7 s) e invitaciones de Discord (`discord.gg`/`discord.com/invite`); borran el mensaje
+   y generan un warn. Staff y bots quedan exentos. El anti-ráfaga de 30 s es **una sola instancia
+   compartida** con `AutoModWarnListener` para no contar doble la misma infracción vista por los dos
+   caminos.
+5. **Cifrado endurecido:** si falta `BOT_CRYPTO_KEY`, `ResultadoAviso.motivoGuardado` viaja en
+   `false` y `/warn` avisa al moderador de que el motivo no se persistió (antes se perdía en
+   silencio).
+6. **`/warn quitar`** (ya existía) pasa también a auditar la revocación en `bot-logs`.
+7. **Panel de tickets en `/setup`:** `/setup` publica de forma idempotente el botón "Abrir ticket"
+   fijado en `🎫・soporte`, sin depender de `/publicar panel`.
+
+**Consecuencias.** Nuevos `AplicadorSanciones`, `AntiAbusoListener`, `AutoModWarnListener` y
+`DeteccionAbuso` (pura); nuevo campo `ResultadoAviso.motivoGuardado`. Sin migración: no cambia el
+esquema, solo la vía de aplicación y el origen de los avisos. DM y logs de moderación se mantienen
+en **español** (best-effort: si el DM falla —usuario con DMs cerrados—, la sanción sigue aplicándose
+y solo se registra el fallo). Fuera de alcance: modal o *claim* de tickets, filtro de enlaces
+externos genéricos (solo invitaciones de Discord), y auto-registro de sanciones aplicadas fuera del
+bot (kicks/bans manuales de un moderador desde la UI de Discord).

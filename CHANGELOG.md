@@ -7,6 +7,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Moderación robusta y panel de tickets**: las infracciones del AutoMod nativo de Discord cuentan
+  ahora como warn interno para el escalado y salen en `/modlogs` (con anti-ráfaga de 30 s
+  compartido); anti-flood (5 msgs/7 s) y anti-invites propios que borran el mensaje y avisan;
+  `AplicadorSanciones` centraliza el escalado, el registro en `bot-logs` y un DM al sancionado
+  (el ban se aplica aunque ya no esté en el servidor); `/warn quitar` audita también la revocación
+  en `bot-logs`; si falta `BOT_CRYPTO_KEY` el moderador ve un aviso de que el motivo no se guardó
+  cifrado (antes se perdía en silencio); `/setup` deja publicado, de forma idempotente, el panel de
+  tickets en `🎫・soporte`. Sin migración.
 - **Empresas (Fase 5 — reputación y cuota de mercado)**: las empresas de una rama compiten por
   cuota de mercado (su parte del prestigio de la rama), que sube o baja sus ingresos por venta
   hasta un ±25 %. `/empresa ranking` gana un filtro por rama que muestra el % de cuota de cada

@@ -65,6 +65,11 @@ GymProBot convierte el servidor de la comunidad en un gimnasio gamificado y lo c
 Además: **XP por mensaje** (con cooldown anti-spam de 60 s) que sube de nivel y lo anuncia, y
 **bienvenida + auto-roles** (embed al entrar un miembro con menú de objetivo que asigna el rol).
 
+**Moderación:** `/warn` (poner · lista · quitar · limpiar) escala a timeout/ban y avisa por DM al
+sancionado; el bot tiene **anti-flood y anti-invites propios** (borra + avisa) y las infracciones
+del **AutoMod nativo de Discord también cuentan** para el mismo escalado; `/setup` deja listo el
+panel de tickets fijado en `🎫・soporte`.
+
 ### RPG / Economía (ficción)
 
 Simulador de vida de ficción sobre la comunidad. **Coins virtuales**, no comprables con dinero real
