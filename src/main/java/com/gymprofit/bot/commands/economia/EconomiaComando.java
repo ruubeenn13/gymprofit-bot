@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -137,8 +138,9 @@ public final class EconomiaComando implements ComandoAutocompletable {
     }
 
     /**
-     * Autocompleta el evento a lanzar con el catálogo entero (nombre localizado en ES → valor {@code name()}),
-     * filtrado por lo ya tecleado. Responde siempre (aunque vacío) y sin {@code defer}: Discord da 3 s.
+     * Autocompleta el evento a lanzar con el catálogo entero (nombre localizado según el idioma del
+     * usuario → valor {@code name()}), filtrado por lo ya tecleado. Responde siempre (aunque vacío) y
+     * sin {@code defer}: Discord da 3 s.
      */
     @Override
     public void autocompletar(CommandAutoCompleteInteractionEvent evento) {
@@ -146,9 +148,10 @@ public final class EconomiaComando implements ComandoAutocompletable {
             evento.replyChoices(List.of()).queue();
             return;
         }
+        Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         String tecleado = evento.getFocusedOption().getValue().toLowerCase(Locale.ROOT);
-        List<Command.Choice> opciones = java.util.Arrays.stream(EventoEconomico.values())
-                .map(t -> new Command.Choice(Messages.get(Messages.ES, t.claveI18n() + ".nombre"), t.name()))
+        List<Command.Choice> opciones = Arrays.stream(EventoEconomico.values())
+                .map(t -> new Command.Choice(Messages.get(locale, t.claveI18n() + ".nombre"), t.name()))
                 .filter(c -> c.getName().toLowerCase(Locale.ROOT).contains(tecleado))
                 .limit(MAX_SUGERENCIAS)
                 .toList();
