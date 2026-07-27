@@ -1,0 +1,274 @@
+{
+  "$schema": "https://gymprofit.dev/architecture-map.schema.json",
+  "meta": {
+    "name": "GymProFit — Mapa de arquitectura del ecosistema",
+    "description": "Modelo legible por máquina de los tres sistemas de GymProFit (app Android, API REST, bot de Discord) y cómo se integran. Pensado para que un agente sepa dónde tocar al añadir una feature. Generado a 2026-07-27 por análisis del código; sin secretos.",
+    "generatedAt": "2026-07-27",
+    "systems": ["app", "api", "bot"],
+    "conventions": {
+      "app": "Android/Java sin MVVM formal: UI (Activity/Fragment) -> network (ApiClient singleton Retrofit) -> model DTOs. Estado en PreferencesManager (normal + cifrado). Nada de Room/ViewModel.",
+      "api": "Spring Boot en capas: controller -> service (IXxx + Xxx) -> repository (JPA + jOOQ) -> entity; DTOs explicitos con MapStruct, JWT stateless, ddl-auto=validate (Flyway gobierna el esquema).",
+      "bot": "JDA sin Spring: commands/ -> services/ (logica testeable + catalogos en codigo) -> db/ (repos JDBC + Flyway); api/ es cliente Retrofit hacia la API. Un archivo por comando; embeds solo por EmbedFactory."
+    }
+  },
+
+  "systems": {
+    "app": {
+      "displayName": "App Android GymProFit",
+      "role": "Cliente movil principal para el usuario final: entrenar, rutinas, nutricion, progreso y perfil.",
+      "path": "TFG-GymProFit/app/GymProFit",
+      "rootPackage": "es.pmdm.gymprofit",
+      "language": "Java 11 (Android, minSdk 24, target/compileSdk 36)",
+      "stack": ["Retrofit2", "OkHttp3", "Gson", "ViewPager2 + Fragments", "AppCompat/Material", "androidx.security-crypto (EncryptedSharedPreferences)", "Glide", "MPAndroidChart", "Firebase (FCM + Analytics + Crashlytics)", "RuntimeShader AGSL + RenderEffect"],
+      "architecturePattern": "Capas simple: UI -> Network singleton -> REST. Sin repositorio/ViewModel/Room. Callbacks Retrofit (enqueue).",
+      "layers": [
+        {
+          "name": "UI",
+          "packages": ["ui.activities", "ui.fragments", "ui.adapters", "ui.widget"],
+          "components": [
+            {"name": "SplashActivity", "role": "Launcher: decide Login o Main segun sesion."},
+            {"name": "MainActivity + ViewPager2", "role": "Host unico de las 5 pestanas (Home, Rutinas, Ejercicios, Nutricion, Perfil) + FloatingNavBar fija."},
+            {"name": "BaseActivity", "role": "Tema/idioma/escala global + escucha 401 -> logout."},
+            {"name": "~35 Activities de flujo", "role": "Auth/onboarding, crear/editar rutina, comidas/alimentos, sesiones, mediciones, logros, admin."},
+            {"name": "FloatingNavBar", "role": "Vista custom con shader AGSL (efecto lente) sincronizada con el pager."}
+          ]
+        },
+        {
+          "name": "Network",
+          "packages": ["network"],
+          "components": [
+            {"name": "ApiClient", "role": "Singleton Retrofit/OkHttp; cachea las interfaces *Api. BASE_URL via BuildConfig (no hardcodeada)."},
+            {"name": "AuthInterceptor", "role": "Anade Bearer token salvo a /auth/."},
+            {"name": "TokenAuthenticator", "role": "401 -> POST /auth/refresh y reintenta; con anti-bucle."},
+            {"name": "ApiCallback / UiApiCallback", "role": "Envuelve enqueue: entrega POJO en hilo principal, centraliza el 401."},
+            {"name": "UtilREST", "role": "Tokens en memoria + listener de 401 (logout global)."}
+          ],
+          "retrofitInterfaces": ["AuthApi", "UsuarioApi", "EjercicioApi", "RutinaApi", "SesionApi", "ProgresoEjercicioApi", "ComidaApi", "AlimentoApi", "AlimentoComidaApi", "ObjetivoApi", "MedicionApi", "LogroApi", "DeviceTokenApi", "AdminApi"]
+        },
+        {
+          "name": "Modelo / estado",
+          "packages": ["model.*", "utils", "services"],
+          "components": [
+            {"name": "model.* (DTOs)", "role": "POJOs por dominio: comida, ejercicio, rutina, usuario, logro, medicion, objetivo, sesion, alimento, admin, auth + PageDTO."},
+            {"name": "PreferencesManager", "role": "SharedPreferences normal (tema, idioma, usuario, onboarding) + EncryptedSharedPreferences (auth_token, refresh_token)."},
+            {"name": "GymFirebaseMessagingService", "role": "FCM: onNewToken re-registra; onMessageReceived en foreground -> NotificationHelper."}
+          ]
+        }
+      ],
+      "screensByDomain": {
+        "auth_onboarding": ["Splash", "Login", "Registro", "Onboarding1-5", "OnboardingResumen"],
+        "ejercicios": ["EjerciciosFragment", "DetalleEjercicio"],
+        "rutinas": ["RutinasFragment", "CrearRutina", "AnadirEjercicios", "ResumenCrearRutina", "DetalleRutina", "EditarRutina"],
+        "sesiones": ["RegistrarSesion", "ResumenSesion", "Sesiones"],
+        "nutricion": ["NutricionFragment", "Comida", "AnadirAlimento", "CrearAlimento", "EstadisticasNutricion"],
+        "perfil_stats": ["PerfilFragment", "EditarPerfil", "Logros", "RegistrarMedicion", "Mediciones"],
+        "admin": ["AdminActivity", "AdminUsuarios", "AdminRutinas", "AdminEjercicios", "AdminAlimentos"]
+      },
+      "localState": {
+        "prefs": "PreferencesManager (GymProFitPrefs)",
+        "secure": "EncryptedSharedPreferences (gymprofit_secure_prefs, MasterKey AES256-GCM sobre Keystore) para access/refresh token",
+        "roles": ["ROLE_USER", "ROLE_ADMIN", "ROLE_GUEST"],
+        "themeDefault": "MODE_NIGHT_YES (oscuro por defecto)"
+      },
+      "integrations": ["api", "fcm"],
+      "notes": "El estado transversal vive en PreferencesManager + UtilREST. Sin capa de dominio: la vista llama a la Api y pinta en el callback. Idioma se propaga al backend por header Accept-Language."
+    },
+
+    "api": {
+      "displayName": "API REST GymProFit",
+      "role": "Nucleo del ecosistema: fuente de verdad de usuarios, catalogo (ejercicios/alimentos), rutinas, sesiones, nutricion, progreso, logros y notificaciones. Sirve a la app y al bot.",
+      "path": "TFG-GymProFit/api/gymprofit-api",
+      "rootPackage": "com.gymprofit.api",
+      "language": "Java 21 (Spring Boot 3.5)",
+      "contextPath": "/api",
+      "stack": ["Spring Web", "Spring Data JPA", "Spring Data REST", "Spring Security + JWT (jjwt)", "jOOQ (codegen versionado)", "Flyway", "MapStruct", "Lombok", "springdoc-openapi (Swagger)", "Firebase Admin (FCM)", "Actuator"],
+      "layers": [
+        {
+          "name": "Controller (19)",
+          "packages": ["controller"],
+          "components": [
+            {"name": "AuthController", "role": "/auth: login, register, guest, refresh, logout, change-password."},
+            {"name": "UsuarioController (+ UsuarioJooqController)", "role": "/usuarios: perfil, foto (multipart), estadisticas, activar; jOOQ solo ADMIN."},
+            {"name": "EjercicioController (+ EjercicioJooqController)", "role": "/ejercicios: catalogo, buscar paginado, CRUD (ADMIN)."},
+            {"name": "RutinaController + RutinaEjercicioController", "role": "/rutinas y /rutinas-ejercicios: rutinas predefinidas y de usuario."},
+            {"name": "SesionEntrenamientoController + EjercicioRealizadoController", "role": "/sesiones y /ejercicios-realizados."},
+            {"name": "ProgresoEjercicioController", "role": "/progreso-ejercicios: historial por usuario/ejercicio."},
+            {"name": "ComidaController + AlimentoController + AlimentoComidaController", "role": "Nutricion: diario, alimentos, relacion N:M, resumen diario."},
+            {"name": "MedicionCorporalController", "role": "/mediciones-corporales."},
+            {"name": "ObjetivoPersonalController", "role": "/objetivos-personales."},
+            {"name": "LogroController", "role": "/logros: catalogo + logros de usuario."},
+            {"name": "NotificacionController + DeviceTokenController", "role": "Notificaciones in-app + alta/baja de token FCM."},
+            {"name": "AdminController", "role": "/admin (ADMIN): gestion usuarios, import catalogo wger, estadisticas globales."}
+          ]
+        },
+        {
+          "name": "Service",
+          "packages": ["service.<dominio>", "service.auth", "service.externo"],
+          "components": [
+            {"name": "IXxxService + XxxService", "role": "Logica de negocio + validacion de propiedad + transacciones, por dominio."},
+            {"name": "AuthService + RefreshTokenService", "role": "Emite/renueva/invalida JWT; refresh persistido en tabla."},
+            {"name": "PushNotificationService", "role": "Envia FCM a los DeviceToken del usuario; borra tokens muertos; nunca propaga excepcion."},
+            {"name": "WgerImportService", "role": "Importa ~800 ejercicios (wger + free-exercise-db), upsert idempotente."},
+            {"name": "OpenFoodFactsClient", "role": "Importa alimentos por codigo/busqueda."}
+          ]
+        },
+        {
+          "name": "Persistencia",
+          "packages": ["repository.jpa", "repository.jooq.*", "entity"],
+          "components": [
+            {"name": "IXxxRepository (20)", "role": "Spring Data JPA (CRUD estandar)."},
+            {"name": "IXxxJooqRepository (alimento, ejercicio, rutina, usuario)", "role": "jOOQ para consultas complejas/paginacion tipada."},
+            {"name": "entity (19)", "role": "Usuario, Ejercicio, Rutina, RutinaEjercicio, SesionEntrenamiento, EjercicioRealizado, ProgresoEjercicio, Comida, Alimento, AlimentoComida, MedicionCorporal, ObjetivoPersonal, Logro, UsuarioLogro, Notificacion, RefreshToken, DeviceToken, FotoPerfil, Role."}
+          ]
+        },
+        {
+          "name": "DTO / Mapper",
+          "packages": ["dto.*", "mappers", "enums"],
+          "components": [
+            {"name": "dto (Create/Patch/Update/DTO)", "role": "Contratos explicitos; nunca se exponen entidades."},
+            {"name": "mappers (MapStruct, 14)", "role": "entidad <-> DTO."}
+          ]
+        },
+        {
+          "name": "Config / Seguridad",
+          "packages": ["config", "config.security", "exceptions"],
+          "components": [
+            {"name": "SecurityConfig", "role": "JWT stateless, CSRF off, autorizacion por rol/endpoint, CORS por lista blanca."},
+            {"name": "JwtAuthenticationFilter + AuthRateLimitFilter", "role": "Valida JWT; rate limit por IP (15/60s en /auth, 200/60s global)."},
+            {"name": "ControllerExceptionHandler (@ControllerAdvice)", "role": "Mapea excepciones a Response homogenea (400/401/403/404/502/500)."},
+            {"name": "FirebaseConfig", "role": "Inicializa Firebase Admin SDK una vez (push)."}
+          ]
+        }
+      ],
+      "domains": ["auth/usuarios", "ejercicios", "rutinas", "sesiones", "progreso", "nutricion (comidas/alimentos)", "mediciones", "objetivos", "logros", "notificaciones/push", "admin"],
+      "security": {
+        "type": "JWT stateless",
+        "roles": ["GUEST", "USER", "ADMIN"],
+        "public": ["/auth/**", "/actuator/health", "swagger"],
+        "guestRead": ["GET /ejercicios/**", "/rutinas/**", "/alimentos/**", "/logros/**"],
+        "rateLimit": "AuthRateLimitFilter (por IP)"
+      },
+      "persistence": {
+        "engine": "MariaDB (dev) / MySQL gestionado (prod) - database gymprofit_db",
+        "ddlAuto": "validate (Flyway gobierna el esquema)",
+        "flyway": "25 migraciones (V202603..V202607); 13 tablas base + auth/roles + logros + refresh/device tokens + fotos + i18n catalogo + imports externos"
+      },
+      "externalServices": ["fcm", "openfoodfacts", "wger"],
+      "deployment": "Docker multi-stage, perfil prod, PaaS tipo Render/Koyeb (puerto $PORT, health /actuator/health), config 12-factor por env.",
+      "consumedBy": ["app", "bot"]
+    },
+
+    "bot": {
+      "displayName": "GymProBot (Discord)",
+      "role": "Bot oficial de Discord: comunidad gamificada (XP, economia/RPG, empresas, moderacion, tickets) + puente en vivo con la API (ejercicios, frases, ejercicio del dia).",
+      "path": "gymprofit-bot",
+      "rootPackage": "com.gymprofit.bot",
+      "language": "Java 21 (JDA 5, sin Spring)",
+      "stack": ["JDA 5", "Maven + shade (fat-jar)", "JDK httpserver (/health)", "Retrofit2 + OkHttp3 + Gson (cliente API)", "Aiven MySQL + Flyway + HikariCP", "SLF4J/Logback", "ResourceBundle (i18n ES/EN)"],
+      "layers": [
+        {
+          "name": "Arranque",
+          "packages": ["Main", "DiscordBot", "HealthServer", "config"],
+          "components": [
+            {"name": "Main", "role": "health server -> Flyway -> JDA -> listeners + jobs. Arranque degradado si falta DB/token."},
+            {"name": "DiscordBot", "role": "Fabrica de la conexion JDA (intents, cache de miembros)."},
+            {"name": "BotConfig", "role": "Carga de env vars y constantes."}
+          ]
+        },
+        {
+          "name": "Comandos",
+          "packages": ["commands (subpaquetes por categoria)"],
+          "components": [
+            {"name": "RouterComandos", "role": "Registro por servidor + enrutado + aislamiento de errores."},
+            {"name": "Comando / ComandoAutocompletable", "role": "Interfaces base; un archivo por slash command."}
+          ],
+          "categories": {
+            "nucleo": ["/ping", "/nivel", "/top", "/rank", "/perfil"],
+            "config_admin": ["/setup", "/config", "/canal", "/publicar", "/privacidad"],
+            "moderacion": ["/warn", "/silenciar", "/ban", "/unban", "/kick", "/nick", "/limpiar", "/motivo", "/modlogs"],
+            "comunidad": ["/reto", "/evento", "/sugerencia", "/sugres"],
+            "consultas_api": ["/ejercicios", "/ejercicio-dia", "/frase"],
+            "economia_rpg": ["/daily", "/entrenar", "/tienda", "/comprar", "/inventario", "/banco", "/bolsa", "/casino", "/mercado", "/robar", "/trueque", "/pelear", "/mazmorra", "/minar", "/craftear", "/gremio"],
+            "trabajo_empresas": ["/trabajo", "/empresa", "/empleo", "/economia", "/acciones"]
+          }
+        },
+        {
+          "name": "Servicios / RPG",
+          "packages": ["services (logica + catalogos en codigo)"],
+          "rpgSubsystems": ["personaje/progresion", "trabajo/carreras (7 ramas)", "empresas (produccion, impuestos, empleo, prestamos, eventos economicos, acciones, cuota de mercado)", "banco", "bolsa", "casino/duelos", "mercado", "combate/minieria/mazmorras", "crafting/cofres", "descanso/energia", "pasivos", "robar", "gremios"],
+          "patterns": "Catalogos estaticos en codigo + estado en BD; monedero atomico (EconomiaRepositorio, ledger transacciones); anti-inflacion por sumideros; azar inyectable para tests."
+        },
+        {
+          "name": "Eventos",
+          "packages": ["events (listeners)"],
+          "components": [
+            {"name": "XpMensajeListener", "role": "XP por mensaje."},
+            {"name": "BienvenidaListener + PanelRolesListener", "role": "Bienvenida/auto-roles + paneles de roles."},
+            {"name": "AntiAbusoListener + AutoModWarnListener", "role": "Anti-flood/invites propio + AutoMod nativo -> warn interno (anti-rafaga compartido)."},
+            {"name": "TicketListener", "role": "Panel/apertura/cierre de tickets con transcript."},
+            {"name": "CombateListener / DueloListener / TruequeListener / DescansoListener / EmpresaBotonesListener / EmpleoListener", "role": "Interacciones por botones/modales."}
+          ]
+        },
+        {
+          "name": "Persistencia + API",
+          "packages": ["db (JDBC + Flyway)", "api (cliente Retrofit)"],
+          "components": [
+            {"name": "db/Database (HikariCP)", "role": "Pool + DataSource; repos JDBC puros; Flyway V1-V36."},
+            {"name": "ApiClient + TokenManager", "role": "Cliente de la API GymProFit con cuenta de servicio (Bearer + refresh ante 401)."},
+            {"name": "AuthApi + EjerciciosApi", "role": "Solo consume auth + ejercicios (el resto de la API no lo usa el bot)."}
+          ]
+        }
+      ],
+      "jobs": [
+        {"name": "EnergiaJob", "schedule": "cada 30 min"},
+        {"name": "BolsaJob", "schedule": "cada 12 min"},
+        {"name": "EventoEconomicoJob", "schedule": "~cada 1 h"},
+        {"name": "SorteoJob", "schedule": "intervalo fijo"},
+        {"name": "EjercicioDiaJob", "schedule": "diario 08:00"},
+        {"name": "NominaEmpresasJob", "schedule": "diario 03:00"},
+        {"name": "ImpuestoEmpresasJob", "schedule": "lunes 02:00"},
+        {"name": "DividendoEmpresasJob", "schedule": "jueves 02:00"},
+        {"name": "RetencionJob", "schedule": "intervalo fijo (RGPD)"}
+      ],
+      "persistence": {
+        "engine": "Aiven MySQL - database gymprofit_bot (SEPARADA de la BD de la app)",
+        "flyway": "V1-V36",
+        "rule": "El bot NUNCA toca la BD de la app; todo dato de la app pasa por la API REST."
+      },
+      "integrations": ["api", "discord"],
+      "deployment": "Docker multi-stage en Render (render.yaml), health /health.",
+      "consumesFromApi": ["POST /auth/login", "POST /auth/refresh", "GET /ejercicios", "GET /ejercicios/buscar", "GET /ejercicios/{id}"]
+    }
+  },
+
+  "integrations": [
+    {"from": "app", "to": "api", "protocol": "HTTPS/REST (Retrofit)", "auth": "JWT usuario (USER/ADMIN/GUEST)", "scope": "Conjunto completo: auth, usuarios, ejercicios, rutinas, sesiones, progreso, nutricion, mediciones, objetivos, logros, notificaciones, admin."},
+    {"from": "bot", "to": "api", "protocol": "HTTPS/REST (Retrofit)", "auth": "JWT de cuenta de servicio (mismo /auth/login)", "scope": "Solo auth + ejercicios (catalogo/busqueda/ficha). Rutinas pendiente (objetivo F3: rol BOT + /bot/**)."},
+    {"from": "app", "to": "fcm", "protocol": "Firebase", "scope": "Registra token de dispositivo (POST /notificaciones/token via API) y recibe push."},
+    {"from": "api", "to": "fcm", "protocol": "Firebase Admin SDK", "scope": "Envia push a los DeviceToken del usuario (recordatorios, notificaciones)."},
+    {"from": "api", "to": "openfoodfacts", "protocol": "HTTPS", "scope": "Importa alimentos."},
+    {"from": "api", "to": "wger", "protocol": "HTTPS", "scope": "Importa catalogo de ejercicios (~800)."},
+    {"from": "bot", "to": "discord", "protocol": "Gateway (JDA)", "scope": "Slash commands, botones, modales, eventos de servidor."}
+  ],
+
+  "datastores": [
+    {"id": "db_api", "engine": "MariaDB/MySQL", "database": "gymprofit_db", "owner": "api", "note": "Fuente de verdad de la app. La app y el bot NO la tocan directamente: solo via API."},
+    {"id": "db_bot", "engine": "Aiven MySQL", "database": "gymprofit_bot", "owner": "bot", "note": "Estado del bot (XP, economia, empresas, moderacion). SEPARADA de db_api."},
+    {"id": "prefs_app", "engine": "SharedPreferences + EncryptedSharedPreferences", "owner": "app", "note": "Estado local del dispositivo (tokens cifrados, tema, idioma)."}
+  ],
+
+  "externalServices": [
+    {"id": "fcm", "name": "Firebase Cloud Messaging", "usedBy": ["app", "api"], "purpose": "Notificaciones push."},
+    {"id": "wger", "name": "wger + free-exercise-db", "usedBy": ["api"], "purpose": "Catalogo de ejercicios."},
+    {"id": "openfoodfacts", "name": "Open Food Facts", "usedBy": ["api"], "purpose": "Catalogo de alimentos."},
+    {"id": "discord", "name": "Discord Gateway", "usedBy": ["bot"], "purpose": "Plataforma del bot."},
+    {"id": "render", "name": "Render (PaaS)", "usedBy": ["api", "bot"], "purpose": "Despliegue Docker."}
+  ],
+
+  "howToAddFeature": {
+    "api_endpoint_nuevo": "entity (si toca esquema -> migracion Flyway nueva) -> dto (Create/Patch/DTO) -> mapper MapStruct -> repository (JPA o jOOQ) -> service (IXxx + Xxx) -> controller -> reglas en SecurityConfig.",
+    "app_pantalla_nueva": "model DTO -> interfaz Retrofit *Api (o metodo nuevo) -> Activity/Fragment que llama ApiClient.service(...).enqueue(ApiCallback) y pinta; estado en PreferencesManager si aplica.",
+    "bot_comando_nuevo": "migracion Flyway (si toca BD) -> repo JDBC en db/ -> service en services/ (con test) -> clase de comando en commands/<categoria>/ -> registro en RouterComandos -> claves i18n ES+EN -> embed via EmbedFactory.",
+    "bot_desbloquear_rutinas": "La API ya expone /rutinas; el bot solo implementa auth+ejercicios en api/. Añadir RutinaApi (Retrofit) + service + comando; objetivo F3 (vinculacion): rol BOT y endpoints /bot/**."
+  }
+}
