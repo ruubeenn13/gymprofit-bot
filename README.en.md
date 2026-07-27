@@ -86,6 +86,9 @@ convertible. By block:
   production, taxes and the stock market.
 - **Company shares:** `/acciones` (comprar · vender · ver · cartera) — invest in a company by buying
   shares out of a fixed pool of 100 (priced by its prestige) and collect weekly dividends.
+- **Market share:** companies in the same career track compete for market share (their slice of the
+  track's prestige), which swings their sales income up or down by up to ±25 %; `/empresa ranking`
+  now takes an optional track filter showing each company's market-share %.
 - **Social:** `/gremio` (groups with a private channel, subcommands).
 
 Design details in [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).

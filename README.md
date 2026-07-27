@@ -88,6 +88,9 @@ ni convertibles. Por bloques:
   producción, impuestos y bolsa.
 - **Acciones de empresa:** `/acciones` (comprar · vender · ver · cartera) — invierte en una empresa
   comprando participaciones de un pool de 100 (precio según su prestigio) y cobra dividendos semanales.
+- **Cuota de mercado:** las empresas de una misma rama compiten por su cuota (parte del prestigio de
+  la rama), que sube o baja hasta un ±25 % sus ingresos por venta; `/empresa ranking` admite filtro
+  por rama con el % de cuota de cada empresa.
 - **Social:** `/gremio` (grupos con canal privado, subcomandos).
 
 Detalle y diseño en [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).

@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5 — reputación y cuota de mercado)**: las empresas de una rama compiten por
+  cuota de mercado (su parte del prestigio de la rama), que sube o baja sus ingresos por venta
+  hasta un ±25 %. `/empresa ranking` gana un filtro por rama que muestra el % de cuota de cada
+  empresa. Sin migración.
 - **Empresas (Fase 5 — acciones y dividendos)** (`/acciones`): cualquier jugador invierte en una empresa
   comprando participaciones de un pool de 100 (precio según su prestigio); el capital engorda el bote y
   cobra dividendos semanales (5 % del bote los jueves). Vender recompra la empresa; la quiebra funde el

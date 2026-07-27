@@ -151,6 +151,12 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   (FK `ON DELETE CASCADE`). Lógica pura en `Accion`, holdings en `empresa_acciones` (V36);
   `AccionEmpresasService` + `/acciones` (comprar·vender·ver·cartera) + `DividendoEmpresasJob`.
   Todo redistribuye del/al bote (antiinflación-neutral).
+- **Empresas (Fase 5 — cuota de mercado)**: las empresas de una misma rama compiten por **cuota**
+  (su parte del prestigio de la rama). La cuota escala el bruto de venta (**±25 %**, neutro en la
+  cuota justa 1/N, monopolio neutro), componiendo con el multiplicador del clima económico.
+  `/empresa ranking` admite filtro por **rama** con el % de cuota de cada empresa. Lógica pura en
+  `Cuota`, cálculo derivado (sin persistir) en `CuotaEmpresasService`
+  (`EmpresaRepositorio.rankingDeRama`). **Sin migración ni job.**
 - **Migraciones Flyway V6–V36**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,

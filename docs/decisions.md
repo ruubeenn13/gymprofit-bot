@@ -496,3 +496,30 @@ línea de acciones en `/empresa info`. Todo redistribuye del/al bote (antiinflac
 `FRACCION_DIVIDENDO` deliberadamente modesta (5 %) para no convertir la inversión en una fuente
 de dinero infinito. Fuera de alcance: mercado secundario entre jugadores, precio por
 oferta/demanda, dividendo declarado a mano por el dueño, voto por acciones, OPA/dilución.
+
+## ADR-026 — reputación y cuota de mercado
+
+**Estado:** aceptada e implementada (Fase 5 cuota de mercado).
+
+**Contexto.** Varias empresas conviven dentro de una misma rama, pero no competían de verdad entre
+sí: nada premiaba ser la referencia de la rama ni penalizaba quedarse atrás. El ranking por rama
+había quedado aparcado desde F4 (ADR-019).
+
+**Decisión.** La **cuota** de una empresa es su prestigio propio dividido entre la suma del
+prestigio de todas las empresas de su rama. Esa cuota escala el bruto de cada venta con un
+**factor `clamp(1 + 0,25 × (relativa − 1), 0,75, 1,25)`**, donde `relativa = cuota × N` (N =
+número de empresas de la rama); el factor es **neutro (1,0)** tanto en la cuota justa (1/N) como
+en el monopolio (N=1), premia hasta **+25 %** por encima de la media y penaliza hasta **−25 %**
+por debajo. El factor **compone** con el multiplicador del clima económico (F5 eventos, ADR-024)
+en el mismo cálculo de venta. `/empresa ranking` gana una opción **`rama`** que muestra el ranking
+de esa rama con el **% de cuota** de cada empresa; `/empresa info` suma la línea `🏪 Cuota de
+rama`. **Sin migración y sin job**: la cuota es puramente derivada del prestigio en el momento de
+la consulta/venta. Lógica pura en `Cuota`; cálculo en `CuotaEmpresasService`;
+`EmpresaRepositorio.rankingDeRama` trae las empresas de una rama con su prestigio.
+
+**Consecuencias.** Nuevos `Cuota` (pura), `CuotaEmpresasService` y
+`EmpresaRepositorio.rankingDeRama`. Antiinflación por el acotado ±25 % centrado en 1,0: es una
+redistribución aproximada entre empresas de la rama, no una fuente ni un sumidero neto. Fuera de
+alcance: reputación como stat persistente con decadencia, cuota calculada sobre ventas recientes
+en vez de sobre prestigio, efectos de la cuota en impuesto/contratación/acciones, guerra de
+precios o carteles entre empresas.
