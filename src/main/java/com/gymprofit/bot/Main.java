@@ -644,9 +644,10 @@ public final class Main {
             comandos.add(new CasinoComando(apuestaService, dueloService, apuestasCooldown));
             listeners.add(new DueloListener(dueloService));
 
-            // Bolsa ficticia (extra): acciones con precio dinámico.
+            // Bolsa ficticia (extra): acciones con precio dinámico. eventosEconomicos (F5) inclina el
+            // 50/50 boom/crash del evento de mercado según el clima activo.
             BolsaService bolsaService = new BolsaService(
-                    new BolsaRepositorio(db.dataSource()), economiaRepo, usuarios);
+                    new BolsaRepositorio(db.dataSource()), economiaRepo, usuarios, eventosEconomicos);
             comandos.add(new BolsaComando(bolsaService));
             new BolsaJob(bolsaService).iniciar();
 

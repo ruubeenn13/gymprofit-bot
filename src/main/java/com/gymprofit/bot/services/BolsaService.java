@@ -45,20 +45,23 @@ public final class BolsaService {
     private final BolsaRepositorio bolsa;
     private final EconomiaRepositorio economia;
     private final UsuarioDiscordRepositorio usuarios;
+    private final EventoEconomicoService eventos;
     private final BatallaService.Aleatorio azar;
 
     public BolsaService(BolsaRepositorio bolsa, EconomiaRepositorio economia,
-                        UsuarioDiscordRepositorio usuarios, BatallaService.Aleatorio azar) {
+                        UsuarioDiscordRepositorio usuarios, EventoEconomicoService eventos,
+                        BatallaService.Aleatorio azar) {
         this.bolsa = bolsa;
         this.economia = economia;
         this.usuarios = usuarios;
+        this.eventos = eventos;
         this.azar = azar;
     }
 
     /** Constructor de producción: azar real. */
     public BolsaService(BolsaRepositorio bolsa, EconomiaRepositorio economia,
-                        UsuarioDiscordRepositorio usuarios) {
-        this(bolsa, economia, usuarios, () -> ThreadLocalRandom.current().nextDouble());
+                        UsuarioDiscordRepositorio usuarios, EventoEconomicoService eventos) {
+        this(bolsa, economia, usuarios, eventos, () -> ThreadLocalRandom.current().nextDouble());
     }
 
     /** Precios actuales (para {@code /bolsa}). */
@@ -134,7 +137,13 @@ public final class BolsaService {
             }
             long nuevo;
             if (azar.next() < EVENTO_PROB) {
-                boolean boom = azar.next() < 0.5;
+                // F5 eventos: si el clima impone sesgo, inclina el 50/50 boom/crash de la bolsa.
+                double umbralBoom = switch (eventos.bolsaSesgo()) {
+                    case ALCISTA -> 0.80;
+                    case BAJISTA -> 0.20;
+                    case NINGUNO -> 0.50;
+                };
+                boolean boom = azar.next() < umbralBoom;
                 nuevo = Math.max(1, Math.round(p.precio() * (boom ? 1.30 : 0.70)));
             } else {
                 nuevo = Acciones.mover(p.precio(), a.volatilidad(), azar.next());

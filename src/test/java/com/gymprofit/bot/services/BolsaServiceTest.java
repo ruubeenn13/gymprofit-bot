@@ -13,6 +13,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -27,9 +30,16 @@ class BolsaServiceTest {
     private final BolsaRepositorio bolsa = mock(BolsaRepositorio.class);
     private final EconomiaRepositorio economia = mock(EconomiaRepositorio.class);
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
+    private final EventoEconomicoService eventos = mock(EventoEconomicoService.class);
+
+    @BeforeEach
+    void setUp() {
+        // Sesgo neutro por defecto: el 50/50 del evento de bolsa no cambia respecto a antes de F5.
+        when(eventos.bolsaSesgo()).thenReturn(EventoEconomico.BolsaSesgo.NINGUNO);
+    }
 
     private BolsaService svc(double azar) {
-        return new BolsaService(bolsa, economia, usuarios, () -> azar);
+        return new BolsaService(bolsa, economia, usuarios, eventos, () -> azar);
     }
 
     @Test
@@ -90,5 +100,20 @@ class BolsaServiceTest {
         // azar 0.9: no hay evento (0.9 >= 0.06); mover(200, 0.05, 0.9) = 200 * 1.04 = 208
         svc(0.9).tick();
         verify(bolsa).actualizarPrecio("gymx", 208);
+    }
+
+    @Test
+    @DisplayName("con sesgo ALCISTA el evento de bolsa tiende a boom")
+    void tickSesgoAlcista() {
+        when(eventos.bolsaSesgo()).thenReturn(EventoEconomico.BolsaSesgo.ALCISTA);
+        when(bolsa.precios()).thenReturn(List.of(new PrecioAccion("gymx", 100, 100)));
+        // secuencia del azar en el tick: 1º < EVENTO_PROB (hay evento), 2º = umbral del boom.
+        // Con sesgo NINGUNO, 0.5 < 0.5 es false → crash (0.70); con ALCISTA el umbral sube a 0.80,
+        // así que el mismo 0.5 cae en el lado del boom (1.30): 100 * 1.30 = 130.
+        double[] secuencia = {0.0, 0.5};
+        int[] i = {0};
+        BolsaService svc = new BolsaService(bolsa, economia, usuarios, eventos, () -> secuencia[i[0]++]);
+        svc.tick();
+        verify(bolsa).actualizarPrecio("gymx", 130L);
     }
 }
