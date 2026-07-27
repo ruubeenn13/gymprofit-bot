@@ -368,7 +368,7 @@ public final class SetupComando implements Comando {
      * <p><b>No borra roles a propósito.</b> Discord limita la <i>creación</i> de roles a un cupo
      * diario por servidor; borrar y recrear los 25 roles en cada {@code desde_cero} agotaba ese cupo
      * y bloqueaba la creación durante ~2 días (429 con retry-after enorme). Los roles se
-     * <b>reutilizan</b> por nombre en {@link #crearRoles(Guild)}: se crean solo los que falten.</p>
+     * <b>reutilizan</b> por nombre: se crean solo los que falten.</p>
      *
      * <p>Los canales que Discord rechace borrar se acumulan en {@code protegidosOut} para
      * reintentarlos al final (tras reapuntar la comunidad a las anclas).</p>
