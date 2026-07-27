@@ -57,12 +57,12 @@ LEFT JOIN (
     FROM (
         SELECT discord_id, COUNT(*) AS len
         FROM (
-            SELECT discord_id,
+            SELECT discord_id, acierto,
                    ROW_NUMBER() OVER (PARTITION BY discord_id ORDER BY respondida_en, pregunta_id)
                  - ROW_NUMBER() OVER (PARTITION BY discord_id, acierto ORDER BY respondida_en, pregunta_id) AS grp
             FROM trivia_respuestas
-            WHERE acierto = TRUE
         ) x
+        WHERE acierto = TRUE
         GROUP BY discord_id, grp
     ) y
     GROUP BY discord_id

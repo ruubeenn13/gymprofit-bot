@@ -5,6 +5,9 @@ import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,8 +16,10 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Verifica el marcador acumulado de trivia (V39) contra MySQL real: el UPSERT atómico de
- * {@link TriviaScoreRepositorio#registrar} (aciertos/fallos/partidas/mejor_racha/racha_actual) y el
- * ranking por aciertos. Se salta sin Docker; corre en CI.
+ * {@link TriviaScoreRepositorio#registrar} (aciertos/fallos/partidas/mejor_racha/racha_actual), el
+ * ranking por aciertos y el algoritmo gaps-and-islands del backfill de la propia migración V39
+ * (con aciertos NO consecutivos, para detectar si el WHERE se cuela dentro de la ventana). Se salta
+ * sin Docker; corre en CI.
  */
 class TriviaScoreRepositorioTest {
 
@@ -108,5 +113,92 @@ class TriviaScoreRepositorioTest {
     private static int indiceDe(List<TriviaRepositorio.FilaTrivia> l, long id) {
         for (int i = 0; i < l.size(); i++) if (l.get(i).discordId() == id) return i;
         return -1;
+    }
+
+    @Test
+    @DisplayName("backfill: A,F,A,F,A -> mejor racha real 1 (no el total de aciertos)")
+    void backfillIslasNoConsecutivas() throws Exception {
+        long id = 3001L;
+        usuarios.obtenerOCrear(id);
+        // pregunta_id creciente fija el orden real de la secuencia (respondida_en puede empatar).
+        insertarRespuesta(id, 1L, true);
+        insertarRespuesta(id, 2L, false);
+        insertarRespuesta(id, 3L, true);
+        insertarRespuesta(id, 4L, false);
+        insertarRespuesta(id, 5L, true);
+        ejecutarBackfill();
+        TriviaScoreRepositorio.Marcador m = repo.de(id).orElseThrow();
+        assertEquals(3, m.aciertos());
+        assertEquals(2, m.fallos());
+        assertEquals(5, m.partidas());
+        assertEquals(1, m.mejorRacha());
+    }
+
+    @Test
+    @DisplayName("backfill: A,A,F,A -> mejor racha real 2 (isla de dos aciertos seguidos)")
+    void backfillIslaDeDos() throws Exception {
+        long id = 3002L;
+        usuarios.obtenerOCrear(id);
+        insertarRespuesta(id, 6L, true);
+        insertarRespuesta(id, 7L, true);
+        insertarRespuesta(id, 8L, false);
+        insertarRespuesta(id, 9L, true);
+        ejecutarBackfill();
+        TriviaScoreRepositorio.Marcador m = repo.de(id).orElseThrow();
+        assertEquals(2, m.mejorRacha());
+    }
+
+    /** Inserta directamente en {@code trivia_respuestas} (bypasa el gate one-shot: solo para sembrar el backfill). */
+    private static void insertarRespuesta(long discordId, long preguntaId, boolean acierto) throws Exception {
+        try (Connection con = db.dataSource().getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "INSERT INTO trivia_respuestas (discord_id, pregunta_id, acierto) VALUES (?, ?, ?)")) {
+            ps.setLong(1, discordId);
+            ps.setLong(2, preguntaId);
+            ps.setBoolean(3, acierto);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Re-ejecuta inline el backfill de {@code V39__trivia_scores_racha_backfill.sql} (idéntico, tras el
+     * fix del gaps-and-islands: el {@code WHERE acierto = TRUE} fuera de la subconsulta con las
+     * {@code ROW_NUMBER()}). Idempotente por el {@code ON DUPLICATE KEY UPDATE}.
+     */
+    private static void ejecutarBackfill() throws Exception {
+        try (Connection con = db.dataSource().getConnection();
+             Statement st = con.createStatement()) {
+            st.execute("""
+                    INSERT INTO trivia_scores (discord_id, aciertos, fallos, partidas, mejor_racha, racha_actual)
+                    SELECT r.discord_id,
+                           SUM(r.acierto)        AS aciertos,
+                           SUM(1 - r.acierto)    AS fallos,
+                           COUNT(*)              AS partidas,
+                           COALESCE(mr.mejor, 0) AS mejor_racha,
+                           0                     AS racha_actual
+                    FROM trivia_respuestas r
+                    LEFT JOIN (
+                        SELECT discord_id, MAX(len) AS mejor
+                        FROM (
+                            SELECT discord_id, COUNT(*) AS len
+                            FROM (
+                                SELECT discord_id, acierto,
+                                       ROW_NUMBER() OVER (PARTITION BY discord_id ORDER BY respondida_en, pregunta_id)
+                                     - ROW_NUMBER() OVER (PARTITION BY discord_id, acierto ORDER BY respondida_en, pregunta_id) AS grp
+                                FROM trivia_respuestas
+                            ) x
+                            WHERE acierto = TRUE
+                            GROUP BY discord_id, grp
+                        ) y
+                        GROUP BY discord_id
+                    ) mr ON mr.discord_id = r.discord_id
+                    GROUP BY r.discord_id
+                    ON DUPLICATE KEY UPDATE
+                        aciertos    = VALUES(aciertos),
+                        fallos      = VALUES(fallos),
+                        partidas    = VALUES(partidas),
+                        mejor_racha = VALUES(mejor_racha)
+                    """);
+        }
     }
 }
