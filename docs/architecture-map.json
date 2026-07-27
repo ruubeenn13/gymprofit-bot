@@ -2,8 +2,7 @@
   "$schema": "https://gymprofit.dev/architecture-map.schema.json",
   "meta": {
     "name": "GymProFit — Mapa de arquitectura del ecosistema",
-    "description": "Modelo legible por máquina de los tres sistemas de GymProFit (app Android, API REST, bot de Discord) y cómo se integran. Pensado para que un agente sepa dónde tocar al añadir una feature. Generado a 2026-07-27 por análisis del código; sin secretos.",
-    "generatedAt": "2026-07-27",
+    "description": "Modelo legible por máquina de los tres sistemas de GymProFit (app Android, API REST, bot de Discord) y cómo se integran. Pensado para que un agente sepa dónde tocar al añadir una feature. Sin secretos: solo estructura.",
     "systems": ["app", "api", "bot"],
     "conventions": {
       "app": "Android/Java sin MVVM formal: UI (Activity/Fragment) -> network (ApiClient singleton Retrofit) -> model DTOs. Estado en PreferencesManager (normal + cifrado). Nada de Room/ViewModel.",
