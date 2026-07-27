@@ -237,8 +237,11 @@ public final class Main {
         // crea aquí, no en iniciarDiscord, porque necesita el JDA ya construido, igual que EjercicioDiaJob.
         if (db != null && jda != null) {
             EmpresaRepositorio empresaRepoImpuesto = new EmpresaRepositorio(db.dataSource());
+            // Servicio propio (sin estado; el estado vive en BD), mismo patrón que EventoEconomicoJob de abajo:
+            // aquí no está en scope la instancia compartida `eventosEconomicos` (se crea más abajo, en iniciarDiscord).
             new ImpuestoEmpresasJob(empresaRepoImpuesto,
-                    new ImpuestoEmpresasService(empresaRepoImpuesto), jda,
+                    new ImpuestoEmpresasService(empresaRepoImpuesto,
+                            new EventoEconomicoService(new EventoEconomicoRepositorio(db.dataSource()))), jda,
                     Clock.system(ZoneId.of("Europe/Madrid"))).iniciar();
         }
 

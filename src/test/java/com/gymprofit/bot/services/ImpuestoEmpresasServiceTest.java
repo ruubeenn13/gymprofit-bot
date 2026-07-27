@@ -27,12 +27,18 @@ import static org.mockito.Mockito.when;
 class ImpuestoEmpresasServiceTest {
 
     private final EmpresaRepositorio repo = mock(EmpresaRepositorio.class);
+    private final EventoEconomicoService eventos = mock(EventoEconomicoService.class);
 
     private static final Instant AHORA = Instant.parse("2026-07-24T12:00:00Z");
     private static final long EMPRESA_ID = 42L;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        when(eventos.impuestoMult()).thenReturn(1.0);
+    }
+
     private ImpuestoEmpresasService svc() {
-        return new ImpuestoEmpresasService(repo);
+        return new ImpuestoEmpresasService(repo, eventos);
     }
 
     // Empresa de test: todos los args del record, con canalId null y mercancia 0, sin prestamo (deuda/cuota 0).
@@ -190,5 +196,25 @@ class ImpuestoEmpresasServiceTest {
         verify(repo).gastarDelBote(EMPRESA_ID, 5_000L);
         verify(repo).fijarImpagos(EMPRESA_ID, 0);
         verify(repo, never()).fijarPrestamo(anyLong(), anyLong(), anyLong());
+    }
+
+    // --- F5: el clima economico escala solo el impuesto, no la cuota del prestamo ---
+
+    @Test
+    @DisplayName("con subida de impuestos (x1.5), la cuota del impuesto sube (no la del préstamo)")
+    void impuestoConSubida() {
+        when(eventos.impuestoMult()).thenReturn(1.5);
+        // nivel 2: impuesto base = 5.000; x1.5 = 7.500; sin préstamo → obligación 7.500
+        Empresa e = empresa(2, 20_000L, 0);
+        assertEquals(7_500L, svc().evaluar(e).cuota());
+    }
+
+    @Test
+    @DisplayName("el multiplicador NO toca la cuota del préstamo (contrato fijo)")
+    void multiplicadorNoTocaPrestamo() {
+        when(eventos.impuestoMult()).thenReturn(2.0);
+        // impuesto base 5.000 x2 = 10.000 + cuotaPrestamo 6.000 = 16.000
+        Empresa e = empresaConPrestamo(2, 50_000L, 0, 10_000L, 6_000L);
+        assertEquals(16_000L, svc().evaluar(e).cuota());
     }
 }

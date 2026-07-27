@@ -12,6 +12,9 @@ import com.gymprofit.bot.db.EmpresaRepositorio;
  * <p>Desde F5d la obligacion semanal no es solo el impuesto: es {@code impuesto + cuotaPrestamo}. Al
  * pagar con exito, ademas de resetear impagos, se amortiza la deuda del prestamo (se resta la cuota y se
  * recalcula la del proximo cobro; al saldar, deuda y cuota quedan a 0). El impago no toca la deuda.
+ *
+ * <p>Desde F5 el clima economico ({@link EventoEconomicoService#impuestoMult()}) escala SOLO la parte de
+ * impuesto de la obligacion: la cuota del prestamo es un contrato fijo y no se ve afectada por eventos.
  */
 public final class ImpuestoEmpresasService {
 
@@ -21,14 +24,17 @@ public final class ImpuestoEmpresasService {
     public record Resolucion(Tipo tipo, long cuota, int impagos, long falta) {}
 
     private final EmpresaRepositorio repo;
+    private final EventoEconomicoService eventos;
 
-    public ImpuestoEmpresasService(EmpresaRepositorio repo) {
+    public ImpuestoEmpresasService(EmpresaRepositorio repo, EventoEconomicoService eventos) {
         this.repo = repo;
+        this.eventos = eventos;
     }
 
     /** Decide (sin tocar nada) que hacer con una empresa este cobro. */
     public Resolucion evaluar(Empresa e) {
-        long cuota = Impuesto.cuota(e.nivel()) + e.cuotaPrestamo(); // obligacion semanal = impuesto + cuota del prestamo (F5d)
+        // F5 eventos: el clima economico escala SOLO el impuesto, no la cuota del prestamo (deuda = contrato fijo).
+        long cuota = Math.round(Impuesto.cuota(e.nivel()) * eventos.impuestoMult()) + e.cuotaPrestamo();
         if (e.bote() >= cuota) {
             return new Resolucion(Tipo.PAGA, cuota, 0, 0);
         }
