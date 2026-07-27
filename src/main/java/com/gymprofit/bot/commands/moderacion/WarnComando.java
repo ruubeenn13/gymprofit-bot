@@ -170,8 +170,15 @@ public final class WarnComando implements Comando {
         long id = evento.getOption("id").getAsLong();
         boolean revocado = moderacion.revocarWarn(id);
         String clave = revocado ? "unwarn.hecho" : "unwarn.noexiste";
-        evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.MODERACION, locale,
-                Messages.get(locale, clave, id))).setEphemeral(true).queue();
+        MessageEmbed embed = EmbedFactory.base(EmbedFactory.Tipo.MODERACION, locale,
+                Messages.get(locale, "unwarn.titulo"), Messages.get(locale, clave, id)).build();
+        evento.replyEmbeds(embed).setEphemeral(true).queue();
+        // Igual que el resto de acciones de moderación (poner, limpiar, ban...): queda constancia
+        // en bot-logs solo cuando la revocación tuvo efecto real, para no ensuciar el log con ids
+        // inexistentes.
+        if (revocado) {
+            ModHelper.registrarEnLogs(evento.getGuild(), config, embed);
+        }
     }
 
     private void limpiar(SlashCommandInteractionEvent evento, Locale locale) {
