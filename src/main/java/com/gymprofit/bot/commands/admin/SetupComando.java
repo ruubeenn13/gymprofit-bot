@@ -860,8 +860,13 @@ public final class SetupComando implements Comando {
             // Lectura SÍNCRONA (complete) porque corremos en el hilo dedicado de /setup: así el diff y
             // el registro ocurren antes de que Task 7 renderice el informe, y sobre el mismo hilo (el
             // colector es un ArrayList no seguro para hilos, no se puede tocar desde callbacks de JDA).
+            // Excluye el panel de tickets (mismo canal 🎫・soporte, también fijado por el bot con
+            // embed): sin este filtro, este findFirst() podía agarrar el panel y sobrescribir su
+            // embed con el texto de la intro (el botón ticket:abrir sobrevivía pero el contenido
+            // visible quedaba corrompido). Es el filtro inverso al de publicarPanelTicket.
             var intro = canal.retrievePinnedMessages().complete().stream()
-                    .filter(m -> m.getAuthor().getIdLong() == botId && !m.getEmbeds().isEmpty())
+                    .filter(m -> m.getAuthor().getIdLong() == botId && !m.getEmbeds().isEmpty()
+                            && m.getButtonById(TicketListener.BOTON_ABRIR) == null)
                     .findFirst().orElse(null);
             if (intro == null) {
                 // No había intro del bot fijada: se publica y se anota como creada.
