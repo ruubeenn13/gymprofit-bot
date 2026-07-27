@@ -82,6 +82,8 @@ convertible. By block:
 - **Chests:** `/cofres` · `/abrir`.
 - **Between players:** `/regalar` · `/trueque` · `/robar` · `/mercado` (subcommands).
 - **Banking & gambling:** `/banco` · `/bolsa` · `/casino` (subcommands; all fiction).
+- **Economic climate:** `/economia` (ver · lanzar) — temporary events that scale sales,
+  production, taxes and the stock market.
 - **Social:** `/gremio` (groups with a private channel, subcommands).
 
 Design details in [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).

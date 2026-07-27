@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5 — eventos económicos)** (`/economia`): un clima económico global lanza eventos
+  temporales (boom/recesión de ventas, auge/crisis de producción, subida/ayudas de impuestos, mercado
+  alcista/bajista) que escalan la economía durante 24 h; automáticos (~1/día) o lanzados por staff,
+  anunciados en `💰・economía`. Migración `V35`.
 - **Empresas (Fase 5d)** (`/empresa prestamo · pagar-prestamo`): una empresa puede pedir un préstamo (uno
   a la vez, límite `nivel × 20.000`). El principal engorda el bote y se devuelve con un 20 % de interés en
   cuotas semanales cobradas junto al impuesto; si el bote no cubre la obligación cuenta como impago (misma

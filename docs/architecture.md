@@ -137,10 +137,17 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   cuota_prestamo`: con un solo gate `gastarDelBote`, si el bote la cubre amortiza la deuda (al saldar,
   deuda/cuota a 0) y si no cuenta como impago (misma morosidad/quiebra que F5b). Lógica pura en `Prestamo`;
   `PrestamoEmpresasService` concede/paga. Migración V34 (`deuda`, `cuota_prestamo`).
-- **Migraciones Flyway V6–V34**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 5 — eventos económicos)**: clima económico global. Un evento a la vez (catálogo
+  `EventoEconomico`, 8 entradas balanceadas 4/4), duración fija 24 h, que escala por multiplicador la
+  venta, la producción del curro, el impuesto semanal y el faucet del curro, y sesga la bolsa. Estado
+  en fila única (`evento_economico`, V35); `EventoEconomicoService` expone multiplicadores con default
+  neutro que consultan los 5 consumidores; `EventoEconomicoJob` (~1h) lo mueve y anuncia inicio/fin en
+  `💰・economía`; `/economia ver|lanzar` (lanzar = staff). El impuesto escalado no toca la cuota del
+  préstamo. Migración V35 (`evento_economico`).
+- **Migraciones Flyway V6–V35**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
-  economía, estatus, producción, impuestos, empleo y préstamos).
+  economía, estatus, producción, impuestos, empleo, préstamos), eventos económicos.
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

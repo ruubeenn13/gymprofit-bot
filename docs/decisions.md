@@ -451,3 +451,22 @@ cuenta como impago y a los 3 la empresa quiebra (la deuda muere con la disoluci�
 review). El interés (`+20 %`) es un sumidero neto: se quema del bote y no vuelve a nadie, así que el
 préstamo da liquidez temporal sin ser fuente permanente (uno a la vez, límite por nivel, riesgo de quiebra).
 Varios préstamos simultáneos, refinanciación, aval/embargo e interés variable quedan fuera.
+
+## ADR-024 — eventos económicos
+
+**Estado:** aceptada e implementada (Fase 5 eventos).
+
+**Contexto.** La economía (empresas, curro, bolsa) era estable y sin variabilidad; nada la sacudía.
+
+**Decisión.** Un **clima económico global**, un evento a la vez, duración fija **24 h**, catálogo
+balanceado **4 buenos / 4 malos**. Cada evento mueve palancas por **multiplicador** con default
+**neutro 1.0** (venta, producción, impuesto, curro reservado, bolsa). Lógica pura en
+`EventoEconomico`; estado en **fila única** (`EventoEconomicoService`/repo); `EventoEconomicoJob`
+(automático ~1h, `PROB` 0.04) + `/economia lanzar` (staff). Anuncios en `💰・economía`. Reusa y hace
+visible el crash/boom silencioso de la bolsa.
+
+**Consecuencias.** Migración V35 con fila única; nuevos `EventoEconomico` / `EventoActivo` / repo /
+service / job / `EconomiaComando`; 5 hooks re-tocan la lógica de dinero de F5a/F5b + curro + bolsa
+(con review); el `impuestoMult` **no** toca la cuota del préstamo; antiinflación preservada por el
+catálogo simétrico. Fuera de alcance: varios eventos simultáneos, eventos por rama/por empresa,
+eventos encadenados, historial persistente.

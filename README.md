@@ -84,6 +84,8 @@ ni convertibles. Por bloques:
 - **Cofres:** `/cofres` · `/abrir`.
 - **Entre jugadores:** `/regalar` · `/trueque` · `/robar` · `/mercado` (subcomandos).
 - **Banca y azar:** `/banco` · `/bolsa` · `/casino` (subcomandos; todo ficción).
+- **Clima económico:** `/economia` (ver · lanzar) — eventos temporales que escalan venta,
+  producción, impuestos y bolsa.
 - **Social:** `/gremio` (grupos con canal privado, subcomandos).
 
 Detalle y diseño en [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).
