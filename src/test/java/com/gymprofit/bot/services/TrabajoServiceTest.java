@@ -49,6 +49,7 @@ class TrabajoServiceTest {
     private final DescansoService descanso = mock(DescansoService.class);
     private final CarreraRepositorio carreras = mock(CarreraRepositorio.class);
     private final EmpresaRepositorio empresas = mock(EmpresaRepositorio.class);
+    private final EventoEconomicoService eventos = mock(EventoEconomicoService.class);
 
     @Test
     void dormidoNoSePuedeCurrar() {
@@ -231,9 +232,41 @@ class TrabajoServiceTest {
         verify(empresas, never()).sumarMercancia(anyLong(), anyLong());
     }
 
+    // ------------------------------------------------------------------ clima económico (F5)
+
+    @Test
+    @DisplayName("con auge industrial, el curro produce x1.5 de mercancía")
+    void produccionConAuge() {
+        var svc = svcParaCurrar(Optional.of(empresa(42L, 1)));
+        when(eventos.produccionMult()).thenReturn(1.5);
+
+        svc.trabajar(1L, Instant.now());
+        // Producción neutra de un nivel 1 = 5 + 1 = 6 unidades; con el auge (×1,5) → round(9,0) = 9.
+        verify(empresas).sumarMercancia(eq(42L), eq(9L));
+    }
+
+    @Test
+    @DisplayName("curroMult<1 reduce proporcionalmente el ingreso del jugador")
+    void curroConMultiplicador() {
+        // Sin empresa: el pago no sufre el corte del bote, así que economia.ingresar recibe
+        // exactamente el sueldo ya escalado por el clima, sin más pasos que lo toquen.
+        var svc = svcParaCurrar(Optional.empty());
+        when(eventos.curroMult()).thenReturn(0.5);
+
+        var r = svc.trabajar(1L, Instant.now());
+        assertEquals(EstadoWork.OK, r.estado());
+        // El personaje de prueba tiene el primer trabajo del catálogo (repartidor, sueldo 30-50): sea
+        // cual sea el sueldo aleatorio del turno, round(sueldo × 0,5) cae siempre en [15, 25], un
+        // rango que no se solapa con el neutro [30, 50]. Aterrizar ahí solo es posible si el
+        // multiplicador del clima se aplicó de verdad.
+        assertTrue(r.pago() >= 15 && r.pago() <= 25, "pago fuera del rango escalado: " + r.pago());
+        verify(economia).ingresar(eq(1L), eq((long) r.pago()), eq("work"));
+    }
+
     /**
      * Service listo para un turno de curro que llega a pagar (despierto, con trabajo, sin cooldown ni
      * fatiga, energía de sobra) y con el repo de empresas devolviendo la empresa dada para el jugador.
+     * El clima económico se deja neutro (×1) por defecto; los tests que lo necesitan lo reestubean.
      */
     private TrabajoService svcParaCurrar(Optional<Empresa> empresaDelJugador) {
         when(descanso.estaDormido(1L)).thenReturn(false);
@@ -241,7 +274,10 @@ class TrabajoServiceTest {
         when(descanso.estadoDe(1L)).thenReturn(sinFatiga());
         when(personajes.trabajar(anyLong(), anyInt())).thenReturn(true);
         when(empresas.deMiembro(1L)).thenReturn(empresaDelJugador);
-        return new TrabajoService(personajes, economia, usuarios, descanso, carreras, null, empresas);
+        when(eventos.curroMult()).thenReturn(1.0);
+        when(eventos.produccionMult()).thenReturn(1.0);
+        return new TrabajoService(
+                personajes, economia, usuarios, descanso, carreras, null, empresas, eventos);
     }
 
     /** Empresa mínima para los tests del corte: solo importan el id y el nivel. */

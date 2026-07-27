@@ -25,8 +25,9 @@ import java.util.Random;
  *
  * <p>Los <b>efectos pasivos</b> ({@link PasivoService}) entran en dos sitios: el bono de
  * {@code SUELDO} sube el pago y el de {@code COOLDOWN_WORK} recorta la espera entre turnos. El orden
- * de la tubería del sueldo es estudios → pasivos → fatiga y <b>no se toca</b>: la fatiga recorta el
- * sueldo final, no el base (ver {@link #conPenalizacionFatiga}).
+ * de la tubería del sueldo es estudios → pasivos → fatiga → clima económico y <b>no se toca</b>: la
+ * fatiga recorta el sueldo final, no el base (ver {@link #conPenalizacionFatiga}), y el clima
+ * ({@link EventoEconomicoService}) escala ese sueldo final antes del corte de empresa.
  *
  * <p><b>Ascensos de carrera</b> ({@link Ascensos}): los puestos por encima del tier de entrada de
  * su rama ya no se eligen, se ganan con {@link #ascender}. Cada salto exige cuatro requisitos
@@ -105,6 +106,11 @@ public final class TrabajoService {
      * {@code null} en los tests y arranques que no usan empresas (el curro paga el base sin corte).
      */
     private final EmpresaRepositorio empresas;
+    /**
+     * Clima económico global (F5): auge/crisis escalan el sueldo del curro y la producción de
+     * mercancía. {@code null} en los tests y arranques que no lo usan (equivale a evento neutro, ×1).
+     */
+    private final EventoEconomicoService eventos;
     private final Random aleatorio = new Random();
 
     private static final Logger log = LoggerFactory.getLogger(TrabajoService.class);
@@ -112,7 +118,7 @@ public final class TrabajoService {
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
                           UsuarioDiscordRepositorio usuarios, DescansoService descanso,
                           CarreraRepositorio carreras, PasivoService pasivos,
-                          EmpresaRepositorio empresas) {
+                          EmpresaRepositorio empresas, EventoEconomicoService eventos) {
         this.personajes = personajes;
         this.economia = economia;
         this.usuarios = usuarios;
@@ -120,6 +126,7 @@ public final class TrabajoService {
         this.carreras = carreras;
         this.pasivos = pasivos;
         this.empresas = empresas;
+        this.eventos = eventos;
     }
 
     /**
@@ -129,7 +136,7 @@ public final class TrabajoService {
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
                           UsuarioDiscordRepositorio usuarios, DescansoService descanso,
                           CarreraRepositorio carreras, PasivoService pasivos) {
-        this(personajes, economia, usuarios, descanso, carreras, pasivos, null);
+        this(personajes, economia, usuarios, descanso, carreras, pasivos, null, null);
     }
 
     /**
@@ -139,7 +146,7 @@ public final class TrabajoService {
     public TrabajoService(PersonajeRepositorio personajes, EconomiaRepositorio economia,
                           UsuarioDiscordRepositorio usuarios, DescansoService descanso,
                           CarreraRepositorio carreras) {
-        this(personajes, economia, usuarios, descanso, carreras, null, null);
+        this(personajes, economia, usuarios, descanso, carreras, null, null, null);
     }
 
     /**
@@ -366,10 +373,14 @@ public final class TrabajoService {
         int pago = conPenalizacionFatiga(
                 conBonoPasivos(conBonoEstudios(base, p.estudios()), bono(bonos, Pasivos.Tipo.SUELDO)),
                 fatiga);
+        // F5 eventos: el clima económico escala el sueldo final ANTES del corte de empresa, de modo que
+        // el 10 % al bote se calcula sobre el ingreso ya modificado (mantiene la relación jugador↔empresa).
+        pago = (int) Math.round(pago * curroMult());
         // Corte de empresa (F3): si el jugador está en una empresa, su nivel bonifica el ingreso y un
         // 10 % del bruto va al bote. Se aplica sobre el sueldo FINAL que hoy percibe (ya con estudios,
-        // pasivos y fatiga): es el importe natural sobre el que la empresa tributa. Sin empresa el pago
-        // no cambia; si algo falla al leer/actualizar la empresa se cobra el sueldo íntegro sin corte.
+        // pasivos, fatiga y clima económico): es el importe natural sobre el que la empresa tributa. Sin
+        // empresa el pago no cambia; si algo falla al leer/actualizar la empresa se cobra el sueldo
+        // íntegro sin corte.
         long aCobrar = aplicarEmpresa(discordId, pago);
         economia.ingresar(discordId, aCobrar, "work");
         return new ResultadoWork(EstadoWork.OK, (int) aCobrar, p.energia() - t.energiaCoste(), 0);
@@ -396,9 +407,10 @@ public final class TrabajoService {
             }
             IngresoEmpresa ingreso = ingresoEmpresa(sueldo, emp.get().nivel());
             empresas.incrementarBote(emp.get().id(), ingreso.corte());
-            // F5a: el curro también produce mercancía para el almacén de la empresa (tope por nivel vía
-            // LEAST en el repo). Mismo bloque best-effort que el corte: si falla, degrada sin romper el curro.
-            empresas.sumarMercancia(emp.get().id(), Produccion.unidadesPorCurro(emp.get().nivel()));
+            // F5a + F5 eventos: mercancía por turno, escalada por el clima económico (auge/crisis). Mismo
+            // bloque best-effort que el corte: si falla, degrada sin romper el curro.
+            long unidades = Math.round(Produccion.unidadesPorCurro(emp.get().nivel()) * produccionMult());
+            empresas.sumarMercancia(emp.get().id(), unidades);
             return ingreso.neto();
         } catch (RuntimeException e) {
             log.warn("No se pudo aplicar el corte de empresa al curro de {}: {}", discordId, e.toString());
@@ -501,6 +513,16 @@ public final class TrabajoService {
     public static Duration cooldownEfectivo(double bono) {
         double aplicado = Math.min(Pasivos.TOPES.get(Pasivos.Tipo.COOLDOWN_WORK), Math.max(0, bono));
         return Duration.ofSeconds(Math.round(COOLDOWN_WORK.getSeconds() * (1 - aplicado)));
+    }
+
+    /** Multiplicador del curro por el clima económico, o neutro (×1) sin evento activo/inyectado. */
+    private double curroMult() {
+        return eventos != null ? eventos.curroMult() : 1.0;
+    }
+
+    /** Multiplicador de la producción de mercancía por el clima económico, o neutro (×1). */
+    private double produccionMult() {
+        return eventos != null ? eventos.produccionMult() : 1.0;
     }
 
     /** Bonos pasivos del jugador, o el mapa vacío si el service no está inyectado. */

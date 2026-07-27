@@ -489,7 +489,7 @@ public final class Main {
             EmpresaRepositorio empresaRepo = new EmpresaRepositorio(db.dataSource());
             TrabajoService trabajoService = new TrabajoService(
                     personajeRepo, economiaRepo, usuarios, descansoService, carreraRepo, pasivoService,
-                    empresaRepo);
+                    empresaRepo, eventosEconomicos);
             comandos.add(new TrabajoComando(trabajoService, reintentos));
             listeners.add(new TrabajoBotonesListener(trabajoService));
             comandos.add(new EntrenarComando(trabajoService));
