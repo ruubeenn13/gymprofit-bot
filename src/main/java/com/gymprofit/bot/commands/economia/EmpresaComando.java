@@ -2,6 +2,7 @@ package com.gymprofit.bot.commands.economia;
 
 import com.gymprofit.bot.commands.ComandoAutocompletable;
 import com.gymprofit.bot.db.Empresa;
+import com.gymprofit.bot.db.EmpresaAccionRepositorio;
 import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.MiembroEmpresa;
@@ -9,6 +10,7 @@ import com.gymprofit.bot.db.Pendiente;
 import com.gymprofit.bot.db.Propuesta;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
+import com.gymprofit.bot.services.AccionEmpresasService;
 import com.gymprofit.bot.services.Ascensos;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoAscensoPatrocinado;
@@ -95,11 +97,16 @@ public final class EmpresaComando implements ComandoAutocompletable {
     private final EmpresaVentaService venta;
     /** Prestamos empresariales (F5d): conceder (principal al bote) y amortizar desde el bote. */
     private final PrestamoEmpresasService prestamos;
+    /** Participaciones (F5): precio actual de la participación para la línea de acciones de {@code info}. */
+    private final AccionEmpresasService acciones;
+    /** Repo de participaciones (F5): cuántas se han colocado del pool, para la línea de acciones de {@code info}. */
+    private final EmpresaAccionRepositorio accionesRepo;
 
     public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo,
                           EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo,
                           TrabajoService trabajos, EmpresaVentaService venta,
-                          PrestamoEmpresasService prestamos) {
+                          PrestamoEmpresasService prestamos, AccionEmpresasService acciones,
+                          EmpresaAccionRepositorio accionesRepo) {
         this.empresa = empresa;
         this.repo = repo;
         this.gestion = gestion;
@@ -107,6 +114,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
         this.trabajos = trabajos;
         this.venta = venta;
         this.prestamos = prestamos;
+        this.acciones = acciones;
+        this.accionesRepo = accionesRepo;
     }
 
     @Override
@@ -323,6 +332,9 @@ public final class EmpresaComando implements ComandoAutocompletable {
                 Produccion.capacidad(e.nivel()), // tope del almacén: acoplado al nivel vía Produccion (F5a)
                 miembros.size(),
                 lista.toString().strip());
+        // F5: línea siempre visible de participaciones — cuánto del pool está colocado y el precio actual.
+        cuerpo += "\n" + Messages.get(locale, "empresa.info.acciones",
+                accionesRepo.vendidasDe(e.id()), acciones.precioActual(e));
         // F5b: si arrastra impagos de la cuota semanal, se avisa de la morosidad (cerca de la quiebra).
         if (e.impagos() > 0) {
             cuerpo += "\n" + Messages.get(locale, "empresa.info.morosa", e.impagos(), Impuesto.MOROSIDAD_MAX);

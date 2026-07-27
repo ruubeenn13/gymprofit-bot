@@ -14,6 +14,7 @@ import com.gymprofit.bot.commands.consultas.EjerciciosComando;
 import com.gymprofit.bot.commands.consultas.FraseComando;
 import com.gymprofit.bot.commands.contenido.PublicarComando;
 import com.gymprofit.bot.commands.economia.AbrirComando;
+import com.gymprofit.bot.commands.economia.AccionesComando;
 import com.gymprofit.bot.commands.economia.BancoComando;
 import com.gymprofit.bot.commands.economia.BolsaComando;
 import com.gymprofit.bot.commands.economia.CasinoComando;
@@ -72,6 +73,7 @@ import com.gymprofit.bot.db.ConfigServidorRepositorio;
 import com.gymprofit.bot.db.Database;
 import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
+import com.gymprofit.bot.db.EmpresaAccionRepositorio;
 import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
@@ -112,6 +114,7 @@ import com.gymprofit.bot.services.CombateService;
 import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.EconomiaService;
+import com.gymprofit.bot.services.AccionEmpresasService;
 import com.gymprofit.bot.services.EjercicioDiaService;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
@@ -521,9 +524,16 @@ public final class Main {
             // bote y se fija deuda+cuota con interes) o lo amortiza desde el bote. Uno a la vez; el gate de
             // dinero (incrementarBote/gastarDelBote/fijarPrestamo) y las reglas viven en el service.
             PrestamoEmpresasService empresaPrestamo = new PrestamoEmpresasService(empresaRepo);
+            // Empresas (Fase 5): participaciones. Compras/vendes contra el pool fijo de la empresa (tu dinero
+            // al bote y viceversa) al precio actual, derivado del prestigio. Redistribucion pura, gate atomico
+            // en el service. El repo de participaciones alimenta /acciones y la linea de acciones de info.
+            EmpresaAccionRepositorio accionRepo = new EmpresaAccionRepositorio(db.dataSource());
+            AccionEmpresasService accionService =
+                    new AccionEmpresasService(empresaRepo, accionRepo, economiaRepo, usuarios);
+            comandos.add(new AccionesComando(accionService, empresaRepo, accionRepo));
             comandos.add(new EmpresaComando(
                     empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService,
-                    empresaVenta, empresaPrestamo));
+                    empresaVenta, empresaPrestamo, accionService, accionRepo));
             // Empresas (Fase 5c): bolsa de empleo. /empleo ver lista las empresas de tu rama que
             // contratan (con botón de solicitud) y /empleo contratar abre/cierra la tuya a la bolsa.
             comandos.add(new EmpleoComando(empresaService, empresaRepo));
