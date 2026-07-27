@@ -424,10 +424,15 @@ public final class Main {
                     new ModeracionService(warnRepo, sancionRepo, usuarios, cifrador);
             // Amonestación reutilizable (escalado + log + DM), compartida por /warn y futura automoderación.
             AplicadorSanciones aplicadorSanciones = new AplicadorSanciones(moderacion, configService);
+            // Anti-ráfaga COMPARTIDO entre los dos listeners de automoderación: un mismo mensaje puede
+            // disparar tanto AntiAbusoListener (flood propio) como AutoModWarnListener (regla nativa de
+            // Discord, p. ej. spam de /setup); con una única instancia, el aviso de uno pone al usuario
+            // en cooldown para el otro y no se duplica el escalado.
+            Cooldown antiRafagaModeracion = new Cooldown(java.time.Duration.ofSeconds(30));
             // Automoderación reactiva: flood e invitaciones a otros servidores, reutiliza la misma amonestación.
-            listeners.add(new AntiAbusoListener(aplicadorSanciones));
+            listeners.add(new AntiAbusoListener(aplicadorSanciones, antiRafagaModeracion));
             // Puente con el AutoMod nativo de Discord: cada ejecución de una regla cuenta como aviso interno.
-            listeners.add(new AutoModWarnListener(aplicadorSanciones));
+            listeners.add(new AutoModWarnListener(aplicadorSanciones, antiRafagaModeracion));
             // /warn agrupa poner/lista/quitar/limpiar; /silenciar, mute+timeout; /canal, los bloqueos.
             comandos.add(new WarnComando(moderacion, configService, aplicadorSanciones));
             comandos.add(new SilenciarComando(moderacion, configService));

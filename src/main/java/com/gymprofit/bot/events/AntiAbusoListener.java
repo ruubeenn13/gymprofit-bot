@@ -8,7 +8,6 @@ import com.gymprofit.bot.util.Cooldown;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
-import java.time.Duration;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,8 +18,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * otros servidores de Discord, y amonesta al autor reutilizando {@link AplicadorSanciones}. Requiere el
  * intent {@code MESSAGE_CONTENT} (ya habilitado en {@code Main}) para poder leer el texto del mensaje.
  * El personal ({@link ModHelper#esAltoCargo}) y los bots quedan exentos. El borrado es best-effort (no
- * rompe el flujo si Discord lo rechaza, p. ej. por falta de permisos). Un anti-ráfaga de 30&nbsp;s por
- * usuario evita amonestar en cada mensaje detectado mientras dura la ráfaga: solo se borra el resto.
+ * rompe el flujo si Discord lo rechaza, p. ej. por falta de permisos). El anti-ráfaga (30&nbsp;s por
+ * usuario) se recibe por constructor y se <b>comparte</b> con {@link AutoModWarnListener} (misma
+ * instancia, cableada en {@code Main}): un mismo mensaje puede disparar ambos listeners (p. ej.
+ * flood propio + regla nativa de spam de {@code /setup}), y sin compartir la ventana cada uno
+ * amonestaría por su cuenta, duplicando el escalado. Mientras dura la ráfaga solo se borra el resto
+ * de mensajes, sin volver a amonestar.
  */
 public final class AntiAbusoListener extends ListenerAdapter {
 
@@ -35,11 +38,12 @@ public final class AntiAbusoListener extends ListenerAdapter {
     // señal de abuso "blanda", no requiere precisión histórica).
     private final ConcurrentHashMap<Long, Deque<Long>> historial = new ConcurrentHashMap<>();
 
-    /** Anti-ráfaga: no vuelve a amonestar al mismo usuario antes de que pasen 30 s. */
-    private final Cooldown antiRafaga = new Cooldown(Duration.ofSeconds(30));
+    /** Anti-ráfaga compartido con {@link AutoModWarnListener}: misma instancia, ver {@code Main}. */
+    private final Cooldown antiRafaga;
 
-    public AntiAbusoListener(AplicadorSanciones aplicador) {
+    public AntiAbusoListener(AplicadorSanciones aplicador, Cooldown antiRafaga) {
         this.aplicador = aplicador;
+        this.antiRafaga = antiRafaga;
     }
 
     @Override

@@ -12,8 +12,6 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-
 /**
  * Puente entre el AutoMod <b>nativo</b> de Discord (reglas configuradas en el servidor: palabras
  * baneadas, spam, mención masiva…) y el aviso interno del bot: cada ejecución de una regla cuenta
@@ -22,13 +20,17 @@ import java.time.Duration;
  *
  * <p>El evento de JDA ({@code AutoModExecutionEvent}) solo expone el id del usuario infractor, no
  * el {@link Member} ni el {@link User}: se resuelve el miembro desde la caché del guild (el bot
- * cachea todos los miembros, ver {@code DiscordBot}), y de ahí su {@code User}. Si el miembro no
- * está en caché (caso raro: salió del servidor justo tras el disparo) se descarta sin amonestar,
- * porque no hay forma síncrona de construir un {@code User} sin una llamada REST adicional.</p>
+ * cachea todos los miembros, ver {@code DiscordBot}), y de ahí su {@code User}. Si el usuario no
+ * está en la caché de miembros del servidor, se descarta el auto-warn (no se puede verificar la
+ * exención de staff sin el {@link Member}: AutoMod ya bloqueó/afectó el mensaje igualmente, el
+ * aviso interno es un extra que en ese caso raro simplemente no se aplica).</p>
  *
  * <p>El personal ({@link ModHelper#esAltoCargo}) y los bots quedan exentos (igual que en
- * {@link AntiAbusoListener}). Un anti-ráfaga de 30&nbsp;s por usuario evita apilar avisos cuando
- * una misma ráfaga de mensajes dispara la regla varias veces seguidas.</p>
+ * {@link AntiAbusoListener}). El anti-ráfaga (30&nbsp;s por usuario) se recibe por constructor y se
+ * <b>comparte</b> con {@link AntiAbusoListener} (misma instancia, cableada en {@code Main}): un
+ * mismo mensaje puede disparar ambos listeners (p. ej. flood propio + regla nativa de spam de
+ * {@code /setup}), y sin compartir la ventana cada uno amonestaría por su cuenta, duplicando el
+ * escalado.</p>
  *
  * <p>El evento no expone el nombre de la regla (solo su id, {@code getRuleIdLong()}); resolverlo
  * a nombre exigiría una llamada REST asíncrona a {@code guild.retrieveAutoModRules()}, que no
@@ -42,11 +44,12 @@ public final class AutoModWarnListener extends ListenerAdapter {
 
     private final AplicadorSanciones aplicador;
 
-    /** Anti-ráfaga: no vuelve a amonestar al mismo usuario antes de que pasen 30 s. */
-    private final Cooldown antiRafaga = new Cooldown(Duration.ofSeconds(30));
+    /** Anti-ráfaga compartido con {@link AntiAbusoListener}: misma instancia, ver {@code Main}. */
+    private final Cooldown antiRafaga;
 
-    public AutoModWarnListener(AplicadorSanciones aplicador) {
+    public AutoModWarnListener(AplicadorSanciones aplicador, Cooldown antiRafaga) {
         this.aplicador = aplicador;
+        this.antiRafaga = antiRafaga;
     }
 
     @Override
@@ -55,16 +58,17 @@ public final class AutoModWarnListener extends ListenerAdapter {
         long usuarioId = evento.getUserIdLong();
         // MemberCachePolicy.ALL (DiscordBot) mantiene en caché a todos los miembros del guild: un
         // AutoMod nativo solo se dispara por mensajes de miembros reales, así que esto casi nunca es null.
+        // Si falla, se descarta (no fallback a getUserById): sin Member no se puede comprobar la
+        // exención de staff, y amonestar sin esa comprobación no es seguro.
         Member miembro = guild.getMemberById(usuarioId);
-        if (miembro != null && (miembro.getUser().isBot() || ModHelper.esAltoCargo(miembro))) {
+        if (miembro == null) {
+            log.debug("AutoMod: miembro {} no está en caché, se descarta el auto-warn.", usuarioId);
             return;
         }
-
-        User usuario = miembro != null ? miembro.getUser() : guild.getJDA().getUserById(usuarioId);
-        if (usuario == null) {
-            log.debug("AutoMod: usuario {} no está en caché, no se puede amonestar.", usuarioId);
+        if (miembro.getUser().isBot() || ModHelper.esAltoCargo(miembro)) {
             return;
         }
+        User usuario = miembro.getUser();
 
         long ahora = System.currentTimeMillis();
         if (!antiRafaga.intentar(usuarioId, ahora)) {
