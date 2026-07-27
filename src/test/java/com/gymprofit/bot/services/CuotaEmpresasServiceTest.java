@@ -48,4 +48,18 @@ class CuotaEmpresasServiceTest {
                 new EmpresaRepositorio.EmpresaRanking("U", "ARTE", 3, 0, 0)));
         assertEquals(1.0, new CuotaEmpresasService(repo).factorVentaDe(empresa("U", "ARTE", 3, 0)), 1e-9);
     }
+
+    @Test
+    @DisplayName("cuotaDe: proporción propio/total; rama vacía (total 0) → 0")
+    void cuotaDe() {
+        // Mismo reparto que liderYRezagado: A prestigio 50000, B 10000, total 60000.
+        when(repo.rankingDeRama("NEGOCIOS")).thenReturn(List.of(
+                new EmpresaRepositorio.EmpresaRanking("A", "NEGOCIOS", 5, 0, 0),
+                new EmpresaRepositorio.EmpresaRanking("B", "NEGOCIOS", 1, 0, 0)));
+        CuotaEmpresasService svc = new CuotaEmpresasService(repo);
+        assertEquals(50000.0 / 60000.0, svc.cuotaDe(empresa("A", "NEGOCIOS", 5, 0)), 1e-9);
+
+        when(repo.rankingDeRama("VACIA")).thenReturn(List.of());
+        assertEquals(0, svc.cuotaDe(empresa("X", "VACIA", 1, 0)), 1e-9);
+    }
 }

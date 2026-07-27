@@ -25,30 +25,32 @@ public final class CuotaEmpresasService {
         if (rama.size() <= 1) {
             return 1.0;
         }
-        long total = 0;
-        long propio = 0;
-        for (EmpresaRanking r : rama) {
-            long p = Prestigio.calcular(r.nivel(), r.miembros(), r.bote());
-            total += p;
-            if (r.nombre().equals(e.nombre())) {
-                propio = p;
-            }
-        }
-        return Cuota.factorVenta(Cuota.relativa(propio, total, rama.size()));
+        Reparto r = repartoDe(rama, e.nombre());
+        return Cuota.factorVenta(Cuota.relativa(r.propio(), r.total(), rama.size()));
     }
 
     /** Cuota de la empresa en su rama en tanto por uno (0..1) para el display; 0 si la rama no suma. */
     public double cuotaDe(Empresa e) {
         List<EmpresaRanking> rama = repo.rankingDeRama(e.rama());
+        Reparto r = repartoDe(rama, e.nombre());
+        return r.total() <= 0 ? 0 : (double) r.propio() / r.total();
+    }
+
+    /** Prestigio propio dentro del total de la rama, para {@link #factorVentaDe} y {@link #cuotaDe}. */
+    private record Reparto(long propio, long total) {}
+
+    private Reparto repartoDe(List<EmpresaRanking> rama, String nombre) {
         long total = 0;
         long propio = 0;
         for (EmpresaRanking r : rama) {
             long p = Prestigio.calcular(r.nivel(), r.miembros(), r.bote());
             total += p;
-            if (r.nombre().equals(e.nombre())) {
+            // Si nombre no aparece en su propia rama (solo posible en una carrera de rename/disolución),
+            // propio se queda a 0 -> penaliza en vez de romper la venta con una excepción.
+            if (r.nombre().equals(nombre)) {
                 propio = p;
             }
         }
-        return total <= 0 ? 0 : (double) propio / total;
+        return new Reparto(propio, total);
     }
 }
