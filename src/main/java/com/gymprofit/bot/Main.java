@@ -153,6 +153,7 @@ import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.util.Cooldown;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.events.AntiAbusoListener;
+import com.gymprofit.bot.events.AutoModWarnListener;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.CombateListener;
@@ -425,6 +426,8 @@ public final class Main {
             AplicadorSanciones aplicadorSanciones = new AplicadorSanciones(moderacion, configService);
             // Automoderación reactiva: flood e invitaciones a otros servidores, reutiliza la misma amonestación.
             listeners.add(new AntiAbusoListener(aplicadorSanciones));
+            // Puente con el AutoMod nativo de Discord: cada ejecución de una regla cuenta como aviso interno.
+            listeners.add(new AutoModWarnListener(aplicadorSanciones));
             // /warn agrupa poner/lista/quitar/limpiar; /silenciar, mute+timeout; /canal, los bloqueos.
             comandos.add(new WarnComando(moderacion, configService, aplicadorSanciones));
             comandos.add(new SilenciarComando(moderacion, configService));
