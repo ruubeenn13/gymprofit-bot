@@ -12,6 +12,7 @@ import com.gymprofit.bot.services.AccionEmpresasService.EstadoVenta;
 import com.gymprofit.bot.services.AccionEmpresasService.PosicionVista;
 import com.gymprofit.bot.services.AccionEmpresasService.ResultadoCompra;
 import com.gymprofit.bot.services.AccionEmpresasService.ResultadoVenta;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -38,6 +39,7 @@ class AccionEmpresasServiceTest {
 
     private static final long EMP = 7L;
     private static final long ACTOR = 1L;
+    private static final long OTHER = 2L;
     private static final int NIVEL = 2;
     private static final long BOTE = 500_000L;
     private static final int MIEMBROS = 3;
@@ -52,7 +54,12 @@ class AccionEmpresasServiceTest {
 
     /** Empresa con prestigio conocido → precio determinista = prestigio / 100 (suelo 1). */
     private Empresa empresa() {
-        return new Empresa(EMP, "FUERZA", 99L, "ACME", NIVEL, BOTE,
+        return empresa(BOTE);
+    }
+
+    /** Empresa con el bote indicado (para los tests de dividendos, donde el bote es lo que importa). */
+    private Empresa empresa(long bote) {
+        return new Empresa(EMP, "FUERZA", 99L, "ACME", NIVEL, bote,
                 Instant.now(), null, 0L, 0, false, 0L, 0L);
     }
 
@@ -190,5 +197,51 @@ class AccionEmpresasServiceTest {
         assertEquals(4, cartera.get(0).cantidad());
         assertEquals(precio, cartera.get(0).precio());
         assertEquals(precio * 4, cartera.get(0).valor());
+    }
+
+    @Test
+    @DisplayName("reparte el pot proporcional; la parte no vendida se queda; gate único")
+    void repartirProporcional() {
+        // bote 100.000 → pot = floor(0.05*100000) = 5.000
+        Empresa e = empresa(100_000L);
+        when(accRepo.accionistas(EMP)).thenReturn(List.of(
+                new EmpresaAccionRepositorio.Accionista(ACTOR, 25),
+                new EmpresaAccionRepositorio.Accionista(OTHER, 15)));
+        when(repo.gastarDelBote(EMP, 2_000L)).thenReturn(true); // 1250 + 750
+        AccionEmpresasService.ResultadoDividendo r = service.repartirDividendos(e);
+        assertEquals(AccionEmpresasService.EstadoDividendo.PAGADO, r.estado());
+        assertEquals(2_000L, r.total());
+        verify(repo).gastarDelBote(EMP, 2_000L);
+        verify(economia).ingresar(ACTOR, 1_250L, "dividendo:" + EMP);
+        verify(economia).ingresar(OTHER, 750L, "dividendo:" + EMP);
+    }
+
+    @Test
+    @DisplayName("sin accionistas → NADA, no toca el bote")
+    void repartirSinAccionistas() {
+        when(accRepo.accionistas(EMP)).thenReturn(List.of());
+        AccionEmpresasService.ResultadoDividendo r = service.repartirDividendos(empresa(100_000L));
+        assertEquals(AccionEmpresasService.EstadoDividendo.NADA, r.estado());
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("bote 0 → NADA")
+    void repartirBoteCero() {
+        when(accRepo.accionistas(EMP)).thenReturn(List.of(new EmpresaAccionRepositorio.Accionista(ACTOR, 25)));
+        AccionEmpresasService.ResultadoDividendo r = service.repartirDividendos(empresa(0L));
+        assertEquals(AccionEmpresasService.EstadoDividendo.NADA, r.estado());
+        verify(repo, never()).gastarDelBote(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("carrera: el bote bajó entre calcular y cobrar → NADA, no paga a nadie")
+    void repartirCarrera() {
+        Empresa e = empresa(100_000L);
+        when(accRepo.accionistas(EMP)).thenReturn(List.of(new EmpresaAccionRepositorio.Accionista(ACTOR, 25)));
+        when(repo.gastarDelBote(eq(EMP), anyLong())).thenReturn(false);
+        AccionEmpresasService.ResultadoDividendo r = service.repartirDividendos(e);
+        assertEquals(AccionEmpresasService.EstadoDividendo.NADA, r.estado());
+        verify(economia, never()).ingresar(anyLong(), anyLong(), anyString());
     }
 }

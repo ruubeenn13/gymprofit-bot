@@ -20,12 +20,17 @@ public final class AccionEmpresasService {
 
     public enum EstadoCompra { OK, NO_EXISTE, CANTIDAD_INVALIDA, SIN_PARTICIPACIONES_LIBRES, SIN_SALDO }
     public enum EstadoVenta { OK, NO_EXISTE, CANTIDAD_INVALIDA, SIN_PARTICIPACIONES, EMPRESA_SIN_FONDOS }
+    public enum EstadoDividendo { PAGADO, NADA }
 
     public record ResultadoCompra(EstadoCompra estado, int cantidad, long precio, long coste) {
         static ResultadoCompra de(EstadoCompra e) { return new ResultadoCompra(e, 0, 0, 0); }
     }
     public record ResultadoVenta(EstadoVenta estado, int cantidad, long precio, long valor) {
         static ResultadoVenta de(EstadoVenta e) { return new ResultadoVenta(e, 0, 0, 0); }
+    }
+    /** Resultado de un reparto: total pagado y nº de accionistas cobrados. */
+    public record ResultadoDividendo(EstadoDividendo estado, long total, int accionistas) {
+        static ResultadoDividendo nada() { return new ResultadoDividendo(EstadoDividendo.NADA, 0, 0); }
     }
 
     /** Una posición para pintar la cartera: empresa, participaciones, precio actual y valor. */
@@ -99,5 +104,33 @@ public final class AccionEmpresasService {
             vistas.add(new PosicionVista(emp.get().nombre(), pos.cantidad(), precio, precio * pos.cantidad()));
         }
         return vistas;
+    }
+
+    /**
+     * Reparte dividendos de una empresa: pot = {@code floor(FRACCION_DIVIDENDO * bote)}; cada accionista
+     * cobra {@code floor(pot * sus_part / 100)}. El total se descuenta con un único gate atómico
+     * {@code gastarDelBote}; la parte no vendida nunca sale del bote. Si no hay accionistas, ni pot, ni el
+     * bote cubre el total (carrera), no paga a nadie.
+     */
+    public ResultadoDividendo repartirDividendos(Empresa e) {
+        List<EmpresaAccionRepositorio.Accionista> accionistas = accRepo.accionistas(e.id());
+        if (accionistas.isEmpty() || e.bote() <= 0) return ResultadoDividendo.nada();
+        long pot = (long) Math.floor(Accion.FRACCION_DIVIDENDO * e.bote());
+        if (pot <= 0) return ResultadoDividendo.nada();
+        long total = 0;
+        for (EmpresaAccionRepositorio.Accionista a : accionistas) {
+            total += Accion.dividendoDe(pot, a.cantidad());
+        }
+        if (total <= 0) return ResultadoDividendo.nada();
+        // Gate único: descuenta el total del bote de una vez; si el bote bajó (carrera), no paga nada.
+        if (!repo.gastarDelBote(e.id(), total)) return ResultadoDividendo.nada();
+        for (EmpresaAccionRepositorio.Accionista a : accionistas) {
+            long pago = Accion.dividendoDe(pot, a.cantidad());
+            if (pago > 0) {
+                usuarios.obtenerOCrear(a.discordId());
+                economia.ingresar(a.discordId(), pago, "dividendo:" + e.id());
+            }
+        }
+        return new ResultadoDividendo(EstadoDividendo.PAGADO, total, accionistas.size());
     }
 }

@@ -99,6 +99,7 @@ import com.gymprofit.bot.db.TicketRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.BolsaJob;
+import com.gymprofit.bot.jobs.DividendoEmpresasJob;
 import com.gymprofit.bot.jobs.EjercicioDiaJob;
 import com.gymprofit.bot.jobs.EventoEconomicoJob;
 import com.gymprofit.bot.jobs.ImpuestoEmpresasJob;
@@ -245,6 +246,20 @@ public final class Main {
             new ImpuestoEmpresasJob(empresaRepoImpuesto,
                     new ImpuestoEmpresasService(empresaRepoImpuesto,
                             new EventoEconomicoService(new EventoEconomicoRepositorio(db.dataSource()))), jda,
+                    Clock.system(ZoneId.of("Europe/Madrid"))).iniciar();
+        }
+
+        // Dividendos semanales de participaciones de empresa (F5): jueves 02:00 Europe/Madrid, separado
+        // del lunes del impuesto para repartir la carga sobre el bote. Requiere BD + JDA (avisa del
+        // reparto por el canal privado de la empresa). Servicio propio (sin estado; el estado vive en
+        // BD), mismo patrón que ImpuestoEmpresasJob/EventoEconomicoJob.
+        if (db != null && jda != null) {
+            EmpresaRepositorio empresaRepoDividendo = new EmpresaRepositorio(db.dataSource());
+            AccionEmpresasService accionServiceDividendo = new AccionEmpresasService(empresaRepoDividendo,
+                    new EmpresaAccionRepositorio(db.dataSource()),
+                    new EconomiaRepositorio(db.dataSource()),
+                    new UsuarioDiscordRepositorio(db.dataSource()));
+            new DividendoEmpresasJob(empresaRepoDividendo, accionServiceDividendo, jda,
                     Clock.system(ZoneId.of("Europe/Madrid"))).iniciar();
         }
 
