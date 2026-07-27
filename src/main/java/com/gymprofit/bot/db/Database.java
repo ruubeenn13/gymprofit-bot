@@ -40,7 +40,13 @@ public final class Database implements AutoCloseable {
         // Pool reducido: los planes free de Aiven/Render limitan conexiones concurrentes.
         cfg.setMaximumPoolSize(5);
         cfg.setMinimumIdle(1);
-        cfg.setConnectionTimeout(10_000);
+        // Config resiliente para MySQL en la nube (Aiven): sin keepalive, la conexión ociosa que guarda
+        // el pool la cierra el servidor/la red por inactividad y luego se repartía muerta
+        // («No operations allowed after connection closed»), y abrir una nueva SSL fría no cabía en 10 s.
+        cfg.setConnectionTimeout(30_000);   // tolera una conexión SSL fría a Aiven (10 s era agresivo)
+        cfg.setKeepaliveTime(60_000);       // pinga las conexiones ociosas: las mantiene vivas y descarta las muertas
+        cfg.setMaxLifetime(600_000);        // recicla cada 10 min, por debajo del wait_timeout del servidor
+        cfg.setValidationTimeout(5_000);
         this.dataSource = new HikariDataSource(cfg);
     }
 
