@@ -1,0 +1,557 @@
+<title>gymprofit.arch — system map</title>
+<style>
+  :root{
+    --bg:#0a0e0a; --panel:#0d130d; --panel-2:#101710; --inset:#080b08;
+    --line:#1a261a; --line-2:#26372a;
+    --txt:#c6ddc9; --txt-2:#88a58f; --txt-3:#5a7162;
+    --green:#39d06b; --cyan:#41bdf7; --magenta:#d98bf2; --amber:#f2b544; --red:#f0716b;
+    --app:#41bdf7; --api:#39d06b; --bot:#d98bf2; --ext:#8aa58f; --store:#7fa08a;
+    --glow:0 0 0 rgba(0,0,0,0);
+    --mono:"JetBrains Mono","Cascadia Code",ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --maxw:1140px;
+  }
+  *{box-sizing:border-box;}
+  html{color-scheme:dark;}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 50% -10%, rgba(57,208,107,.05), transparent 60%);}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
+  a{color:var(--cyan);text-decoration:none;} a:hover{text-decoration:underline;}
+  ::selection{background:rgba(57,208,107,.28);}
+
+  /* terminal chrome header */
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+  .top-in{display:flex;align-items:center;gap:14px;height:54px;}
+  .lights{display:flex;gap:7px;}
+  .lights i{width:11px;height:11px;border-radius:50%;display:block;}
+  .lights .r{background:#f0716b;} .lights .y{background:#f2b544;} .lights .g{background:#39d06b;}
+  .ttl{color:var(--txt-2);font-size:13px;}
+  .ttl b{color:var(--txt);font-weight:600;}
+  .rev{margin-left:auto;color:var(--txt-3);font-size:12px;}
+
+  /* hero */
+  .hero{padding:40px 0 22px;}
+  .prompt{color:var(--txt-3);font-size:13px;margin:0 0 18px;}
+  .prompt .u{color:var(--green);} .prompt .p{color:var(--cyan);} .prompt .c{color:var(--txt);}
+  .cursor{display:inline-block;width:8px;height:15px;background:var(--green);vertical-align:-2px;margin-left:3px;animation:blink 1.1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  @media(prefers-reduced-motion:reduce){.cursor{animation:none;}}
+  h1{font-size:clamp(24px,3.4vw,34px);line-height:1.2;margin:0 0 14px;font-weight:700;letter-spacing:-.01em;color:#e8f5ea;text-wrap:balance;max-width:24ch;}
+  h1 .a{color:var(--app);} h1 .p{color:var(--api);} h1 .b{color:var(--bot);}
+  .lede{font-size:14px;color:var(--txt-2);max-width:78ch;margin:0;}
+  .lede b{color:var(--txt);font-weight:600;}
+
+  /* diagram */
+  .diagram{margin:26px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .diagram-h{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);color:var(--txt-3);font-size:12px;}
+  .diagram-h .k{color:var(--green);}
+  .diagram-h .lg{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;}
+  .diagram-h .lg span{display:inline-flex;align-items:center;gap:6px;color:var(--txt-2);}
+  .lgd{width:14px;height:0;border-top:2px solid;}
+  .diagram-svg{padding:12px;overflow-x:auto;}
+  svg.c4{display:block;width:100%;min-width:820px;height:auto;}
+  .c4 text{font-family:var(--mono);}
+  .c4 .cbox{fill:var(--inset);stroke-width:1.4;}
+  .c4 .ctitle{font-weight:700;}
+  .c4 .ctech{fill:var(--txt-3);}
+  .c4 .cdesc{fill:var(--txt-2);}
+  .c4 .actor rect{fill:var(--inset);stroke:var(--line-2);stroke-dasharray:3 3;}
+  .c4 .actor text{fill:var(--txt);}
+  .c4 .rel{fill:none;stroke:var(--line-2);stroke-width:1.4;}
+  .c4 .rel.dash{stroke-dasharray:5 4;}
+  .c4 .arw{fill:var(--line-2);}
+  .c4 .rlbl{font-size:10.5px;fill:var(--txt-3);paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round;}
+  .c4 .ext rect{fill:var(--inset);stroke:var(--ext);stroke-width:1.2;}
+  .c4 .ext text{fill:var(--ext);}
+  .c4 .store rect{fill:var(--inset);stroke:var(--store);stroke-width:1.2;}
+  .c4 .store text{fill:var(--store);}
+  .c4 .cap{fill:var(--txt-3);font-size:10.5px;}
+  .c4 .goto{cursor:pointer;}
+  .c4 .rel-g,.c4 .nodeg{transition:opacity .16s ease;}
+  .c4.dim .rel-g:not(.on){opacity:.08;}
+  .c4.dim .nodeg:not(.on){opacity:.2;}
+  .c4 .rel-g.on .rel{stroke-width:2;}
+  .c4 .goto:hover .cbox,.c4 .goto:focus-visible .cbox{filter:drop-shadow(0 0 5px currentColor);}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:22px 0 0;background:var(--panel);}
+  .stat{padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .stat b{display:block;font-size:20px;font-weight:700;color:#e8f5ea;font-variant-numeric:tabular-nums;}
+  .stat span{font-size:11.5px;color:var(--txt-3);}
+
+  /* tabs */
+  nav.tabs{display:flex;gap:4px;margin:32px 0 22px;position:sticky;top:54px;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;}
+  .tab{border:1px solid transparent;background:none;color:var(--txt-3);padding:6px 12px;cursor:pointer;font-family:var(--mono);font-size:13px;border-radius:6px;}
+  .tab::before{content:"";}
+  .tab:hover{color:var(--txt);}
+  .tab[aria-selected="true"]{color:var(--txt);border-color:var(--line-2);background:var(--panel);}
+  .tab[data-sys="app"][aria-selected="true"]{color:var(--app);border-color:color-mix(in srgb,var(--app) 45%,transparent);}
+  .tab[data-sys="api"][aria-selected="true"]{color:var(--api);border-color:color-mix(in srgb,var(--api) 45%,transparent);}
+  .tab[data-sys="bot"][aria-selected="true"]{color:var(--bot);border-color:color-mix(in srgb,var(--bot) 45%,transparent);}
+  .tab[data-sys="overview"][aria-selected="true"]{color:var(--green);border-color:color-mix(in srgb,var(--green) 45%,transparent);}
+  .search{margin-left:auto;}
+  .search input{border:1px solid var(--line-2);background:var(--inset);color:var(--txt);padding:6px 12px 6px 22px;border-radius:6px;font-size:13px;font-family:var(--mono);width:190px;
+    background-image:linear-gradient(transparent,transparent);}
+  .search{position:relative;}
+  .search::before{content:"/";position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt-3);pointer-events:none;}
+  .search input:focus{outline:1px solid var(--green);outline-offset:0;border-color:var(--green);}
+
+  .view{display:none;} .view.active{display:block;}
+
+  .sec-h{margin:28px 0 12px;color:var(--txt-3);font-size:12px;letter-spacing:.02em;}
+  .sec-h::before{content:"// ";color:var(--green);}
+
+  .lead{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:15px 17px;margin-bottom:16px;position:relative;overflow:hidden;}
+  .lead::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--api);}
+  .lead.app::before{background:var(--app);} .lead.bot::before{background:var(--bot);}
+  .lead h3{margin:0 0 5px;font-size:15px;color:#e8f5ea;}
+  .lead.app h3{color:var(--app);} .lead.api h3{color:var(--api);} .lead.bot h3{color:var(--bot);}
+  .lead .role{color:var(--txt-2);font-size:13px;margin:0;}
+  .lead .path{color:var(--txt-3);font-size:12px;margin-top:8px;}
+  .lead .path::before{content:"$ ";color:var(--green);}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px;}
+  .tag{font-size:11px;padding:1px 7px;border:1px solid var(--line-2);border-radius:4px;color:var(--txt-2);}
+  .tag::before{content:"[";color:var(--txt-3);} .tag::after{content:"]";color:var(--txt-3);}
+
+  .dl-ctrl{display:flex;align-items:center;gap:9px;margin:0 0 12px;}
+  .dl-ctrl button{border:1px solid var(--line-2);background:var(--inset);color:var(--txt-2);font-size:12px;font-family:var(--mono);padding:4px 10px;border-radius:5px;cursor:pointer;}
+  .dl-ctrl button:hover{border-color:var(--green);color:var(--green);}
+  .dl-ctrl .hint{font-size:12px;color:var(--txt-3);}
+
+  details.layer{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden;}
+  details.layer+details.layer{margin-top:8px;}
+  details.layer>summary{cursor:pointer;padding:11px 15px;font-size:13.5px;color:var(--txt);list-style:none;display:flex;align-items:center;gap:9px;}
+  details.layer>summary::-webkit-details-marker{display:none;}
+  details.layer>summary::before{content:"▸";color:var(--green);font-size:11px;}
+  details.layer[open]>summary::before{content:"▾";}
+  details.layer>summary .ltag{margin-left:auto;color:var(--txt-3);font-size:11px;}
+  .lbody{padding:0 15px 13px;}
+  ul.comp{list-style:none;margin:0;padding:0;}
+  ul.comp li{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:16px;padding:8px 0;border-top:1px solid var(--line);align-items:baseline;}
+  ul.comp li:first-child{border-top:none;}
+  ul.comp .n{color:var(--cyan);font-size:12.5px;}
+  ul.comp .dsc{color:var(--txt-2);font-size:13px;}
+  @media(max-width:560px){ul.comp li{grid-template-columns:1fr;gap:2px;}}
+
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px;}
+  .mini{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:14px 15px;}
+  .mini h4{margin:0 0 7px;font-size:13.5px;}
+  .mini.app h4{color:var(--app);} .mini.api h4{color:var(--api);} .mini.bot h4{color:var(--bot);}
+  .mini .path{color:var(--txt-3);font-size:11.5px;}
+  .mini p{font-size:12.5px;color:var(--txt-2);margin:8px 0 0;}
+
+  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;}
+  table{border-collapse:collapse;width:100%;min-width:480px;font-size:12.5px;}
+  th,td{text-align:left;padding:8px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-size:11px;letter-spacing:.03em;color:var(--txt-3);background:var(--inset);text-transform:uppercase;}
+  tr:last-child td{border-bottom:none;}
+  td.k,.ep{color:var(--cyan);}
+  .method{font-size:10.5px;font-weight:700;padding:0 5px;border-radius:3px;}
+  .m-GET{color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent);}
+  .m-POST{color:var(--amber);background:color-mix(in srgb,var(--amber) 14%,transparent);}
+  .m-PUT{color:var(--bot);background:color-mix(in srgb,var(--bot) 16%,transparent);}
+
+  .edges{display:grid;gap:7px;}
+  .edge{display:grid;grid-template-columns:186px 1fr;gap:16px;padding:11px 15px;border:1px solid var(--line);border-radius:8px;background:var(--panel);}
+  .edge .fl{font-size:12.5px;color:var(--txt);white-space:nowrap;}
+  .edge .fl i{font-style:normal;color:var(--green);margin:0 3px;}
+  .edge .mt{font-size:13px;color:var(--txt-2);}
+  .edge .mt b{color:var(--txt);}
+  @media(max-width:600px){.edge{grid-template-columns:1fr;gap:4px;}}
+
+  .note{border:1px solid var(--line);border-left:2px solid var(--green);background:var(--panel);padding:11px 15px;border-radius:0 8px 8px 0;font-size:13px;color:var(--txt-2);margin:15px 0;}
+  .note::before{content:"! ";color:var(--green);}
+  .note.warn{border-left-color:var(--amber);} .note.warn::before{color:var(--amber);}
+  .note b{color:var(--txt);}
+
+  code{background:var(--inset);border:1px solid var(--line);padding:0 5px;border-radius:4px;color:var(--txt);font-size:.9em;}
+  .hide{display:none !important;}
+  footer{border-top:1px solid var(--line);margin-top:46px;padding:20px 0 44px;color:var(--txt-3);font-size:12px;}
+  footer::before{content:"# ";color:var(--green);}
+</style>
+
+<header class="top">
+  <div class="wrap top-in">
+    <span class="lights"><i class="r"></i><i class="y"></i><i class="g"></i></span>
+    <span class="ttl"><b>gymprofit.arch</b> — system map</span>
+    <span class="rev">rev 2026-07-27</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="prompt"><span class="u">arquitecto</span><span class="c">@</span><span class="p">gymprofit</span><span class="c">:~$</span> ./describe --ecosistema --all<span class="cursor"></span></p>
+    <h1>Una <span class="p">API</span> central, un cliente <span class="a">móvil</span> y un <span class="b">bot</span>.</h1>
+    <p class="lede">GymProFit son tres sistemas independientes. La <b>API REST (Spring Boot)</b> es la fuente de verdad; la <b>app Android</b> es el cliente del usuario; el <b>bot de Discord</b> añade la capa social y de juego. Cada sistema tiene su base de datos y solo se comunica por REST.</p>
+
+    <figure class="diagram">
+      <figcaption class="diagram-h">
+        <span class="k">$</span>&nbsp;render --c4 container-diagram
+        <span class="lg">
+          <span><span class="lgd" style="border-color:var(--app)"></span>app</span>
+          <span><span class="lgd" style="border-color:var(--api)"></span>api</span>
+          <span><span class="lgd" style="border-color:var(--bot)"></span>bot</span>
+          <span><span class="lgd" style="border-color:var(--ext)"></span>ext</span>
+          <span><span class="lgd" style="border-color:var(--store)"></span>db</span>
+        </span>
+      </figcaption>
+      <div class="diagram-svg">
+        <svg class="c4" viewBox="0 0 960 600" role="img" aria-label="Diagrama de contenedores GymProFit">
+          <defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path class="arw" d="M0,0 L7,3 L0,6 Z"/></marker></defs>
+
+          <g class="rel-g" data-from="usuario" data-to="app"><path class="rel" marker-end="url(#ah)" d="M105,150 V196"/><text class="rlbl" x="113" y="176">usa</text></g>
+          <g class="rel-g" data-from="app" data-to="api"><path class="rel" marker-end="url(#ah)" d="M262,250 H371"/><text class="rlbl" x="316" y="240" text-anchor="middle">REST · JWT usuario</text></g>
+          <g class="rel-g" data-from="bot" data-to="api"><path class="rel" marker-end="url(#ah)" d="M700,250 H591"/><text class="rlbl" x="646" y="240" text-anchor="middle">REST · cuenta servicio</text></g>
+          <g class="rel-g" data-from="app" data-to="prefs"><path class="rel" marker-end="url(#ah)" d="M150,304 V372"/><text class="rlbl" x="158" y="344">cifrado</text></g>
+          <g class="rel-g" data-from="api" data-to="db_api"><path class="rel" marker-end="url(#ah)" d="M481,304 V372"/><text class="rlbl" x="489" y="344">JDBC</text></g>
+          <g class="rel-g" data-from="bot" data-to="db_bot"><path class="rel" marker-end="url(#ah)" d="M815,304 V372"/><text class="rlbl" x="823" y="344">JDBC</text></g>
+          <g class="rel-g" data-from="api" data-to="fcm"><path class="rel" marker-end="url(#ah)" d="M455,196 V132"/><text class="rlbl" x="463" y="168">push</text></g>
+          <g class="rel-g" data-from="fcm" data-to="app"><path class="rel dash" marker-end="url(#ah)" d="M410,110 H235 V196"/><text class="rlbl" x="300" y="102" text-anchor="middle">entrega push</text></g>
+          <g class="rel-g" data-from="api" data-to="wger"><path class="rel" marker-end="url(#ah)" d="M560,214 C 630,150 660,130 690,118"/><text class="rlbl" x="612" y="150">import</text></g>
+          <g class="rel-g" data-from="bot" data-to="discord"><path class="rel" marker-end="url(#ah)" d="M865,196 V132"/><text class="rlbl" x="873" y="168">gateway</text></g>
+
+          <g class="actor nodeg" data-node="usuario">
+            <rect x="45" y="94" width="120" height="56" rx="7"/>
+            <text x="105" y="118" text-anchor="middle" font-size="13" font-weight="700">usuario</text>
+            <text x="105" y="136" text-anchor="middle" font-size="10" fill="var(--txt-3)">app + comunidad</text>
+          </g>
+
+          <g class="ext nodeg" data-node="fcm">
+            <rect x="405" y="88" width="100" height="44" rx="7"/>
+            <text class="ctitle" x="455" y="107" text-anchor="middle" font-size="12">FCM</text>
+            <text class="ctech" x="455" y="122" text-anchor="middle" font-size="9.5">firebase</text>
+          </g>
+          <g class="ext nodeg" data-node="wger">
+            <rect x="620" y="74" width="170" height="44" rx="7"/>
+            <text class="ctitle" x="705" y="93" text-anchor="middle" font-size="11.5">wger · OpenFoodFacts</text>
+            <text class="ctech" x="705" y="108" text-anchor="middle" font-size="9.5">catálogos externos</text>
+          </g>
+          <g class="ext nodeg" data-node="discord">
+            <rect x="815" y="88" width="100" height="44" rx="7"/>
+            <text class="ctitle" x="865" y="107" text-anchor="middle" font-size="12">Discord</text>
+            <text class="ctech" x="865" y="122" text-anchor="middle" font-size="9.5">gateway</text>
+          </g>
+
+          <g class="goto nodeg" data-node="app" data-goto="app" tabindex="0" role="button" aria-label="Ver app Android" style="color:var(--app)">
+            <rect class="cbox" x="45" y="196" width="217" height="108" rx="7" style="stroke:var(--app)"/>
+            <text class="ctitle" x="63" y="224" font-size="15" style="fill:var(--app)">App Android</text>
+            <text class="ctech" x="63" y="242" font-size="10.5">[Java · Retrofit]</text>
+            <text class="cdesc" x="63" y="265" font-size="11">Cliente del usuario: entrenar,</text>
+            <text class="cdesc" x="63" y="281" font-size="11">rutinas, nutrición, progreso.</text>
+          </g>
+          <g class="goto nodeg" data-node="api" data-goto="api" tabindex="0" role="button" aria-label="Ver API" style="color:var(--api)">
+            <rect class="cbox" x="371" y="196" width="220" height="108" rx="7" style="stroke:var(--api);stroke-width:1.8"/>
+            <text class="ctitle" x="389" y="224" font-size="15" style="fill:var(--api)">API REST</text>
+            <text class="ctech" x="389" y="242" font-size="10.5">[Spring Boot · /api]</text>
+            <text class="cdesc" x="389" y="265" font-size="11">Fuente de verdad. JWT, JPA/jOOQ.</text>
+            <text class="cdesc" x="389" y="281" font-size="11">Sirve a la app y al bot.</text>
+          </g>
+          <g class="goto nodeg" data-node="bot" data-goto="bot" tabindex="0" role="button" aria-label="Ver bot" style="color:var(--bot)">
+            <rect class="cbox" x="700" y="196" width="217" height="108" rx="7" style="stroke:var(--bot)"/>
+            <text class="ctitle" x="718" y="224" font-size="15" style="fill:var(--bot)">Bot de Discord</text>
+            <text class="ctech" x="718" y="242" font-size="10.5">[Java · JDA 5]</text>
+            <text class="cdesc" x="718" y="265" font-size="11">Comunidad gamificada +</text>
+            <text class="cdesc" x="718" y="281" font-size="11">puente en vivo con la API.</text>
+          </g>
+
+          <g class="store nodeg" data-node="prefs">
+            <rect x="80" y="372" width="140" height="52" rx="7"/>
+            <text class="ctitle" x="150" y="393" text-anchor="middle" font-size="11.5">prefs locales</text>
+            <text class="ctech" x="150" y="409" text-anchor="middle" font-size="9.5" fill="var(--txt-3)">tokens cifrados</text>
+          </g>
+          <g class="store nodeg" data-node="db_api">
+            <rect x="405" y="372" width="152" height="52" rx="7"/>
+            <text class="ctitle" x="481" y="391" text-anchor="middle" font-size="11.5">gymprofit_db</text>
+            <text class="ctech" x="481" y="407" text-anchor="middle" font-size="9.5" fill="var(--txt-3)">MySQL · datos app</text>
+          </g>
+          <g class="store nodeg" data-node="db_bot">
+            <rect x="739" y="372" width="152" height="52" rx="7"/>
+            <text class="ctitle" x="815" y="391" text-anchor="middle" font-size="11.5">gymprofit_bot</text>
+            <text class="ctech" x="815" y="407" text-anchor="middle" font-size="9.5" fill="var(--txt-3)">Aiven · estado bot</text>
+          </g>
+
+          <text class="cap" x="480" y="468" text-anchor="middle">hover un contenedor → sus conexiones · click → su detalle · dos BD separadas, el bot no toca la BD de la app</text>
+        </svg>
+      </div>
+    </figure>
+
+    <div class="stats">
+      <div class="stat"><b>3</b><span>sistemas · 1 API</span></div>
+      <div class="stat"><b>19</b><span>controllers · ~13 dominios</span></div>
+      <div class="stat"><b>~35</b><span>pantallas android</span></div>
+      <div class="stat"><b>~64</b><span>slash commands</span></div>
+      <div class="stat"><b>9</b><span>jobs programados</span></div>
+      <div class="stat"><b>25·36</b><span>migraciones api·bot</span></div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Vistas">
+    <button class="tab" data-sys="overview" role="tab" aria-selected="true">integraciones</button>
+    <button class="tab" data-sys="app" role="tab" aria-selected="false">app</button>
+    <button class="tab" data-sys="api" role="tab" aria-selected="false">api</button>
+    <button class="tab" data-sys="bot" role="tab" aria-selected="false">bot</button>
+    <div class="search"><input id="q" type="search" placeholder="filtrar…" aria-label="Filtrar"></div>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section class="view active" id="v-overview">
+    <p class="sec-h">relaciones entre sistemas</p>
+    <div class="edges">
+      <div class="edge"><div class="fl">app<i>→</i>api</div><div class="mt"><b>REST completo, JWT de usuario</b> (USER/ADMIN/GUEST). Auth, perfil, ejercicios, rutinas, sesiones, progreso, nutrición, mediciones, objetivos, logros, notificaciones y admin.</div></div>
+      <div class="edge"><div class="fl">bot<i>→</i>api</div><div class="mt"><b>REST acotado, cuenta de servicio</b> (mismo <code>/auth/login</code>). Hoy solo <code>auth</code> + <code>ejercicios</code>, para <code>/ejercicios</code> y el ejercicio del día. <code>/rutinas</code> pendiente (vinculación: rol <code>BOT</code> + <code>/bot/**</code>).</div></div>
+      <div class="edge"><div class="fl">api<i>→</i>fcm<i>→</i>app</div><div class="mt"><b>Push.</b> La app registra su token (<code>POST /notificaciones/token</code>); la API envía por Firebase a los <code>DeviceToken</code> del usuario y limpia los muertos.</div></div>
+      <div class="edge"><div class="fl">api<i>→</i>ext</div><div class="mt"><b>Imports de catálogo.</b> ~800 ejercicios (wger + free-exercise-db) y alimentos (Open Food Facts), idempotentes, por el admin.</div></div>
+      <div class="edge"><div class="fl">bot<i>→</i>discord</div><div class="mt"><b>Gateway (JDA).</b> Slash commands, botones, modales y eventos del servidor.</div></div>
+    </div>
+
+    <div class="note"><b>Aislamiento:</b> dos bases de datos separadas — <code>gymprofit_db</code> (API) y <code>gymprofit_bot</code> (Aiven, bot). Ni la app ni el bot acceden a la BD de la app: todo dato de la app pasa por la API.</div>
+
+    <p class="sec-h">los tres sistemas</p>
+    <div class="grid3">
+      <div class="mini app"><h4>app android</h4><div class="path">es.pmdm.gymprofit</div><p>Cliente del usuario. Capas UI → red → REST; sin Room ni ViewModel.</p><div class="tags"><span class="tag">Java 11</span><span class="tag">Retrofit</span><span class="tag">FCM</span></div></div>
+      <div class="mini api"><h4>api rest</h4><div class="path">com.gymprofit.api · /api</div><p>Núcleo. controller → service → repository (JPA/jOOQ).</p><div class="tags"><span class="tag">Spring Boot 3.5</span><span class="tag">JWT</span><span class="tag">Flyway</span></div></div>
+      <div class="mini bot"><h4>bot discord</h4><div class="path">com.gymprofit.bot</div><p>Comunidad gamificada. commands → services → JDBC propio.</p><div class="tags"><span class="tag">Java 21 · JDA 5</span><span class="tag">Retrofit</span></div></div>
+    </div>
+
+    <p class="sec-h">dónde tocar para añadir una feature</p>
+    <div class="grid3">
+      <div class="mini api"><h4>api · endpoint</h4><p>entity → (migración Flyway) → dto → mapper → repository → service → controller → SecurityConfig.</p></div>
+      <div class="mini app"><h4>app · pantalla</h4><p>model DTO → método en <code>*Api</code> → Activity/Fragment con <code>ApiClient.service(...).enqueue(ApiCallback)</code>.</p></div>
+      <div class="mini bot"><h4>bot · comando</h4><p>(migración) → repo JDBC → service+test → <code>commands/</code> → RouterComandos → i18n ES+EN → EmbedFactory.</p></div>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <section class="view" id="v-app">
+    <div class="lead app">
+      <h3>app android · gymprofit</h3>
+      <p class="role">Capas simples: <b>UI → red (singleton Retrofit) → REST</b>. Sin repositorio, ViewModel ni Room; estado en <code>PreferencesManager</code> (prefs normales + cifradas) y <code>UtilREST</code> (tokens en memoria). Callbacks <code>enqueue</code>.</p>
+      <div class="path">TFG-GymProFit/app/GymProFit · es.pmdm.gymprofit</div>
+      <div class="tags"><span class="tag">Java 11 · minSdk 24</span><span class="tag">EncryptedSharedPreferences</span><span class="tag">Glide</span><span class="tag">MPAndroidChart</span><span class="tag">Crashlytics</span></div>
+    </div>
+    <details class="layer" open><summary>capa ui<span class="ltag">ui.activities · fragments · adapters · widget</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">SplashActivity</span><span class="dsc">Launcher; decide Login o Main según la sesión.</span></li>
+        <li><span class="n">MainActivity+ViewPager2</span><span class="dsc">Host único de las 5 pestañas (Home · Rutinas · Ejercicios · Nutrición · Perfil) con FloatingNavBar fija.</span></li>
+        <li><span class="n">BaseActivity</span><span class="dsc">Tema/idioma/escala global; escucha el 401 → cierra sesión.</span></li>
+        <li><span class="n">~35 Activities</span><span class="dsc">Auth/onboarding, crear/editar rutina, comidas y alimentos, sesiones, mediciones, logros y admin.</span></li>
+        <li><span class="n">FloatingNavBar</span><span class="dsc">Vista custom con RuntimeShader (AGSL) + RenderEffect: efecto lente (API 33+, degrada por versión).</span></li>
+      </ul></div>
+    </details>
+    <details class="layer"><summary>capa de red<span class="ltag">network</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">ApiClient</span><span class="dsc">Singleton Retrofit/OkHttp; cachea las interfaces. BASE_URL por <code>BuildConfig</code>.</span></li>
+        <li><span class="n">AuthInterceptor</span><span class="dsc">Bearer salvo a <code>/auth/</code>; interceptor de <code>Accept-Language</code>.</span></li>
+        <li><span class="n">TokenAuthenticator</span><span class="dsc">401 → <code>/auth/refresh</code> y reintenta; anti-bucle.</span></li>
+        <li><span class="n">ApiCallback</span><span class="dsc">Envuelve <code>enqueue</code>: POJO en hilo principal, centraliza el 401.</span></li>
+      </ul>
+      <div class="tags" style="margin-top:11px"><span class="tag">AuthApi</span><span class="tag">UsuarioApi</span><span class="tag">EjercicioApi</span><span class="tag">RutinaApi</span><span class="tag">SesionApi</span><span class="tag">ComidaApi</span><span class="tag">AlimentoApi</span><span class="tag">ObjetivoApi</span><span class="tag">MedicionApi</span><span class="tag">LogroApi</span><span class="tag">DeviceTokenApi</span><span class="tag">AdminApi</span></div>
+      </div>
+    </details>
+    <details class="layer"><summary>modelo y estado<span class="ltag">model · utils · services</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">model.*</span><span class="dsc">POJOs por dominio + PageDTO.</span></li>
+        <li><span class="n">PreferencesManager</span><span class="dsc">Prefs + EncryptedSharedPreferences (AES256-GCM) para los tokens.</span></li>
+        <li><span class="n">GymFCMService</span><span class="dsc">FCM: re-registra el token y pinta la notificación en foreground.</span></li>
+      </ul></div>
+    </details>
+
+    <p class="sec-h">pantallas por dominio</p>
+    <div class="tbl"><table>
+      <thead><tr><th>dominio</th><th>pantallas</th><th>endpoints</th></tr></thead>
+      <tbody>
+        <tr><td>auth / onboarding</td><td>Splash · Login · Registro · Onboarding 1-5</td><td class="k">/auth/*</td></tr>
+        <tr><td>ejercicios</td><td>EjerciciosFragment · DetalleEjercicio</td><td class="k">/ejercicios/* · /progreso-*</td></tr>
+        <tr><td>rutinas</td><td>RutinasFragment · Crear/Editar/Detalle</td><td class="k">/rutinas/* · /rutinas-ejercicios/*</td></tr>
+        <tr><td>sesiones</td><td>RegistrarSesion · Resumen · Sesiones</td><td class="k">/sesiones/* · /ejercicios-realizados</td></tr>
+        <tr><td>nutrición</td><td>NutriciónFragment · Comida · Alimentos</td><td class="k">/comidas/* · /alimentos/*</td></tr>
+        <tr><td>perfil / stats</td><td>PerfilFragment · EditarPerfil · Logros · Mediciones</td><td class="k">/usuarios/* · /logros/* · /mediciones-*</td></tr>
+        <tr><td>admin</td><td>AdminActivity + Usuarios/Rutinas/Ejercicios/Alimentos</td><td class="k">/admin/*</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><b>Flujo:</b> vista → <code>ApiClient.service(XxxApi).metodo().enqueue(ApiCallback)</code> → interceptores (Bearer+idioma) → API → Gson → <code>onOk(body)</code> → se pinta. El 401 lo resuelve el <code>TokenAuthenticator</code>.</div>
+  </section>
+
+  <!-- API -->
+  <section class="view" id="v-api">
+    <div class="lead api">
+      <h3>api rest · gymprofit</h3>
+      <p class="role">En capas: <b>controller → service (IXxx+Xxx) → repository (JPA+jOOQ) → entity</b>. DTOs con MapStruct (nunca entidades), JWT stateless, <code>ddl-auto=validate</code> (Flyway gobierna el esquema).</p>
+      <div class="path">TFG-GymProFit/api/gymprofit-api · com.gymprofit.api · /api</div>
+      <div class="tags"><span class="tag">Spring Boot 3.5 · Java 21</span><span class="tag">Security+JWT</span><span class="tag">jOOQ</span><span class="tag">Flyway</span><span class="tag">MapStruct</span><span class="tag">Firebase Admin</span></div>
+    </div>
+    <details class="layer" open><summary>controller<span class="ltag">controller · 19</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">AuthController</span><span class="dsc">Login, register, guest, refresh, logout, change-password.</span></li>
+        <li><span class="n">UsuarioController</span><span class="dsc">Perfil, foto (multipart), estadísticas; jOOQ (ADMIN).</span></li>
+        <li><span class="n">EjercicioController</span><span class="dsc">Catálogo, búsqueda paginada, CRUD (ADMIN).</span></li>
+        <li><span class="n">Rutina · Sesión · Progreso</span><span class="dsc">Rutinas y ejercicios, entrenos, historial.</span></li>
+        <li><span class="n">Comida · Alimento</span><span class="dsc">Diario nutricional, resumen diario, catálogo.</span></li>
+        <li><span class="n">Medición · Objetivo · Logro</span><span class="dsc">Progreso corporal, metas, logros.</span></li>
+        <li><span class="n">Notificacion · DeviceToken</span><span class="dsc">Notificaciones in-app + token FCM.</span></li>
+        <li><span class="n">AdminController</span><span class="dsc">Gestión de usuarios, import de catálogo, stats globales.</span></li>
+      </ul></div>
+    </details>
+    <details class="layer"><summary>service<span class="ltag">service.&lt;dominio&gt; · auth · externo</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">IXxx + Xxx</span><span class="dsc">Lógica, validación de propiedad, transacciones.</span></li>
+        <li><span class="n">Auth + RefreshToken</span><span class="dsc">Emite/renueva/invalida JWT; refresh en tabla.</span></li>
+        <li><span class="n">PushNotificationService</span><span class="dsc">FCM a los tokens del usuario; borra muertos; no propaga excepción.</span></li>
+        <li><span class="n">WgerImport · OpenFoodFacts</span><span class="dsc">Imports idempotentes.</span></li>
+      </ul></div>
+    </details>
+    <details class="layer"><summary>persistencia<span class="ltag">repository.jpa · jooq · entity(19)</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">IXxxRepository(20)</span><span class="dsc">Spring Data JPA.</span></li>
+        <li><span class="n">IXxxJooqRepository</span><span class="dsc">jOOQ: consultas complejas, paginación tipada.</span></li>
+      </ul></div>
+    </details>
+    <details class="layer"><summary>seguridad<span class="ltag">config.security · exceptions</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">SecurityConfig</span><span class="dsc">JWT stateless, CSRF off, autorización por rol, CORS lista blanca.</span></li>
+        <li><span class="n">JwtAuthenticationFilter</span><span class="dsc">Valida el JWT, puebla el SecurityContext.</span></li>
+        <li><span class="n">AuthRateLimitFilter</span><span class="dsc">15/60s en <code>/auth</code>, 200/60s global.</span></li>
+        <li><span class="n">ControllerExceptionHandler</span><span class="dsc">@ControllerAdvice → Response homogénea (400/401/403/404/502/500).</span></li>
+      </ul>
+      <div class="tags" style="margin-top:11px"><span class="tag">GUEST · lectura</span><span class="tag">USER · sus datos</span><span class="tag">ADMIN · gestión</span></div>
+      </div>
+    </details>
+
+    <p class="sec-h">endpoints por dominio</p>
+    <div class="tbl"><table>
+      <thead><tr><th>método</th><th>ruta</th><th>qué hace</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method m-POST">POST</span></td><td class="ep">/auth/login · /register · /refresh</td><td>Sesión: emite/renueva JWT.</td></tr>
+        <tr><td><span class="method m-GET">GET</span></td><td class="ep">/ejercicios/buscar · /ejercicios/{id}</td><td>Catálogo y búsqueda paginada.</td></tr>
+        <tr><td><span class="method m-GET">GET</span></td><td class="ep">/rutinas/predefinidas · /rutinas/usuario/{id}/activas</td><td>Rutinas base y del usuario.</td></tr>
+        <tr><td><span class="method m-POST">POST</span></td><td class="ep">/sesiones · /ejercicios-realizados</td><td>Registrar entreno y series.</td></tr>
+        <tr><td><span class="method m-GET">GET</span></td><td class="ep">/comidas/usuario/{id}/resumen</td><td>Resumen kcal/macros del día.</td></tr>
+        <tr><td><span class="method m-POST">POST</span></td><td class="ep">/notificaciones/token</td><td>Registra el token FCM.</td></tr>
+        <tr><td><span class="method m-POST">POST</span></td><td class="ep">/admin/catalogo/importar-ejercicios</td><td>Import wger (~800), ADMIN.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><b>Persistencia:</b> MariaDB (dev) / MySQL (prod) — <code>gymprofit_db</code>. 25 migraciones Flyway. Docker multi-stage en PaaS (Render/Koyeb), config 12-factor.</div>
+  </section>
+
+  <!-- BOT -->
+  <section class="view" id="v-bot">
+    <div class="lead bot">
+      <h3>bot · gymprobot (discord)</h3>
+      <p class="role">JDA sin Spring: <b>commands/ → services/ (lógica + catálogos en código) → db/ (JDBC + Flyway)</b>. <code>api/</code> es cliente Retrofit hacia la API. Un archivo por comando; embeds por <code>EmbedFactory</code>; i18n ES+EN.</p>
+      <div class="path">gymprofit-bot · com.gymprofit.bot</div>
+      <div class="tags"><span class="tag">Java 21 · JDA 5</span><span class="tag">fat-jar (shade)</span><span class="tag">HikariCP · Aiven MySQL</span><span class="tag">Retrofit</span><span class="tag">Render</span></div>
+    </div>
+    <details class="layer" open><summary>comandos<span class="ltag">commands · ~64 por categoría</span></summary>
+      <div class="lbody"><p class="role" style="margin:2px 0 11px;font-size:12.5px"><code>RouterComandos</code>: registro por servidor + enrutado + aislamiento de errores. Familias con subcomandos por el límite de Discord.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>categoría</th><th>comandos</th></tr></thead>
+          <tbody>
+            <tr><td>núcleo</td><td class="k">/ping · /nivel · /top · /rank · /perfil</td></tr>
+            <tr><td>config / admin</td><td class="k">/setup · /config · /canal · /publicar · /privacidad</td></tr>
+            <tr><td>moderación</td><td class="k">/warn · /silenciar · /ban · /unban · /kick · /limpiar · /modlogs</td></tr>
+            <tr><td>comunidad</td><td class="k">/reto · /evento · /sugerencia</td></tr>
+            <tr><td>consultas api</td><td class="k">/ejercicios · /ejercicio-dia · /frase</td></tr>
+            <tr><td>economía / rpg</td><td class="k">/daily · /tienda · /banco · /bolsa · /casino · /pelear · /minar · /gremio</td></tr>
+            <tr><td>trabajo / empresas</td><td class="k">/trabajo · /empresa · /empleo · /economia · /acciones</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+    <details class="layer"><summary>servicios y rpg<span class="ltag">services · catálogos en código + estado en BD</span></summary>
+      <div class="lbody"><p class="role" style="margin:0 0 10px;font-size:12.5px">Catálogos estáticos + services testeables (azar inyectable) + monedero atómico (<code>EconomiaRepositorio</code>, ledger <code>transacciones</code>) + anti-inflación por sumideros.</p>
+        <div class="tags"><span class="tag">personaje</span><span class="tag">trabajo/carreras</span><span class="tag">empresas</span><span class="tag">banco</span><span class="tag">bolsa</span><span class="tag">casino/duelos</span><span class="tag">mercado</span><span class="tag">combate/minería</span><span class="tag">crafting/cofres</span><span class="tag">descanso</span><span class="tag">pasivos</span><span class="tag">robar</span><span class="tag">gremios</span></div>
+      </div>
+    </details>
+    <details class="layer"><summary>eventos<span class="ltag">events · listeners JDA</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">XpMensajeListener</span><span class="dsc">XP por mensaje.</span></li>
+        <li><span class="n">AntiAbusoListener</span><span class="dsc">Anti-flood (5msg/7s) + anti-invites: borra + warn.</span></li>
+        <li><span class="n">AutoModWarnListener</span><span class="dsc">AutoMod nativo → warn interno (anti-ráfaga compartido).</span></li>
+        <li><span class="n">TicketListener</span><span class="dsc">Panel/apertura/cierre de tickets con transcript.</span></li>
+        <li><span class="n">Combate · Duelo · Empresa · Empleo</span><span class="dsc">Interacciones por botones y modales.</span></li>
+      </ul></div>
+    </details>
+    <details class="layer"><summary>persistencia y api<span class="ltag">db (JDBC+Flyway) · api (Retrofit)</span></summary>
+      <div class="lbody"><ul class="comp">
+        <li><span class="n">db/Database</span><span class="dsc">Pool HikariCP; repos JDBC; Flyway V1–V36. Aiven MySQL <code>gymprofit_bot</code>, separada.</span></li>
+        <li><span class="n">ApiClient · TokenManager</span><span class="dsc">Cliente de la API con cuenta de servicio (Bearer + refresh ante 401).</span></li>
+        <li><span class="n">AuthApi · EjerciciosApi</span><span class="dsc">Solo consume auth + ejercicios.</span></li>
+      </ul></div>
+    </details>
+
+    <p class="sec-h">jobs programados · Europe/Madrid</p>
+    <div class="tbl"><table>
+      <thead><tr><th>job</th><th>cuándo</th><th>qué hace</th></tr></thead>
+      <tbody>
+        <tr><td class="k">EnergiaJob</td><td>cada 30 min</td><td>+5 energía + pasivos.</td></tr>
+        <tr><td class="k">BolsaJob</td><td>cada 12 min</td><td>Mueve los precios de la bolsa.</td></tr>
+        <tr><td class="k">EventoEconomicoJob</td><td>~cada 1 h</td><td>Rota/anuncia el clima económico.</td></tr>
+        <tr><td class="k">EjercicioDiaJob</td><td>diario 08:00</td><td>Publica el ejercicio del día (API).</td></tr>
+        <tr><td class="k">NominaEmpresasJob</td><td>diario 03:00</td><td>Reparte 20% del bote por rango.</td></tr>
+        <tr><td class="k">ImpuestoEmpresasJob</td><td>lunes 02:00</td><td>Cuota semanal + morosidad/quiebra.</td></tr>
+        <tr><td class="k">DividendoEmpresasJob</td><td>jueves 02:00</td><td>Dividendos de acciones.</td></tr>
+        <tr><td class="k">Sorteo · Retencion</td><td>intervalo fijo</td><td>Sorteos vencidos · purga RGPD.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note warn"><b>Puente con la API:</b> el bot solo consume <code>auth</code> + <code>ejercicios</code>. <code>/rutinas</code> pendiente (la API ya lo expone): fase de vinculación, rol <code>BOT</code> + <code>/bot/**</code>.</div>
+  </section>
+
+  <footer>generado del código · 2026-07-27 · modelo máquina en <code>docs/architecture-map.json</code> · sin secretos, solo estructura</footer>
+</main>
+
+<script>
+(function(){
+  var order=['overview','app','api','bot'], views={overview:'v-overview',app:'v-app',api:'v-api',bot:'v-bot'};
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  function show(sys,push){
+    if(order.indexOf(sys)<0)sys='overview';
+    tabs.forEach(function(t){var on=t.dataset.sys===sys;t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;});
+    order.forEach(function(k){document.getElementById(views[k]).classList.toggle('active',k===sys);});
+    if(push&&('#'+sys)!==location.hash)history.replaceState(null,'','#'+sys);
+  }
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(){show(t.dataset.sys,true);});
+    t.addEventListener('keydown',function(e){
+      if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();
+        var i=(order.indexOf(t.dataset.sys)+(e.key==='ArrowRight'?1:-1)+order.length)%order.length;
+        show(order[i],true);tabs.filter(function(x){return x.dataset.sys===order[i];})[0].focus();}
+    });
+  });
+  show((location.hash||'').replace('#','')||'overview',false);
+  window.addEventListener('hashchange',function(){show((location.hash||'').replace('#',''),false);});
+
+  var svg=document.querySelector('svg.c4');
+  var rels=[].slice.call(svg.querySelectorAll('.rel-g')), nodes=[].slice.call(svg.querySelectorAll('[data-node]'));
+  function hi(n){svg.classList.add('dim');var lit={};lit[n]=1;
+    rels.forEach(function(r){var on=(r.dataset.from===n||r.dataset.to===n);r.classList.toggle('on',on);if(on){lit[r.dataset.from]=1;lit[r.dataset.to]=1;}});
+    nodes.forEach(function(el){el.classList.toggle('on',!!lit[el.dataset.node]);});}
+  function clr(){svg.classList.remove('dim');rels.forEach(function(r){r.classList.remove('on');});nodes.forEach(function(el){el.classList.remove('on');});}
+  nodes.forEach(function(el){el.addEventListener('mouseenter',function(){hi(el.dataset.node);});el.addEventListener('mouseleave',clr);el.addEventListener('focus',function(){hi(el.dataset.node);});el.addEventListener('blur',clr);});
+  [].slice.call(svg.querySelectorAll('.goto')).forEach(function(g){
+    function go(){show(g.dataset.goto,true);document.querySelector('.tabs').scrollIntoView({behavior:'smooth',block:'start'});}
+    g.addEventListener('click',go);g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+  });
+
+  order.forEach(function(k){
+    var v=document.getElementById(views[k]), layers=[].slice.call(v.querySelectorAll('details.layer'));
+    if(!layers.length)return;
+    var bar=document.createElement('div');bar.className='dl-ctrl';
+    var e=document.createElement('button');e.textContent='expandir todo';
+    var c=document.createElement('button');c.textContent='colapsar todo';
+    var h=document.createElement('span');h.className='hint';h.textContent=layers.length+' capas';
+    e.onclick=function(){layers.forEach(function(d){d.open=true;});};
+    c.onclick=function(){layers.forEach(function(d){d.open=false;});};
+    bar.appendChild(e);bar.appendChild(c);bar.appendChild(h);layers[0].parentNode.insertBefore(bar,layers[0]);
+  });
+
+  var q=document.getElementById('q');
+  q.addEventListener('input',function(){
+    var term=q.value.trim().toLowerCase(), active=document.querySelector('.view.active');
+    var rows=[].slice.call(active.querySelectorAll('ul.comp li, tbody tr, .edge, .mini'));
+    var layers=[].slice.call(active.querySelectorAll('details.layer'));
+    if(!term){rows.forEach(function(r){r.classList.remove('hide');});layers.forEach(function(d){d.classList.remove('hide');});return;}
+    rows.forEach(function(r){r.classList.toggle('hide',r.textContent.toLowerCase().indexOf(term)===-1);});
+    layers.forEach(function(d){var any=[].slice.call(d.querySelectorAll('ul.comp li, tbody tr')).some(function(r){return !r.classList.contains('hide');});d.classList.toggle('hide',!any);if(any)d.open=true;});
+  });
+})();
+</script>
