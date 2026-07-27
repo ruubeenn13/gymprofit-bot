@@ -76,7 +76,7 @@ public final class EconomiaComando implements ComandoAutocompletable {
 
     @Override
     public void ejecutar(SlashCommandInteractionEvent evento) {
-        Locale locale = evento.getUserLocale() == DiscordLocale.SPANISH ? Messages.ES : Messages.EN;
+        Locale locale = Messages.desdeTag(evento.getUserLocale().getLocale());
         String sub = evento.getSubcommandName() == null ? "ver" : evento.getSubcommandName();
         switch (sub) {
             case "ver" -> ver(evento, locale);
