@@ -9,7 +9,9 @@ import com.gymprofit.bot.util.Cifrador;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,5 +82,27 @@ class ModeracionServiceTest {
 
         // Con el cifrado deshabilitado, el motivo llega como null (degradado seguro).
         verify(warns).insertar(eq(100L), eq(200L), isNull());
+    }
+
+    @Test
+    void conClaveMarcaElMotivoComoGuardado() {
+        when(warns.insertar(anyLong(), anyLong(), any())).thenReturn(1L);
+        when(warns.contarActivos(100L)).thenReturn(1);
+
+        ResultadoAviso r = servicio.avisar(1L, 100L, 200L, "texto sensible");
+
+        assertTrue(r.motivoGuardado(), "con clave el motivo se cifra y persiste");
+    }
+
+    @Test
+    void sinClaveMarcaElMotivoComoNoGuardadoSinExcepcion() {
+        ModeracionService sinCifrado = new ModeracionService(
+                warns, sanciones, usuarios, new Cifrador(""));
+        when(warns.insertar(anyLong(), anyLong(), isNull())).thenReturn(1L);
+        when(warns.contarActivos(100L)).thenReturn(1);
+
+        ResultadoAviso r = sinCifrado.avisar(1L, 100L, 200L, "no debe guardarse");
+
+        assertFalse(r.motivoGuardado(), "sin clave el motivo no llega a persistirse");
     }
 }

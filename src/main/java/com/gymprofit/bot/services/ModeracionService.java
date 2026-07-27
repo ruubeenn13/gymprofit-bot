@@ -36,9 +36,12 @@ public final class ModeracionService {
     public enum AccionEscalado { NINGUNA, TIMEOUT_1H, TIMEOUT_24H, BAN }
 
     /**
-     * Resultado de {@link #avisar}: id del aviso, nº de avisos activos y acción de escalado a aplicar.
+     * Resultado de {@link #avisar}: id del aviso, nº de avisos activos, acción de escalado a aplicar y
+     * si el motivo llegó a persistirse ({@code false} si había motivo pero no hay clave de cifrado, de
+     * modo que el staff pueda avisar de que el texto no se guardó).
      */
-    public record ResultadoAviso(long warnId, int warnsActivos, AccionEscalado accion) {
+    public record ResultadoAviso(long warnId, int warnsActivos, AccionEscalado accion,
+                                 boolean motivoGuardado) {
     }
 
     private final WarnRepositorio warns;
@@ -61,10 +64,12 @@ public final class ModeracionService {
     public ResultadoAviso avisar(long guildId, long usuarioId, long moderadorId, String motivo) {
         usuarios.obtenerOCrear(usuarioId); // garantiza la fila (FK de warns)
         String cif = cifrarTexto(motivo);
+        // Sin motivo no hay nada que guardar; con motivo, solo se guardó si el cifrado produjo texto.
+        boolean guardado = (motivo == null) || (cif != null);
         long warnId = warns.insertar(usuarioId, moderadorId, cif);
         sanciones.insertar(guildId, usuarioId, moderadorId, "WARN", cif, null, null);
         int activos = warns.contarActivos(usuarioId);
-        return new ResultadoAviso(warnId, activos, escalado(activos));
+        return new ResultadoAviso(warnId, activos, escalado(activos), guardado);
     }
 
     /** Registra una sanción cualquiera en el historial (cifrando motivo/apodo). */

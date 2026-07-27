@@ -4,9 +4,9 @@ import com.gymprofit.bot.commands.Comando;
 import com.gymprofit.bot.db.Warn;
 import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
+import com.gymprofit.bot.commands.moderacion.AplicadorSanciones.Resultado;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.ModeracionService;
-import com.gymprofit.bot.services.ModeracionService.AccionEscalado;
 import com.gymprofit.bot.services.ModeracionService.ResultadoAviso;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -23,10 +23,8 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@code /warn} con subcomandos (poner, lista, quitar, limpiar). Consolida los avisos en un solo
@@ -39,16 +37,18 @@ import java.util.concurrent.TimeUnit;
 public final class WarnComando implements Comando {
 
     private static final String NOMBRE = "warn";
-    private static final String RAZON_ESCALADO = "Escalado automático por acumulación de avisos";
     /** Avisos por página (paginación por botones pendiente; de momento la página más reciente). */
     private static final int POR_PAGINA = 10;
 
     private final ModeracionService moderacion;
     private final ConfigServidorService config;
+    private final AplicadorSanciones aplicador;
 
-    public WarnComando(ModeracionService moderacion, ConfigServidorService config) {
+    public WarnComando(ModeracionService moderacion, ConfigServidorService config,
+                       AplicadorSanciones aplicador) {
         this.moderacion = moderacion;
         this.config = config;
+        this.aplicador = aplicador;
     }
 
     @Override
@@ -134,14 +134,30 @@ public final class WarnComando implements Comando {
 
         evento.deferReply(true).queue();
         Guild guild = evento.getGuild();
-        ResultadoAviso resultado = moderacion.avisar(
-                guild.getIdLong(), objetivo.getIdLong(), actor.getIdLong(), motivo);
-        String escalado = aplicarEscalado(guild, objetivoMiembro, objetivo, actor.getIdLong(),
-                resultado.accion(), locale);
+        // Delegamos escalado + log + DM al aplicador reutilizable. Si el objetivo no está en el
+        // servidor (Member null) no hay escalado sobre Discord: solo registramos y logueamos el aviso.
+        ResultadoAviso aviso;
+        String escaladoClave;
+        if (objetivoMiembro != null) {
+            Resultado res = aplicador.aplicar(guild, objetivoMiembro, actor.getIdLong(), motivo);
+            aviso = res.aviso();
+            escaladoClave = res.escaladoClave();
+        } else {
+            aviso = moderacion.avisar(guild.getIdLong(), objetivo.getIdLong(), actor.getIdLong(), motivo);
+            escaladoClave = null;
+            ModHelper.registrarEnLogs(guild, config,
+                    construirEmbed(Messages.ES, objetivo, aviso, motivo, null));
+        }
 
-        MessageEmbed embed = construirEmbed(locale, objetivo, resultado, motivo, escalado);
+        String escalado = escaladoClave == null ? null : Messages.get(locale, escaladoClave);
+        MessageEmbed embed = construirEmbed(locale, objetivo, aviso, motivo, escalado);
+        if (!aviso.motivoGuardado()) {
+            // El motivo venía pero no hay clave de cifrado: avisamos al staff de que no se guardó.
+            embed = EmbedFactory.base(EmbedFactory.Tipo.MODERACION, locale,
+                    Messages.get(locale, "warn.titulo"),
+                    embed.getDescription() + "\n" + Messages.get(locale, "warn.cifrado.sin_clave")).build();
+        }
         evento.getHook().sendMessageEmbeds(embed).queue();
-        ModHelper.registrarEnLogs(guild, config, embed);
     }
 
     private void lista(SlashCommandInteractionEvent evento, Locale locale) {
@@ -191,41 +207,6 @@ public final class WarnComando implements Comando {
                     "<t:" + w.creadoEn().getEpochSecond() + ":R>")).append('\n');
         }
         return sb.toString();
-    }
-
-    /** Aplica el escalón (si lo hay) y lo registra en el historial. Devuelve el texto para el embed. */
-    private String aplicarEscalado(Guild guild, Member objetivoMiembro, User objetivo,
-                                   long moderadorId, AccionEscalado accion, Locale locale) {
-        switch (accion) {
-            case TIMEOUT_1H -> {
-                aplicarTimeout(guild, objetivoMiembro, objetivo, moderadorId,
-                        ModeracionService.TIMEOUT_1H_SEG);
-                return Messages.get(locale, "warn.escalado.timeout1h");
-            }
-            case TIMEOUT_24H -> {
-                aplicarTimeout(guild, objetivoMiembro, objetivo, moderadorId,
-                        ModeracionService.TIMEOUT_24H_SEG);
-                return Messages.get(locale, "warn.escalado.timeout24h");
-            }
-            case BAN -> {
-                guild.ban(objetivo, 0, TimeUnit.SECONDS).reason(RAZON_ESCALADO).queue();
-                moderacion.registrar(guild.getIdLong(), objetivo.getIdLong(), moderadorId,
-                        "BAN", RAZON_ESCALADO, null, null);
-                return Messages.get(locale, "warn.escalado.ban");
-            }
-            default -> {
-                return null;
-            }
-        }
-    }
-
-    private void aplicarTimeout(Guild guild, Member objetivoMiembro, User objetivo,
-                                long moderadorId, long segundos) {
-        if (objetivoMiembro != null) {
-            objetivoMiembro.timeoutFor(Duration.ofSeconds(segundos)).reason(RAZON_ESCALADO).queue();
-        }
-        moderacion.registrar(guild.getIdLong(), objetivo.getIdLong(), moderadorId,
-                "TIMEOUT", RAZON_ESCALADO, null, segundos);
     }
 
     private MessageEmbed construirEmbed(Locale locale, User objetivo, ResultadoAviso resultado,

@@ -56,6 +56,7 @@ import com.gymprofit.bot.commands.economia.TrabajoComando;
 import com.gymprofit.bot.commands.gamificacion.NivelComando;
 import com.gymprofit.bot.commands.gamificacion.TopComando;
 import com.gymprofit.bot.commands.general.PingComando;
+import com.gymprofit.bot.commands.moderacion.AplicadorSanciones;
 import com.gymprofit.bot.commands.moderacion.BanComando;
 import com.gymprofit.bot.commands.moderacion.KickComando;
 import com.gymprofit.bot.commands.moderacion.LimpiarComando;
@@ -419,8 +420,10 @@ public final class Main {
             SancionRepositorio sancionRepo = new SancionRepositorio(db.dataSource());
             ModeracionService moderacion =
                     new ModeracionService(warnRepo, sancionRepo, usuarios, cifrador);
+            // Amonestación reutilizable (escalado + log + DM), compartida por /warn y futura automoderación.
+            AplicadorSanciones aplicadorSanciones = new AplicadorSanciones(moderacion, configService);
             // /warn agrupa poner/lista/quitar/limpiar; /silenciar, mute+timeout; /canal, los bloqueos.
-            comandos.add(new WarnComando(moderacion, configService));
+            comandos.add(new WarnComando(moderacion, configService, aplicadorSanciones));
             comandos.add(new SilenciarComando(moderacion, configService));
             comandos.add(new KickComando(moderacion, configService));
             comandos.add(new BanComando(moderacion, configService));
