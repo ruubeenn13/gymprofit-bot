@@ -1,7 +1,9 @@
 package com.gymprofit.bot.commands.admin;
 
 import com.gymprofit.bot.commands.Comando;
+import com.gymprofit.bot.commands.contenido.PublicarComando;
 import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.events.TicketListener;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.ConfigServidorService;
 import com.gymprofit.bot.services.SetupServidorPlan;
@@ -80,6 +82,7 @@ public final class SetupComando implements Comando {
     private static final String CANAL_EMPIEZA = "🚀・empieza-aquí";
     private static final String CANAL_FAQ = "❓・faq";
     private static final String CANAL_SUGERENCIAS = "💡・sugerencias";
+    private static final String CANAL_SOPORTE = "🎫・soporte";
 
     /** Reacción por defecto de cada foro, temática según su contenido (fallback 👍). */
     private static final Map<String, String> REACCION_FORO = Map.of(
@@ -502,6 +505,11 @@ public final class SetupComando implements Comando {
                             if (existente instanceof GuildMessageChannel gmc) {
                                 actualizarIntro(gmc, chPlan, locale, reg);
                             }
+                            // Soporte reutilizado: publica el panel de tickets solo si aún no está fijado.
+                            if (existente instanceof TextChannel tcExistente
+                                    && CANAL_SOPORTE.equals(chPlan.nombre())) {
+                                publicarPanelTicket(tcExistente, locale, reg);
+                            }
                             if (topicCambia) {
                                 reg.actualizado(RegistroCambios.Categoria.CANAL, chPlan.nombre());
                             }
@@ -587,6 +595,10 @@ public final class SetupComando implements Comando {
                 publicarPanelRoles(tc, locale, reg);
             } else {
                 fijarIntro(tc, chPlan, locale, reg);
+            }
+            // Soporte recién creado: además de la intro, publica el panel de tickets.
+            if (CANAL_SOPORTE.equals(chPlan.nombre())) {
+                publicarPanelTicket(tc, locale, reg);
             }
             creado = tc;
         }
@@ -780,6 +792,36 @@ public final class SetupComando implements Comando {
         // Solo se llega aquí al CREAR el canal de roles (en un canal reutilizado no se re-publica el
         // panel): por tanto es siempre un panel nuevo y se anota como creado en el informe.
         reg.creado(RegistroCambios.Categoria.PANEL, canal.getName());
+    }
+
+    /**
+     * Publica y fija el panel de tickets ("Abrir ticket") en {@code 🎫・soporte}, de forma
+     * IDEMPOTENTE: si ya hay un mensaje fijado del bot con el botón {@link TicketListener#BOTON_ABRIR},
+     * no hace nada (evita duplicar el panel en cada {@code /setup}). Se llama tanto al crear el canal
+     * como al reutilizarlo, así que cubre {@code /setup} normal y {@code /setup desde_cero}.
+     *
+     * <p>Reutiliza la MISMA definición de embed/botón que {@code /publicar panel tipo:ticket}
+     * ({@link PublicarComando#panelTicketEmbed} / {@link PublicarComando#panelTicketBoton}) para no
+     * bifurcar el customId que escucha {@link TicketListener}.</p>
+     */
+    private void publicarPanelTicket(TextChannel canal, Locale locale, RegistroCambios reg) {
+        long botId = canal.getJDA().getSelfUser().getIdLong();
+        try {
+            // Lectura SÍNCRONA (complete): corremos en el hilo dedicado de /setup, igual que
+            // actualizarIntro, para que el registro de cambios se rellene antes de renderizar el informe.
+            boolean yaPublicado = canal.retrievePinnedMessages().complete().stream()
+                    .anyMatch(m -> m.getAuthor().getIdLong() == botId
+                            && m.getButtonById(TicketListener.BOTON_ABRIR) != null);
+            if (yaPublicado) {
+                return;
+            }
+            canal.sendMessageEmbeds(PublicarComando.panelTicketEmbed(locale))
+                    .addActionRow(PublicarComando.panelTicketBoton(locale))
+                    .queue(m -> m.pin().queue(null, e -> { }), e -> { });
+            reg.creado(RegistroCambios.Categoria.PANEL, canal.getName());
+        } catch (RuntimeException error) {
+            log.warn("No se pudieron leer los pins de {} para el panel de tickets", canal.getId(), error);
+        }
     }
 
     /** Publica y fija un embed de ayuda en el canal, si el plan define un {@code introKey}. */

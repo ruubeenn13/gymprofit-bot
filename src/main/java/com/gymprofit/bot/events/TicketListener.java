@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * Sistema de tickets por botón: {@code ticket:abrir} crea un canal privado (autor + staff) en la
  * categoría TICKETS; {@code ticket:cerrar} guarda la transcripción en {@code 🗄️・logs-tickets} y en la
- * BD, y borra el canal. El panel se publica con {@code /panel tipo:ticket}.
+ * BD, y borra el canal. El panel se publica con {@code /publicar panel tipo:ticket} o, de forma
+ * automática e idempotente, con {@code /setup} (ver {@code SetupComando#publicarPanelTicket}).
  */
 public final class TicketListener extends ListenerAdapter {
 

@@ -248,17 +248,32 @@ public final class PublicarComando implements Comando {
 
         evento.deferReply(true).queue();
         if (ticket) {
-            var embed = EmbedFactory.base(EmbedFactory.Tipo.TICKET, locale,
-                    Messages.get(locale, "panel.ticket.titulo"),
-                    Messages.get(locale, "panel.ticket.desc")).build();
-            canal.sendMessageEmbeds(embed)
-                    .addActionRow(Button.primary(TicketListener.BOTON_ABRIR,
-                            Messages.get(locale, "panel.ticket.boton")))
+            canal.sendMessageEmbeds(panelTicketEmbed(locale))
+                    .addActionRow(panelTicketBoton(locale))
                     .queue(m -> m.pin().queue());
         } else {
             canal.sendMessage(PanelRolesFactory.mensaje(locale)).queue(m -> m.pin().queue());
         }
         confirmar(evento, locale, "panel.publicado");
+    }
+
+    /**
+     * Embed del panel de tickets. Definición ÚNICA compartida con {@code /setup} (que publica este
+     * mismo panel automáticamente en {@code 🎫・soporte} si aún no está fijado): así ambos caminos
+     * muestran siempre el mismo contenido.
+     */
+    public static MessageEmbed panelTicketEmbed(Locale locale) {
+        return EmbedFactory.base(EmbedFactory.Tipo.TICKET, locale,
+                Messages.get(locale, "panel.ticket.titulo"),
+                Messages.get(locale, "panel.ticket.desc")).build();
+    }
+
+    /**
+     * Botón "Abrir ticket" del panel, con el MISMO customId que escucha {@link TicketListener}
+     * ({@code ticket:abrir}). Compartido con {@code /setup} para no bifurcar el identificador.
+     */
+    public static Button panelTicketBoton(Locale locale) {
+        return Button.primary(TicketListener.BOTON_ABRIR, Messages.get(locale, "panel.ticket.boton"));
     }
 
     private void sorteo(SlashCommandInteractionEvent evento, Locale locale) {
