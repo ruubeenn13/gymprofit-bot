@@ -59,6 +59,7 @@ class AplicadorSancionesTest {
         when(guild.getName()).thenReturn("GymProFit");
         when(objetivo.getIdLong()).thenReturn(UID);
         when(objetivo.getUser()).thenReturn(user);
+        when(user.getIdLong()).thenReturn(UID);
         when(user.getAsMention()).thenReturn("<@" + UID + ">");
         when(user.getId()).thenReturn(String.valueOf(UID));
         when(user.openPrivateChannel()).thenReturn(dm);
@@ -75,7 +76,7 @@ class AplicadorSancionesTest {
     void sinEscaladoNoAplicaTimeoutNiBanPeroIntentaDm() {
         stubAviso(AccionEscalado.NINGUNA, 1);
 
-        aplicador.aplicar(guild, objetivo, MOD, MOTIVO);
+        aplicador.aplicar(guild, user, objetivo, MOD, MOTIVO);
 
         verify(objetivo, never()).timeoutFor(any(Duration.class));
         verify(guild, never()).ban(any(User.class), anyInt(), any(TimeUnit.class));
@@ -86,7 +87,7 @@ class AplicadorSancionesTest {
     void timeout1hAplicaTimeoutYRegistra() {
         stubAviso(AccionEscalado.TIMEOUT_1H, 3);
 
-        aplicador.aplicar(guild, objetivo, MOD, MOTIVO);
+        aplicador.aplicar(guild, user, objetivo, MOD, MOTIVO);
 
         verify(objetivo).timeoutFor(Duration.ofSeconds(3600L));
         verify(moderacion).registrar(eq(GID), eq(UID), eq(MOD), eq("TIMEOUT"), any(), isNull(), eq(3600L));
@@ -97,7 +98,7 @@ class AplicadorSancionesTest {
     void banAplicaBanYRegistra() {
         stubAviso(AccionEscalado.BAN, 7);
 
-        aplicador.aplicar(guild, objetivo, MOD, MOTIVO);
+        aplicador.aplicar(guild, user, objetivo, MOD, MOTIVO);
 
         verify(guild).ban(user, 0, TimeUnit.SECONDS);
         verify(moderacion).registrar(eq(GID), eq(UID), eq(MOD), eq("BAN"), any(), isNull(), isNull());
@@ -105,10 +106,32 @@ class AplicadorSancionesTest {
     }
 
     @Test
+    void banSeAplicaAunqueElObjetivoHayaSalidoDelServidor() {
+        stubAviso(AccionEscalado.BAN, 7);
+
+        // Member null = el usuario ya no está en el servidor: el ban debe aplicarse igual.
+        aplicador.aplicar(guild, user, null, MOD, MOTIVO);
+
+        verify(guild).ban(user, 0, TimeUnit.SECONDS);
+        verify(moderacion).registrar(eq(GID), eq(UID), eq(MOD), eq("BAN"), any(), isNull(), isNull());
+    }
+
+    @Test
+    void timeoutNoSeAplicaSinMiembroPeroSeRegistra() {
+        stubAviso(AccionEscalado.TIMEOUT_1H, 3);
+
+        // Sin Member no se puede aplicar el timeout de Discord, pero el escalón sí queda registrado.
+        aplicador.aplicar(guild, user, null, MOD, MOTIVO);
+
+        verify(objetivo, never()).timeoutFor(any(Duration.class));
+        verify(moderacion).registrar(eq(GID), eq(UID), eq(MOD), eq("TIMEOUT"), any(), isNull(), eq(3600L));
+    }
+
+    @Test
     void unDmCerradoNoRompeLaSancion() {
         stubAviso(AccionEscalado.NINGUNA, 1);
 
-        aplicador.aplicar(guild, objetivo, MOD, MOTIVO);
+        aplicador.aplicar(guild, user, objetivo, MOD, MOTIVO);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Consumer<Throwable>> fallo = ArgumentCaptor.forClass(Consumer.class);

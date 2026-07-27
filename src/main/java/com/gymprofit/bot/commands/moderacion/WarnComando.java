@@ -134,22 +134,12 @@ public final class WarnComando implements Comando {
 
         evento.deferReply(true).queue();
         Guild guild = evento.getGuild();
-        // Delegamos escalado + log + DM al aplicador reutilizable. Si el objetivo no está en el
-        // servidor (Member null) no hay escalado sobre Discord: solo registramos y logueamos el aviso.
-        ResultadoAviso aviso;
-        String escaladoClave;
-        if (objetivoMiembro != null) {
-            Resultado res = aplicador.aplicar(guild, objetivoMiembro, actor.getIdLong(), motivo);
-            aviso = res.aviso();
-            escaladoClave = res.escaladoClave();
-        } else {
-            aviso = moderacion.avisar(guild.getIdLong(), objetivo.getIdLong(), actor.getIdLong(), motivo);
-            escaladoClave = null;
-            ModHelper.registrarEnLogs(guild, config,
-                    construirEmbed(Messages.ES, objetivo, aviso, motivo, null));
-        }
+        // Delegamos escalado + log + DM al aplicador reutilizable. El Member puede ser null (usuario
+        // que ya salió): el ban por acumulación se aplica igual (no hay evasión saliéndose).
+        Resultado res = aplicador.aplicar(guild, objetivo, objetivoMiembro, actor.getIdLong(), motivo);
+        ResultadoAviso aviso = res.aviso();
 
-        String escalado = escaladoClave == null ? null : Messages.get(locale, escaladoClave);
+        String escalado = res.escaladoClave() == null ? null : Messages.get(locale, res.escaladoClave());
         MessageEmbed embed = construirEmbed(locale, objetivo, aviso, motivo, escalado);
         if (!aviso.motivoGuardado()) {
             // El motivo venía pero no hay clave de cifrado: avisamos al staff de que no se guardó.
