@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5d)** (`/empresa prestamo · pagar-prestamo`): una empresa puede pedir un préstamo (uno
+  a la vez, límite `nivel × 20.000`). El principal engorda el bote y se devuelve con un 20 % de interés en
+  cuotas semanales cobradas junto al impuesto; si el bote no cubre la obligación cuenta como impago (misma
+  quiebra que la Fase 5b). Migración `V34`.
 - **Empresas (Fase 5c)** (`/empleo`): bolsa de empleo. Las empresas se marcan como contratando y los
   jugadores ven en `/empleo ver` las de su rama y solicitan entrar con un botón. Migración `V33`.
 - **Empresas (Fase 5b)**: impuesto semanal. Cada empresa paga una cuota `nivel × 2.500` quemada del bote

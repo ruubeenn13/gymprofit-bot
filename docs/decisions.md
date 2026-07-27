@@ -428,3 +428,26 @@ de modales del bot.
 **Consecuencias.** Migración V33 (`empresas.contratando`). Nuevos `EmpleoComando` y `EmpleoListener`. El
 control de entrada es el flag on/off (las empresas no tienen tope de tamaño). Vacantes por puesto/plazas
 quedan fuera.
+
+## ADR-023 — préstamos empresariales
+
+**Estado:** aceptada e implementada (Fase 5d).
+
+**Contexto.** Las empresas jóvenes (bote bajo) no tenían forma de conseguir liquidez para mejorar de nivel
+o cubrir un mal mes; solo podían acumular producción/ventas lentamente.
+
+**Decisión.** Una empresa puede pedir **un préstamo a la vez** (como el banco del jugador). El principal
+entra al bote (`incrementarBote`) y se devuelve con **interés** en cuotas semanales: `deuda = principal ×
+1,20`, `cuota = ceil(deuda / 4)`, límite `nivel × 20.000`. Lo conceden/amortizan los **altos cargos**
+(`/empresa prestamo <cantidad>`, `/empresa pagar-prestamo [cantidad]`). La lógica pura vive en `Prestamo`;
+`PrestamoEmpresasService` mueve el dinero con el patrón atómico del resto (validar → mover → fijar) usando
+`incrementarBote` para el principal y `gastarDelBote` como gate para el pago. La **obligación semanal**
+pasa a ser `impuesto + cuota_prestamo`, cobrada por el `ImpuestoEmpresasJob` de F5b con **un solo gate y un
+solo contador de impagos**: si el bote la cubre se amortiza la deuda (al saldar, deuda y cuota a 0); si no,
+cuenta como impago y a los 3 la empresa quiebra (la deuda muere con la disolución).
+
+**Consecuencias.** Migración V34 (`empresas.deuda`, `empresas.cuota_prestamo`). Nuevos `Prestamo` y
+`PrestamoEmpresasService`; `ImpuestoEmpresasService` re-toca la lógica de dinero/quiebra de F5b (con
+review). El interés (`+20 %`) es un sumidero neto: se quema del bote y no vuelve a nadie, así que el
+préstamo da liquidez temporal sin ser fuente permanente (uno a la vez, límite por nivel, riesgo de quiebra).
+Varios préstamos simultáneos, refinanciación, aval/embargo e interés variable quedan fuera.

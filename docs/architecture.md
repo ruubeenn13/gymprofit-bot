@@ -130,10 +130,17 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   mira; cada una con un botón que abre un **modal** de motivo y crea una SOLICITUD por id (misma
   validación que `/empresa solicitar`), resuelta por el flujo de pendientes de F1. Primer uso de modales
   del bot (`EmpleoComando` + `EmpleoListener`). Migración V33 (`contratando`).
-- **Migraciones Flyway V6–V33**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 5d)**: préstamos. Una empresa puede pedir **un préstamo a la vez** (altos cargos,
+  `/empresa prestamo <cantidad>`): el principal entra al bote y se devuelve con **interés** (`deuda =
+  principal × 1,20`, `cuota = ceil(deuda/4)`, límite `nivel × 20.000`), amortizable antes con `/empresa
+  pagar-prestamo [cantidad]`. La **obligación semanal** del job de F5b pasa a ser `impuesto +
+  cuota_prestamo`: con un solo gate `gastarDelBote`, si el bote la cubre amortiza la deuda (al saldar,
+  deuda/cuota a 0) y si no cuenta como impago (misma morosidad/quiebra que F5b). Lógica pura en `Prestamo`;
+  `PrestamoEmpresasService` concede/paga. Migración V34 (`deuda`, `cuota_prestamo`).
+- **Migraciones Flyway V6–V34**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
-  economía, estatus, producción, impuestos y empleo).
+  economía, estatus, producción, impuestos, empleo y préstamos).
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).
