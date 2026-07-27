@@ -294,6 +294,46 @@ class EmpresaRepositorioTest {
     }
 
     /**
+     * Cuota de mercado de F5: {@code rankingDeRama} es como {@link EmpresaRepositorio#ranking()} pero
+     * filtrado por rama, la base para calcular la cuota de una empresa frente a sus competidoras directas.
+     */
+    @Test
+    void rankingDeRamaFiltraPorRama() {
+        assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker no alcanzable por el cliente Java; el test corre en CI (Linux)");
+
+        try (MySQLContainer<?> mysql =
+                     new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+                             .withDatabaseName("gymprofit_bot")) {
+            mysql.start();
+            try (Database db = new Database(
+                    mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                db.migrar();
+                var usuarios = new UsuarioDiscordRepositorio(db.dataSource());
+                var empresas = new EmpresaRepositorio(db.dataSource());
+
+                // FK a usuarios_discord: sembrar antes de fundar (RGPD).
+                long duenoAlfa = 901L;
+                long duenoBeta = 902L;
+                long duenoGamma = 903L;
+                for (long id : new long[]{duenoAlfa, duenoBeta, duenoGamma}) {
+                    usuarios.obtenerOCrear(id);
+                }
+
+                // Alfa y Beta en SALUD, Gamma en ARTE: rankingDeRama("SALUD") solo debe traer las dos primeras.
+                empresas.fundar("SALUD", duenoAlfa, "Alfa");
+                empresas.fundar("SALUD", duenoBeta, "Beta");
+                empresas.fundar("ARTE", duenoGamma, "Gamma");
+
+                List<EmpresaRepositorio.EmpresaRanking> salud = empresas.rankingDeRama("SALUD");
+                assertEquals(2, salud.size(), "solo las empresas de SALUD");
+                assertTrue(salud.stream().allMatch(e -> e.rama().equals("SALUD")),
+                        "todas las filas son de la rama pedida");
+            }
+        }
+    }
+
+    /**
      * Produccion de F5a: {@code sumarMercancia} acumula en el almacen recortando al tope por nivel
      * ({@code LEAST(mercancia + ?, nivel * 100)}) y {@code gastarMercancia} descuenta de forma atómica,
      * devolviendo false y sin bajar de 0 si no hay existencias suficientes.

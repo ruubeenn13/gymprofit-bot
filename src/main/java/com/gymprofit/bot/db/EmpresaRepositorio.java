@@ -414,6 +414,32 @@ public final class EmpresaRepositorio {
         }
     }
 
+    /** Como {@link #ranking()} pero solo las empresas de una rama (para la cuota de mercado, F5). */
+    public List<EmpresaRanking> rankingDeRama(String rama) {
+        String sql = "SELECT e.nombre, e.rama, e.nivel, e.bote, COUNT(m.discord_id) AS miembros "
+                + "FROM empresas e LEFT JOIN empresa_miembros m ON m.empresa_id = e.id "
+                + "WHERE e.rama = ? "
+                + "GROUP BY e.id, e.nombre, e.rama, e.nivel, e.bote";
+        try (Connection con = dataSource.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, rama);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<EmpresaRanking> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(new EmpresaRanking(
+                            rs.getString("nombre"),
+                            rs.getString("rama"),
+                            rs.getInt("nivel"),
+                            rs.getInt("miembros"),
+                            rs.getLong("bote")));
+                }
+                return lista;
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Error calculando el ranking de la rama " + rama, e);
+        }
+    }
+
     /**
      * Añade un miembro a una empresa con el rango dado. Propaga la violación de {@code
      * uq_miembro_unico} si el jugador ya pertenece a otra empresa (la pertenencia es exclusiva).
