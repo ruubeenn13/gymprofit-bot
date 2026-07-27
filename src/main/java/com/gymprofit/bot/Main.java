@@ -21,6 +21,7 @@ import com.gymprofit.bot.commands.economia.CofresComando;
 import com.gymprofit.bot.commands.economia.ComprarComando;
 import com.gymprofit.bot.commands.economia.CrafteoComando;
 import com.gymprofit.bot.commands.economia.DescansoComando;
+import com.gymprofit.bot.commands.economia.EconomiaComando;
 import com.gymprofit.bot.commands.economia.EmpleoComando;
 import com.gymprofit.bot.commands.economia.EmpresaComando;
 import com.gymprofit.bot.commands.economia.GremioComando;
@@ -85,6 +86,7 @@ import com.gymprofit.bot.db.MisionRepositorio;
 import com.gymprofit.bot.db.MundoRepositorio;
 import com.gymprofit.bot.db.PasivoRepositorio;
 import com.gymprofit.bot.db.PersonajeRepositorio;
+import com.gymprofit.bot.db.EventoEconomicoRepositorio;
 import com.gymprofit.bot.db.EventoServidorRepositorio;
 import com.gymprofit.bot.db.EjercicioDiaRepositorio;
 import com.gymprofit.bot.db.FraseRepositorio;
@@ -96,6 +98,7 @@ import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import com.gymprofit.bot.db.WarnRepositorio;
 import com.gymprofit.bot.jobs.BolsaJob;
 import com.gymprofit.bot.jobs.EjercicioDiaJob;
+import com.gymprofit.bot.jobs.EventoEconomicoJob;
 import com.gymprofit.bot.jobs.ImpuestoEmpresasJob;
 import com.gymprofit.bot.jobs.NominaEmpresasJob;
 import com.gymprofit.bot.jobs.SorteoJob;
@@ -113,6 +116,7 @@ import com.gymprofit.bot.services.EjercicioDiaService;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
 import com.gymprofit.bot.services.EmpresaVentaService;
+import com.gymprofit.bot.services.EventoEconomicoService;
 import com.gymprofit.bot.services.ImpuestoEmpresasService;
 import com.gymprofit.bot.services.PrestamoEmpresasService;
 import com.gymprofit.bot.services.EjercicioService;
@@ -235,6 +239,15 @@ public final class Main {
             EmpresaRepositorio empresaRepoImpuesto = new EmpresaRepositorio(db.dataSource());
             new ImpuestoEmpresasJob(empresaRepoImpuesto,
                     new ImpuestoEmpresasService(empresaRepoImpuesto), jda,
+                    Clock.system(ZoneId.of("Europe/Madrid"))).iniciar();
+        }
+
+        // Clima económico global (F5): mueve/cierra el evento activo cada hora y lo anuncia en el canal
+        // de economía. Requiere BD + JDA. Servicio propio (sin estado; el estado vive en BD), mismo patrón
+        // que ImpuestoEmpresasJob: se crea aquí porque necesita el JDA ya construido.
+        if (db != null && jda != null) {
+            new EventoEconomicoJob(
+                    new EventoEconomicoService(new EventoEconomicoRepositorio(db.dataSource())), jda,
                     Clock.system(ZoneId.of("Europe/Madrid"))).iniciar();
         }
 
@@ -465,6 +478,12 @@ public final class Main {
             // carreraRepo guarda el tier alcanzado por rama: el gate de elegir y los ascensos
             // leen/escriben ahí (el tier nunca baja, así que cambiar de rama no borra la carrera).
             CarreraRepositorio carreraRepo = new CarreraRepositorio(db.dataSource());
+            // Clima económico global (F5): estado en BD, movido por su job (arranca en run() con el JDA
+            // ya construido). Lo consultarán venta, curro, impuesto y bolsa (se les inyecta en tareas
+            // siguientes); se construye aquí, antes de esos consumidores, para poder pasárselo.
+            EventoEconomicoService eventosEconomicos =
+                    new EventoEconomicoService(new EventoEconomicoRepositorio(db.dataSource()));
+            comandos.add(new EconomiaComando(eventosEconomicos));
             // empresaRepo se crea aquí (antes que el service de trabajo) porque currar necesita el
             // repo de empresas para el corte al bote y el bonus de nivel al ingreso (F3).
             EmpresaRepositorio empresaRepo = new EmpresaRepositorio(db.dataSource());
