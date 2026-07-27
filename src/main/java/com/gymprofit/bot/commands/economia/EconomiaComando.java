@@ -13,7 +13,6 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.Command;
-import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -33,9 +32,10 @@ import java.util.Optional;
  * aleatorio si no elige ninguno), reutilizando el mismo anuncio de canal que dispara el job. Toda la
  * regla vive en {@link EventoEconomicoService}; aquí solo se traducen sus datos a embeds i18n.
  *
- * <p>El comando entero se restringe a staff ({@link Permission#MANAGE_SERVER}) por simplicidad: aunque
- * {@code ver} sea inofensivo, {@code lanzar} mueve la economía de todo el servidor y no interesa dejarlo
- * abierto. La respuesta es <b>pública</b> (convención del proyecto: el clima económico se ve a la vista).
+ * <p>Visibilidad: {@code ver} es <b>público</b> (cualquier jugador consulta el clima, respuesta a la
+ * vista); {@code lanzar} se restringe a staff con un gate en código ({@link Permission#MANAGE_SERVER}),
+ * porque mueve la economía de todo el servidor. El gate va en código (no a nivel de comando) para no
+ * ocultar {@code ver} a los jugadores; su error de permisos va <b>efímero</b> (convención del proyecto).
  */
 public final class EconomiaComando implements ComandoAutocompletable {
 
@@ -63,8 +63,8 @@ public final class EconomiaComando implements ComandoAutocompletable {
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.economia.desc"))
                 .setContexts(InteractionContextType.GUILD)
-                // Todo el comando (incl. ver) queda para staff: lanzar mueve la economía global.
-                .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER))
+                // Comando público: `ver` lo usa cualquiera; `lanzar` se gatea a staff en código (así el
+                // comando entero no queda oculto a los jugadores por permisos a nivel de comando).
                 .addSubcommands(
                         sub("ver", "comando.economia.ver.desc"),
                         sub("lanzar", "comando.economia.lanzar.desc").addOptions(evento));
@@ -110,10 +110,17 @@ public final class EconomiaComando implements ComandoAutocompletable {
     }
 
     /**
-     * Lanza un evento (staff): el elegido por la opción o, si viene vacía, uno aleatorio. Además del
-     * ack al invocador, publica el anuncio en el canal de economía con el mismo envío que usa el job.
+     * Lanza un evento (solo staff): el elegido por la opción o, si viene vacía, uno aleatorio. Además del
+     * ack al invocador, publica el anuncio en el canal de economía con el mismo envío que usa el job. El
+     * gate de staff va en código ({@code MANAGE_SERVER}) porque el comando es público por su subcomando
+     * {@code ver}; el error de permisos va efímero (convención del proyecto).
      */
     private void lanzar(SlashCommandInteractionEvent evento, Locale locale) {
+        if (evento.getMember() == null || !evento.getMember().hasPermission(Permission.MANAGE_SERVER)) {
+            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                    Messages.get(locale, "economia.lanzar.no_autorizado"))).setEphemeral(true).queue();
+            return;
+        }
         OptionMapping op = evento.getOption("evento");
         EventoEconomico e;
         if (op != null) {
