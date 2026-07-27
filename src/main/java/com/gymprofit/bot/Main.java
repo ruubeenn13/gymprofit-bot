@@ -152,6 +152,7 @@ import com.gymprofit.bot.services.TrabajoService;
 import com.gymprofit.bot.util.Cifrador;
 import com.gymprofit.bot.util.Cooldown;
 import com.gymprofit.bot.embeds.EmbedFactory;
+import com.gymprofit.bot.events.AntiAbusoListener;
 import com.gymprofit.bot.events.BienvenidaListener;
 import com.gymprofit.bot.events.BorrarDatosListener;
 import com.gymprofit.bot.events.CombateListener;
@@ -422,6 +423,8 @@ public final class Main {
                     new ModeracionService(warnRepo, sancionRepo, usuarios, cifrador);
             // Amonestación reutilizable (escalado + log + DM), compartida por /warn y futura automoderación.
             AplicadorSanciones aplicadorSanciones = new AplicadorSanciones(moderacion, configService);
+            // Automoderación reactiva: flood e invitaciones a otros servidores, reutiliza la misma amonestación.
+            listeners.add(new AntiAbusoListener(aplicadorSanciones));
             // /warn agrupa poner/lista/quitar/limpiar; /silenciar, mute+timeout; /canal, los bloqueos.
             comandos.add(new WarnComando(moderacion, configService, aplicadorSanciones));
             comandos.add(new SilenciarComando(moderacion, configService));
