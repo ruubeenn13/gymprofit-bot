@@ -116,6 +116,7 @@ import com.gymprofit.bot.services.CrafteoService;
 import com.gymprofit.bot.services.DescansoService;
 import com.gymprofit.bot.services.EconomiaService;
 import com.gymprofit.bot.services.AccionEmpresasService;
+import com.gymprofit.bot.services.CuotaEmpresasService;
 import com.gymprofit.bot.services.EjercicioDiaService;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaService;
@@ -532,9 +533,13 @@ public final class Main {
             // requisitos, el coste del salto y la aplicación del ascenso salen de sus piezas reutilizables.
             EmpresaGestionService empresaGestion = new EmpresaGestionService(
                     empresaRepo, empresaPropuestaRepo, personajeRepo, trabajoService, Clock.systemUTC());
+            // Empresas (Fase 5): cuota de mercado. Deriva del prestigio de la rama el factor que escala la
+            // venta (±25 %, neutro sin competencia) y el % de cuota para el display de /empresa info y ranking.
+            CuotaEmpresasService cuotaService = new CuotaEmpresasService(empresaRepo);
             // Empresas (Fase 5a): venta de la mercancia del almacen. Un alto cargo la vende, entra el neto
-            // al bote y se quema el impuesto (sumidero antiinflacion). El gate atomico vive en el service.
-            EmpresaVentaService empresaVenta = new EmpresaVentaService(empresaRepo, eventosEconomicos);
+            // al bote y se quema el impuesto (sumidero antiinflacion). El gate atomico vive en el service. La
+            // cuota de mercado escala tambien el bruto (compone con el clima economico).
+            EmpresaVentaService empresaVenta = new EmpresaVentaService(empresaRepo, eventosEconomicos, cuotaService);
             // Empresas (Fase 5d): banco empresarial. Un alto cargo pide un prestamo (el principal entra al
             // bote y se fija deuda+cuota con interes) o lo amortiza desde el bote. Uno a la vez; el gate de
             // dinero (incrementarBote/gastarDelBote/fijarPrestamo) y las reglas viven en el service.
@@ -548,7 +553,7 @@ public final class Main {
             comandos.add(new AccionesComando(accionService, empresaRepo, accionRepo));
             comandos.add(new EmpresaComando(
                     empresaService, empresaRepo, empresaGestion, empresaPropuestaRepo, trabajoService,
-                    empresaVenta, empresaPrestamo, accionService, accionRepo));
+                    empresaVenta, empresaPrestamo, accionService, accionRepo, cuotaService));
             // Empresas (Fase 5c): bolsa de empleo. /empleo ver lista las empresas de tu rama que
             // contratan (con botón de solicitud) y /empleo contratar abre/cierra la tuya a la bolsa.
             comandos.add(new EmpleoComando(empresaService, empresaRepo));

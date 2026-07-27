@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,6 +32,7 @@ class EmpresaVentaServiceTest {
 
     private final EmpresaRepositorio repo = mock(EmpresaRepositorio.class);
     private final EventoEconomicoService eventos = mock(EventoEconomicoService.class);
+    private final CuotaEmpresasService cuota = mock(CuotaEmpresasService.class);
 
     private static final Instant AHORA = Instant.parse("2026-07-24T12:00:00Z");
     private static final long EMPRESA_ID = 10L;
@@ -41,10 +43,12 @@ class EmpresaVentaServiceTest {
     void setUp() {
         // Neutro por defecto: sin evento activo, ventaMult() = 1.0 (no afecta a los tests existentes).
         when(eventos.ventaMult()).thenReturn(1.0);
+        // Neutro por defecto: sin competencia en la rama, factorVentaDe = 1.0 (no afecta a los tests existentes).
+        when(cuota.factorVentaDe(any())).thenReturn(1.0);
     }
 
     private EmpresaVentaService svc() {
-        return new EmpresaVentaService(repo, eventos);
+        return new EmpresaVentaService(repo, eventos, cuota);
     }
 
     @Test
@@ -181,6 +185,19 @@ class EmpresaVentaServiceTest {
 
         // bruto neutro = 10*50 = 500; con x1.30 = 650
         assertEquals(650, r.bruto());
+    }
+
+    @Test
+    @DisplayName("con cuota de líder (factor 1.20) el bruto rinde x1.20")
+    void ventaConCuotaLider() {
+        when(repo.deMiembro(DUENO)).thenReturn(Optional.of(empresa(10L)));
+        when(repo.altosCargos(EMPRESA_ID)).thenReturn(List.of(miembro(DUENO, RangoEmpresa.DUENO)));
+        when(repo.gastarMercancia(EMPRESA_ID, 10L)).thenReturn(true);
+        when(cuota.factorVentaDe(any())).thenReturn(1.20);
+
+        Resultado r = svc().vender(DUENO, OptionalLong.of(10));
+
+        assertEquals(600, r.bruto()); // 10*50=500 → x1.20 = 600
     }
 
     // ------------------------------------------------------------------ helpers

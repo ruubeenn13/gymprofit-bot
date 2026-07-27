@@ -392,6 +392,15 @@ public final class EmpresaService {
                 .toList();
     }
 
+    /** Ranking de una rama (todas sus empresas) ordenado por prestigio desc, con el prestigio calculado. */
+    public List<FilaRanking> rankingDeRama(String rama) {
+        return repo.rankingDeRama(rama).stream()
+                .map(e -> new FilaRanking(e.nombre(), e.rama(), e.nivel(), e.miembros(), e.bote(),
+                        Prestigio.calcular(e.nivel(), e.miembros(), e.bote())))
+                .sorted(java.util.Comparator.comparingLong(FilaRanking::prestigio).reversed())
+                .toList();
+    }
+
     /** ¿Es {@code quienId} la parte con potestad para resolver esta pendiente? */
     private boolean esLaParte(Pendiente pend, long quienId) {
         return switch (pend.tipo()) {

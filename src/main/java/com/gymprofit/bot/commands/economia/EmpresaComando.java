@@ -12,6 +12,7 @@ import com.gymprofit.bot.embeds.EmbedFactory;
 import com.gymprofit.bot.i18n.Messages;
 import com.gymprofit.bot.services.AccionEmpresasService;
 import com.gymprofit.bot.services.Ascensos;
+import com.gymprofit.bot.services.CuotaEmpresasService;
 import com.gymprofit.bot.services.EmpresaGestionService;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoAscensoPatrocinado;
 import com.gymprofit.bot.services.EmpresaGestionService.ResultadoGestion;
@@ -101,12 +102,14 @@ public final class EmpresaComando implements ComandoAutocompletable {
     private final AccionEmpresasService acciones;
     /** Repo de participaciones (F5): cuántas se han colocado del pool, para la línea de acciones de {@code info}. */
     private final EmpresaAccionRepositorio accionesRepo;
+    /** Cuota de mercado (F5): porcentaje de la rama y factor de venta para la línea de cuota de {@code info}. */
+    private final CuotaEmpresasService cuota;
 
     public EmpresaComando(EmpresaService empresa, EmpresaRepositorio repo,
                           EmpresaGestionService gestion, EmpresaPropuestaRepositorio propuestasRepo,
                           TrabajoService trabajos, EmpresaVentaService venta,
                           PrestamoEmpresasService prestamos, AccionEmpresasService acciones,
-                          EmpresaAccionRepositorio accionesRepo) {
+                          EmpresaAccionRepositorio accionesRepo, CuotaEmpresasService cuota) {
         this.empresa = empresa;
         this.repo = repo;
         this.gestion = gestion;
@@ -116,6 +119,7 @@ public final class EmpresaComando implements ComandoAutocompletable {
         this.prestamos = prestamos;
         this.acciones = acciones;
         this.accionesRepo = accionesRepo;
+        this.cuota = cuota;
     }
 
     @Override
@@ -190,6 +194,16 @@ public final class EmpresaComando implements ComandoAutocompletable {
                 .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
                         Messages.get(Messages.EN, "comando.empresa.pagarprestamo.cantidad"))
                 .setMinValue(1);
+        // F5 — ranking por rama. Rama opcional: sin ella, el top global de siempre; con ella, la vista de
+        // cuota de mercado de esa rama. El value de cada choice es el nombre almacenado de la rama (mismo
+        // que persiste `fundar`: Ascensos.Rama.name() en mayúsculas), para casar con empresas.rama.
+        OptionData ramaRanking = new OptionData(OptionType.STRING, "rama",
+                Messages.get(Messages.ES, "comando.empresa.ranking.opcion.rama"), false)
+                .setDescriptionLocalization(DiscordLocale.ENGLISH_US,
+                        Messages.get(Messages.EN, "comando.empresa.ranking.opcion.rama"));
+        for (Ascensos.Rama r : Ascensos.Rama.values()) {
+            ramaRanking.addChoice(Messages.get(Messages.ES, "rama." + r.name().toLowerCase(Locale.ROOT)), r.name());
+        }
 
         return Commands.slash(NOMBRE, Messages.get(Messages.ES, "comando.empresa.familia"))
                 .setDescriptionLocalization(DiscordLocale.SPANISH,
@@ -216,7 +230,7 @@ public final class EmpresaComando implements ComandoAutocompletable {
                         sub("vender", "comando.empresa.vender.desc").addOptions(cantidadVender),
                         sub("prestamo", "comando.empresa.prestamo.desc").addOptions(cantidadPrestamo),
                         sub("pagar-prestamo", "comando.empresa.pagarprestamo.desc").addOptions(cantidadPagar),
-                        sub("ranking", "comando.empresa.ranking.desc"));
+                        sub("ranking", "comando.empresa.ranking.desc").addOptions(ramaRanking));
     }
 
     private static SubcommandData sub(String nombre, String claveDesc) {
@@ -335,6 +349,11 @@ public final class EmpresaComando implements ComandoAutocompletable {
         // F5: línea siempre visible de participaciones — cuánto del pool está colocado y el precio actual.
         cuerpo += "\n" + Messages.get(locale, "empresa.info.acciones",
                 accionesRepo.vendidasDe(e.id()), acciones.precioActual(e));
+        // F5: línea siempre visible de cuota de mercado — el % de la rama y el factor que escala la venta.
+        // El factor se formatea con Locale.US (punto decimal) para casar con el «×N» del display.
+        cuerpo += "\n" + Messages.get(locale, "empresa.info.cuota",
+                Math.round(cuota.cuotaDe(e) * 100),
+                String.format(java.util.Locale.US, "%.2f", cuota.factorVentaDe(e)));
         // F5b: si arrastra impagos de la cuota semanal, se avisa de la morosidad (cerca de la quiebra).
         if (e.impagos() > 0) {
             cuerpo += "\n" + Messages.get(locale, "empresa.info.morosa", e.impagos(), Impuesto.MOROSIDAD_MAX);
@@ -803,9 +822,15 @@ public final class EmpresaComando implements ComandoAutocompletable {
 
     /**
      * Pinta el top {@value #TOP} de empresas por prestigio (F4). Público. Reusa el estilo de podio de
-     * {@code TopComando} (medallas para el podio, número para el resto).
+     * {@code TopComando} (medallas para el podio, número para el resto). Con la opción {@code rama} (F5)
+     * conmuta a la vista de cuota de mercado de esa rama; sin ella, el top global de siempre intacto.
      */
     private void ranking(SlashCommandInteractionEvent evento, Locale locale) {
+        OptionMapping ramaOpt = evento.getOption("rama");
+        if (ramaOpt != null) {
+            rankingRama(evento, locale, ramaOpt.getAsString());
+            return;
+        }
         List<EmpresaService.FilaRanking> top = empresa.ranking(TOP);
         if (top.isEmpty()) {
             evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
@@ -833,6 +858,43 @@ public final class EmpresaComando implements ComandoAutocompletable {
         var embed = EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                 Messages.get(locale, "empresa.ranking.titulo"), sb.toString().strip()).build();
         evento.replyEmbeds(embed).queue();
+    }
+
+    /**
+     * Vista de cuota de mercado de una rama (F5): todas sus empresas ordenadas por prestigio, con el
+     * porcentaje de cuota (parte del prestigio total de la rama) de cada una. El {@code valor} es el nombre
+     * almacenado de la rama (mayúsculas, {@code Ascensos.Rama.name()}); su nombre visible sale de
+     * {@code rama.<lowercase>}. Público, mismo {@code Tipo.STATS} que el top global.
+     */
+    private void rankingRama(SlashCommandInteractionEvent evento, Locale locale, String valor) {
+        String ramaVisible = Messages.get(locale, "rama." + valor.toLowerCase(Locale.ROOT));
+        String titulo = Messages.get(locale, "empresa.ranking.rama.titulo", ramaVisible);
+        List<EmpresaService.FilaRanking> filas = empresa.rankingDeRama(valor);
+        if (filas.isEmpty()) {
+            evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+                    titulo, Messages.get(locale, "empresa.ranking.rama.vacio")).build()).queue();
+            return;
+        }
+        // Cuota = parte del prestigio total de la rama; el total nunca es 0 aquí (hay al menos una empresa
+        // y el prestigio base es positivo), así que el reparto porcentual es seguro.
+        long total = filas.stream().mapToLong(EmpresaService.FilaRanking::prestigio).sum();
+        StringBuilder sb = new StringBuilder();
+        int puesto = 1;
+        for (EmpresaService.FilaRanking f : filas) {
+            String medalla = switch (puesto) {
+                case 1 -> "🥇";
+                case 2 -> "🥈";
+                case 3 -> "🥉";
+                default -> "**" + puesto + ".**";
+            };
+            long cuotaPct = total <= 0 ? 0 : Math.round(f.prestigio() * 100.0 / total);
+            sb.append(Messages.get(locale, "empresa.ranking.rama.fila",
+                    medalla, f.nombre(), cuotaPct, f.prestigio()));
+            sb.append('\n');
+            puesto++;
+        }
+        evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
+                titulo, sb.toString().strip()).build()).queue();
     }
 
     /** Texto de una propuesta: sobre quién, qué propone quién y cuándo caduca (timestamp relativo de Discord). */

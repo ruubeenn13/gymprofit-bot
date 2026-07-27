@@ -33,10 +33,13 @@ public final class EmpresaVentaService {
 
     private final EmpresaRepositorio repo;
     private final EventoEconomicoService eventos;
+    private final CuotaEmpresasService cuota;
 
-    public EmpresaVentaService(EmpresaRepositorio repo, EventoEconomicoService eventos) {
+    public EmpresaVentaService(EmpresaRepositorio repo, EventoEconomicoService eventos,
+                              CuotaEmpresasService cuota) {
         this.repo = repo;
         this.eventos = eventos;
+        this.cuota = cuota;
     }
 
     /**
@@ -61,7 +64,9 @@ public final class EmpresaVentaService {
         if (!repo.gastarMercancia(emp.id(), aVender)) return Resultado.de(Estado.SIN_MERCANCIA);
         // bruto acotado: mercancia <= nivel*100 (Produccion.capacidad), no desborda long
         // F5 eventos: el clima económico escala el bruto (boom/recesión de ventas) antes del impuesto.
-        long bruto = Math.round(aVender * Produccion.PRECIO_UNIDAD * eventos.ventaMult());
+        // F5 cuota: el bruto se escala también por la cuota de mercado de la empresa en su rama
+        // (compone con el multiplicador del clima económico). Ambos son factores multiplicativos.
+        long bruto = Math.round(aVender * Produccion.PRECIO_UNIDAD * eventos.ventaMult() * cuota.factorVentaDe(emp));
         long impuesto = Produccion.impuesto(bruto);
         long neto = bruto - impuesto;
         repo.incrementarBote(emp.id(), neto); // el impuesto NO se ingresa a nadie: se quema
