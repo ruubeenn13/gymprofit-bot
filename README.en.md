@@ -84,6 +84,8 @@ convertible. By block:
 - **Banking & gambling:** `/banco` · `/bolsa` · `/casino` (subcommands; all fiction).
 - **Economic climate:** `/economia` (ver · lanzar) — temporary events that scale sales,
   production, taxes and the stock market.
+- **Company shares:** `/acciones` (comprar · vender · ver · cartera) — invest in a company by buying
+  shares out of a fixed pool of 100 (priced by its prestige) and collect weekly dividends.
 - **Social:** `/gremio` (groups with a private channel, subcommands).
 
 Design details in [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).

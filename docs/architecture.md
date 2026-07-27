@@ -37,7 +37,7 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 | `db/` | Repositorios JDBC (HikariCP) + migraciones Flyway en `resources/db/migration` |
 | `embeds/` | `EmbedFactory` central: única vía para crear embeds (paleta §7) |
 | `i18n/` | `Messages` sobre `ResourceBundle` (ES/EN) |
-| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `NominaEmpresasJob` (reparte a las **03:00 Europe/Madrid** una fracción del bote de cada empresa entre sus miembros según su rango), `ImpuestoEmpresasJob` (cobra la cuota semanal `nivel × 2.500` los **lunes 02:00 Europe/Madrid**, quemándola del bote; morosidad y quiebra si no llega), `SorteoJob`, retención de datos |
+| `jobs/` | Tareas programadas: `EnergiaJob` (goteo de energía cada 30 min, +5, y no a los dormidos), `BolsaJob` (mueve precios de la bolsa cada 12 min), `EjercicioDiaJob` (publica el ejercicio del día a las **08:00 Europe/Madrid** en el canal `EJERCICIO_DIA` de cada servidor que lo tenga configurado), `NominaEmpresasJob` (reparte a las **03:00 Europe/Madrid** una fracción del bote de cada empresa entre sus miembros según su rango), `ImpuestoEmpresasJob` (cobra la cuota semanal `nivel × 2.500` los **lunes 02:00 Europe/Madrid**, quemándola del bote; morosidad y quiebra si no llega), `DividendoEmpresasJob` (reparte los dividendos de acciones los **jueves 02:00 Europe/Madrid**, 5 % del bote por fracción del pool de participaciones), `SorteoJob`, retención de datos |
 
 ## Flujo de un slash command (objetivo F1)
 
@@ -144,10 +144,17 @@ Simulador de vida de ficción sobre la BD del bot (nada toca la API). Patrón co
   neutro que consultan los 5 consumidores; `EventoEconomicoJob` (~1h) lo mueve y anuncia inicio/fin en
   `💰・economía`; `/economia ver|lanzar` (lanzar = staff). El impuesto escalado no toca la cuota del
   préstamo. Migración V35 (`evento_economico`).
-- **Migraciones Flyway V6–V35**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
+- **Empresas (Fase 5 — acciones y dividendos)**: cualquier jugador compra **participaciones** de
+  un pool fijo de 100 (= %) de una empresa a precio **prestigio/100**; el capital entra al bote y
+  cobra **dividendos semanales** (5 % del bote por fracción del pool, la parte no vendida se
+  queda). Vender recompra la empresa a precio actual (gate del bote); la quiebra funde el capital
+  (FK `ON DELETE CASCADE`). Lógica pura en `Accion`, holdings en `empresa_acciones` (V36);
+  `AccionEmpresasService` + `/acciones` (comprar·vender·ver·cartera) + `DividendoEmpresasJob`.
+  Todo redistribuye del/al bote (antiinflación-neutral).
+- **Migraciones Flyway V6–V36**: personajes, trabajo, inventario, mejoras, combate (equipo, mundos,
   cooldown, encantamientos), minería (+durabilidad), misiones, mercado, banco, gremios, bolsa,
   estudios, insignias, descanso, pasivos equipados, carreras, empresas (estructura, gobernanza,
-  economía, estatus, producción, impuestos, empleo, préstamos), eventos económicos.
+  economía, estatus, producción, impuestos, empleo, préstamos, acciones), eventos económicos.
 
 Fases del RPG: F-ECO-0 cimientos → F-ECO-6 gambling (todas hechas) + combate COMBAT-1..6 + extras
 (cofres, bolsa, robar). Ver [`superpowers/specs/2026-07-13-economia-rpg-vision.md`](superpowers/specs/2026-07-13-economia-rpg-vision.md).

@@ -470,3 +470,29 @@ service / job / `EconomiaComando`; 5 hooks re-tocan la lógica de dinero de F5a/
 (con review); el `impuestoMult` **no** toca la cuota del préstamo; antiinflación preservada por el
 catálogo simétrico. Fuera de alcance: varios eventos simultáneos, eventos por rama/por empresa,
 eventos encadenados, historial persistente.
+
+## ADR-025 — acciones y dividendos de empresa
+
+**Estado:** aceptada e implementada (Fase 5 acciones).
+
+**Contexto.** Las empresas solo captaban valor de sus propios miembros (curro/nómina); no había
+forma de que un jugador externo invirtiera en una empresa ni de que las empresas jóvenes captaran
+capital fresco.
+
+**Decisión.** Un **pool fijo de 100 participaciones** por empresa (= porcentaje de propiedad),
+precio por participación `prestigio / 100` (mínimo 1; prestigio = `nivel × 10.000 + miembros ×
+1.000 + bote / 1.000`). Comprar mete el capital al bote (`incrementarBote`); vender recompra la
+empresa al precio actual, con `gastarDelBote` como gate. **Dividendos semanales** automáticos
+(`DividendoEmpresasJob`, jueves 02:00 Europe/Madrid): el pot es un **5 %** del bote, cada
+accionista cobra su fracción del pool y la parte no vendida (sin dueño) se queda en el bote. La
+**quiebra** (disolución) funde el capital de los inversores (FK `ON DELETE CASCADE`, sin
+reembolso). Lógica pura en `Accion`; `AccionEmpresasService` mueve el dinero con el mismo patrón
+atómico del resto del módulo (validar → mover → fijar). Comando `/acciones comprar · vender · ver
+· cartera`.
+
+**Consecuencias.** Migración V36 (`empresa_acciones`). Nuevos `Accion` (pura),
+`EmpresaAccionRepositorio`, `AccionEmpresasService`, `DividendoEmpresasJob`, `AccionesComando`;
+línea de acciones en `/empresa info`. Todo redistribuye del/al bote (antiinflación-neutral);
+`FRACCION_DIVIDENDO` deliberadamente modesta (5 %) para no convertir la inversión en una fuente
+de dinero infinito. Fuera de alcance: mercado secundario entre jugadores, precio por
+oferta/demanda, dividendo declarado a mano por el dueño, voto por acciones, OPA/dilución.

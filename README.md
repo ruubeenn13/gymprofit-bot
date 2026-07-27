@@ -86,6 +86,8 @@ ni convertibles. Por bloques:
 - **Banca y azar:** `/banco` · `/bolsa` · `/casino` (subcomandos; todo ficción).
 - **Clima económico:** `/economia` (ver · lanzar) — eventos temporales que escalan venta,
   producción, impuestos y bolsa.
+- **Acciones de empresa:** `/acciones` (comprar · vender · ver · cartera) — invierte en una empresa
+  comprando participaciones de un pool de 100 (precio según su prestigio) y cobra dividendos semanales.
 - **Social:** `/gremio` (grupos con canal privado, subcomandos).
 
 Detalle y diseño en [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](docs/superpowers/specs/2026-07-13-economia-rpg-vision.md).

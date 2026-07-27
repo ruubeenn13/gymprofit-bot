@@ -7,6 +7,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ## [Sin publicar]
 
 ### Añadido
+- **Empresas (Fase 5 — acciones y dividendos)** (`/acciones`): cualquier jugador invierte en una empresa
+  comprando participaciones de un pool de 100 (precio según su prestigio); el capital engorda el bote y
+  cobra dividendos semanales (5 % del bote los jueves). Vender recompra la empresa; la quiebra funde el
+  capital. Migración `V36`.
 - **Empresas (Fase 5 — eventos económicos)** (`/economia`): un clima económico global lanza eventos
   temporales (boom/recesión de ventas, auge/crisis de producción, subida/ayudas de impuestos, mercado
   alcista/bajista) que escalan la economía durante 24 h; automáticos (~1/día) o lanzados por staff,
