@@ -23,6 +23,6 @@ public final class Accion {
 
     /** Dividendo de un accionista: su fracción del pool sobre el pot (redondeo a la baja). */
     public static long dividendoDe(long pot, int participaciones) {
-        return (long) Math.floor((double) pot * participaciones / POOL);
+        return pot * participaciones / POOL;
     }
 }
