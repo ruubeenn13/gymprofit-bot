@@ -36,6 +36,24 @@ public final class CuotaEmpresasService {
         return r.total() <= 0 ? 0 : (double) r.propio() / r.total();
     }
 
+    /** Cuota (tanto por uno) y factor de venta juntos, para el display de {@code /empresa info}. */
+    public record CuotaVista(double cuota, double factorVenta) {}
+
+    /**
+     * Cuota y factor de venta de una empresa en <b>una sola lectura</b> de la rama, para no repetir el
+     * {@code rankingDeRama} en {@code /empresa info} (donde se pintan ambos valores). Compone la semántica
+     * de {@link #cuotaDe} (proporción propio/total, 0 si la rama no suma) y {@link #factorVentaDe} (neutro
+     * 1.0 sin competencia; si no, {@link Cuota#factorVenta} sobre la cuota relativa).
+     */
+    public CuotaVista vistaDe(Empresa e) {
+        List<EmpresaRanking> rama = repo.rankingDeRama(e.rama());
+        Reparto r = repartoDe(rama, e.nombre());
+        double cuota = r.total() <= 0 ? 0 : (double) r.propio() / r.total();
+        double factor = rama.size() <= 1 ? 1.0
+                : Cuota.factorVenta(Cuota.relativa(r.propio(), r.total(), rama.size()));
+        return new CuotaVista(cuota, factor);
+    }
+
     /** Prestigio propio dentro del total de la rama, para {@link #factorVentaDe} y {@link #cuotaDe}. */
     private record Reparto(long propio, long total) {}
 

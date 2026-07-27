@@ -350,10 +350,12 @@ public final class EmpresaComando implements ComandoAutocompletable {
         cuerpo += "\n" + Messages.get(locale, "empresa.info.acciones",
                 accionesRepo.vendidasDe(e.id()), acciones.precioActual(e));
         // F5: línea siempre visible de cuota de mercado — el % de la rama y el factor que escala la venta.
-        // El factor se formatea con Locale.US (punto decimal) para casar con el «×N» del display.
+        // vistaDe hace UNA sola lectura de la rama para ambos valores (evita el doble rankingDeRama). El
+        // factor se formatea con Locale.US (punto decimal) para casar con el «×N» del display.
+        CuotaEmpresasService.CuotaVista vista = cuota.vistaDe(e);
         cuerpo += "\n" + Messages.get(locale, "empresa.info.cuota",
-                Math.round(cuota.cuotaDe(e) * 100),
-                String.format(java.util.Locale.US, "%.2f", cuota.factorVentaDe(e)));
+                Math.round(vista.cuota() * 100),
+                String.format(Locale.US, "%.2f", vista.factorVenta()));
         // F5b: si arrastra impagos de la cuota semanal, se avisa de la morosidad (cerca de la quiebra).
         if (e.impagos() > 0) {
             cuerpo += "\n" + Messages.get(locale, "empresa.info.morosa", e.impagos(), Impuesto.MOROSIDAD_MAX);
@@ -841,15 +843,8 @@ public final class EmpresaComando implements ComandoAutocompletable {
         StringBuilder sb = new StringBuilder();
         int puesto = 1;
         for (EmpresaService.FilaRanking f : top) {
-            // Podio con medallas, resto con el número de puesto en negrita (mismo criterio que TopComando).
-            String medalla = switch (puesto) {
-                case 1 -> "🥇";
-                case 2 -> "🥈";
-                case 3 -> "🥉";
-                default -> "**" + puesto + ".**";
-            };
             sb.append(Messages.get(locale, "empresa.ranking.fila",
-                    medalla, f.nombre(),
+                    medalla(puesto), f.nombre(),
                     Messages.get(locale, "rama." + f.rama().toLowerCase(Locale.ROOT)),
                     f.nivel(), f.miembros(), f.bote()));
             sb.append('\n');
@@ -875,26 +870,37 @@ public final class EmpresaComando implements ComandoAutocompletable {
                     titulo, Messages.get(locale, "empresa.ranking.rama.vacio")).build()).queue();
             return;
         }
-        // Cuota = parte del prestigio total de la rama; el total nunca es 0 aquí (hay al menos una empresa
-        // y el prestigio base es positivo), así que el reparto porcentual es seguro.
+        // Cuota = parte del prestigio total de la rama: se calcula sobre la lista COMPLETA (total de toda
+        // la rama), no sobre el subconjunto que se pinta. El total nunca es 0 aquí (hay al menos una
+        // empresa y el prestigio base es positivo), así que el reparto porcentual es seguro.
         long total = filas.stream().mapToLong(EmpresaService.FilaRanking::prestigio).sum();
         StringBuilder sb = new StringBuilder();
         int puesto = 1;
-        for (EmpresaService.FilaRanking f : filas) {
-            String medalla = switch (puesto) {
-                case 1 -> "🥇";
-                case 2 -> "🥈";
-                case 3 -> "🥉";
-                default -> "**" + puesto + ".**";
-            };
+        // Se pinta como mucho el top TOP filas (como el ranking global): una rama grande podría pasarse del
+        // tope de 4096 chars de la descripción del embed. Las cuotas siguen calculadas contra el total real.
+        for (EmpresaService.FilaRanking f : filas.stream().limit(TOP).toList()) {
             long cuotaPct = total <= 0 ? 0 : Math.round(f.prestigio() * 100.0 / total);
             sb.append(Messages.get(locale, "empresa.ranking.rama.fila",
-                    medalla, f.nombre(), cuotaPct, f.prestigio()));
+                    medalla(puesto), f.nombre(), cuotaPct, f.prestigio()));
             sb.append('\n');
             puesto++;
         }
+        // Si la rama tiene más empresas que las pintadas, se avisa del recorte (las cuotas ya reflejan el total).
+        if (filas.size() > TOP) {
+            sb.append(Messages.get(locale, "empresa.ranking.rama.recorte", filas.size() - TOP));
+        }
         evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.STATS, locale,
                 titulo, sb.toString().strip()).build()).queue();
+    }
+
+    /** Medalla del podio (oro/plata/bronce) o el número de puesto en negrita (mismo criterio que TopComando). */
+    private static String medalla(int puesto) {
+        return switch (puesto) {
+            case 1 -> "🥇";
+            case 2 -> "🥈";
+            case 3 -> "🥉";
+            default -> "**" + puesto + ".**";
+        };
     }
 
     /** Texto de una propuesta: sobre quién, qué propone quién y cuándo caduca (timestamp relativo de Discord). */

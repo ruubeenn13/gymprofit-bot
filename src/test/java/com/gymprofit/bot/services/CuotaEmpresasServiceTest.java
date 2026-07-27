@@ -62,4 +62,18 @@ class CuotaEmpresasServiceTest {
         when(repo.rankingDeRama("VACIA")).thenReturn(List.of());
         assertEquals(0, svc.cuotaDe(empresa("X", "VACIA", 1, 0)), 1e-9);
     }
+
+    @Test
+    @DisplayName("vistaDe: mismos números que cuotaDe/factorVentaDe con una sola lectura")
+    void vistaDe() {
+        // Mismo reparto A/B: A prestigio 50000, B 10000, total 60000, n=2.
+        when(repo.rankingDeRama("NEGOCIOS")).thenReturn(List.of(
+                new EmpresaRepositorio.EmpresaRanking("A", "NEGOCIOS", 5, 0, 0),
+                new EmpresaRepositorio.EmpresaRanking("B", "NEGOCIOS", 1, 0, 0)));
+        CuotaEmpresasService svc = new CuotaEmpresasService(repo);
+        Empresa a = empresa("A", "NEGOCIOS", 5, 0);
+        CuotaEmpresasService.CuotaVista v = svc.vistaDe(a);
+        assertEquals(svc.cuotaDe(a), v.cuota(), 1e-9);
+        assertEquals(svc.factorVentaDe(a), v.factorVenta(), 1e-9);
+    }
 }
