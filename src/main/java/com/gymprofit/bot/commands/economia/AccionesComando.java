@@ -24,6 +24,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * {@code /acciones} con subcomandos (comprar, vender, ver, cartera): la cara del mercado de
@@ -42,6 +43,8 @@ public final class AccionesComando implements ComandoAutocompletable {
     private static final String NOMBRE = "acciones";
     /** Discord admite como mucho 25 sugerencias de autocompletado. */
     private static final int MAX_SUGERENCIAS = 25;
+    /** Tope de posiciones que se pintan en la cartera, para no desbordar el límite de un embed. */
+    private static final int MAX_POSICIONES = 25;
 
     private final AccionEmpresasService service;
     private final EmpresaRepositorio repo;
@@ -111,7 +114,12 @@ public final class AccionesComando implements ComandoAutocompletable {
      * <b>efímero</b> con el dato exacto.
      */
     private void comprar(SlashCommandInteractionEvent evento, Locale locale) {
-        long empresaId = Long.parseLong(evento.getOption("empresa").getAsString());
+        OptionalLong idOpt = empresaIdDe(evento);
+        if (idOpt.isEmpty()) {
+            errorEfimero(evento, locale, "acciones.error.no_existe");
+            return;
+        }
+        long empresaId = idOpt.getAsLong();
         int cantidad = evento.getOption("cantidad").getAsInt();
         ResultadoCompra r = service.comprar(evento.getUser().getIdLong(), empresaId, cantidad);
         if (r.estado() == AccionEmpresasService.EstadoCompra.OK) {
@@ -142,7 +150,12 @@ public final class AccionesComando implements ComandoAutocompletable {
      * <b>efímero</b>.
      */
     private void vender(SlashCommandInteractionEvent evento, Locale locale) {
-        long empresaId = Long.parseLong(evento.getOption("empresa").getAsString());
+        OptionalLong idOpt = empresaIdDe(evento);
+        if (idOpt.isEmpty()) {
+            errorEfimero(evento, locale, "acciones.error.no_existe");
+            return;
+        }
+        long empresaId = idOpt.getAsLong();
         int cantidad = evento.getOption("cantidad").getAsInt();
         ResultadoVenta r = service.vender(evento.getUser().getIdLong(), empresaId, cantidad);
         if (r.estado() == AccionEmpresasService.EstadoVenta.OK) {
@@ -173,11 +186,15 @@ public final class AccionesComando implements ComandoAutocompletable {
      * no existe, error <b>efímero</b>.
      */
     private void ver(SlashCommandInteractionEvent evento, Locale locale) {
-        long empresaId = Long.parseLong(evento.getOption("empresa").getAsString());
+        OptionalLong idOpt = empresaIdDe(evento);
+        if (idOpt.isEmpty()) {
+            errorEfimero(evento, locale, "acciones.error.no_existe");
+            return;
+        }
+        long empresaId = idOpt.getAsLong();
         Optional<Empresa> empOpt = repo.porId(empresaId);
         if (empOpt.isEmpty()) {
-            evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
-                    Messages.get(locale, "acciones.error.no_existe"))).setEphemeral(true).queue();
+            errorEfimero(evento, locale, "acciones.error.no_existe");
             return;
         }
         Empresa emp = empOpt.get();
@@ -199,18 +216,46 @@ public final class AccionesComando implements ComandoAutocompletable {
         if (posiciones.isEmpty()) {
             cuerpo = Messages.get(locale, "acciones.cartera.vacia");
         } else {
+            // Se acota a MAX_POSICIONES para no desbordar el límite de descripción de un embed; el valor
+            // total es el de las posiciones mostradas y, si se recorta, se avisa (mismo criterio que /empleo).
+            boolean recortado = posiciones.size() > MAX_POSICIONES;
+            List<PosicionVista> mostradas = recortado
+                    ? posiciones.subList(0, MAX_POSICIONES) : posiciones;
             StringBuilder sb = new StringBuilder();
             long total = 0;
-            for (PosicionVista p : posiciones) {
+            for (PosicionVista p : mostradas) {
                 sb.append(Messages.get(locale, "acciones.cartera.linea",
                         p.empresa(), p.cantidad(), p.valor())).append('\n');
                 total += p.valor();
             }
             sb.append(Messages.get(locale, "acciones.cartera.total", total));
+            if (recortado) {
+                sb.append('\n').append(Messages.get(locale, "acciones.cartera.recorte", MAX_POSICIONES));
+            }
             cuerpo = sb.toString();
         }
         evento.replyEmbeds(EmbedFactory.base(EmbedFactory.Tipo.ECONOMIA, locale,
                 Messages.get(locale, "acciones.cartera.titulo"), cuerpo).build()).queue();
+    }
+
+    /**
+     * Resuelve el id de la empresa de la opción {@code empresa}. El valor viene del autocompletado (el id),
+     * pero un usuario puede teclear texto libre y enviarlo sin elegir sugerencia: por eso se parsea con
+     * guarda y se devuelve {@link OptionalLong#empty()} si no es un id válido (mismo patrón que los ids
+     * tecleados de {@code /unban}).
+     */
+    private static OptionalLong empresaIdDe(SlashCommandInteractionEvent evento) {
+        try {
+            return OptionalLong.of(Long.parseLong(evento.getOption("empresa").getAsString().trim()));
+        } catch (NumberFormatException e) {
+            return OptionalLong.empty();
+        }
+    }
+
+    /** Responde un error <b>efímero</b> con el mensaje i18n dado (convención del proyecto para fallos). */
+    private static void errorEfimero(SlashCommandInteractionEvent evento, Locale locale, String clave) {
+        evento.replyEmbeds(EmbedFactory.aviso(EmbedFactory.Tipo.ECONOMIA, locale,
+                Messages.get(locale, clave))).setEphemeral(true).queue();
     }
 
     /**
