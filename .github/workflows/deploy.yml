@@ -1,0 +1,52 @@
+# ============================================================
+# Deploy — despliegue continuo en el homelab (runner self-hosted).
+# Cadena: push a main -> CI (build+tests en GitHub) -> si CI pasa -> este
+# workflow construye la imagen en el servidor y recrea el contenedor.
+# Secretos: ninguno aquí — viven en el .env del servidor (fuera de git).
+# ============================================================
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+    steps:
+      - name: Checkout del commit validado por CI
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Construir imagen
+        run: docker build -t gymprofit-bot:latest .
+
+      - name: Desplegar
+        run: docker compose -f /opt/homelab/stacks/gymprofit-bot/compose.yml up -d --force-recreate
+
+      - name: Limpiar imágenes huérfanas
+        run: docker image prune -f
+
+      - name: Aviso ntfy (éxito)
+        if: success()
+        env:
+          MSG: ${{ github.event.workflow_run.head_commit.message }}
+        run: |
+          docker run --rm --network proxy curlimages/curl:8.16.0 -s \
+            -H "Title: Deploy gymprofit-bot OK" -H "Tags: rocket" \
+            -d "Desplegado: $MSG" http://ntfy:80/homelab-alerts-03c5d07f
+
+      - name: Aviso ntfy (fallo)
+        if: failure()
+        run: |
+          docker run --rm --network proxy curlimages/curl:8.16.0 -s \
+            -H "Title: Deploy gymprofit-bot FALLO" -H "Priority: high" -H "Tags: rotating_light" \
+            -d "Revisa el run en Actions" http://ntfy:80/homelab-alerts-03c5d07f
