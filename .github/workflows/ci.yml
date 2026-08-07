@@ -28,7 +28,7 @@ jobs:
     steps:
       # 1) Clona el repo
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # 2) JDK 21 (Temurin) + cache de dependencias Maven
       - name: Set up JDK 21

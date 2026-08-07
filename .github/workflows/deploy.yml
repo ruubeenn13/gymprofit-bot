@@ -22,7 +22,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout del commit validado por CI
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
