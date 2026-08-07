@@ -3,6 +3,7 @@ package com.gymprofit.bot.services;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.TriviaPregunta;
 import com.gymprofit.bot.db.TriviaRepositorio;
+import com.gymprofit.bot.db.TriviaScoreRepositorio;
 import com.gymprofit.bot.db.UsuarioDiscordRepositorio;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,9 +28,10 @@ class TriviaServiceTest {
     private final EconomiaRepositorio economia = mock(EconomiaRepositorio.class);
     private final XpService xp = mock(XpService.class);
     private final UsuarioDiscordRepositorio usuarios = mock(UsuarioDiscordRepositorio.class);
+    private final TriviaScoreRepositorio scores = mock(TriviaScoreRepositorio.class);
 
     private TriviaService svc() {
-        return new TriviaService(repo, economia, xp, usuarios);
+        return new TriviaService(repo, economia, xp, usuarios, scores);
     }
 
     @Test
@@ -43,6 +45,7 @@ class TriviaServiceTest {
 
         assertEquals(TriviaService.Estado.ACIERTO, r.estado());
         verify(repo).registrarRespuesta(USER, 7, true);
+        verify(scores).registrar(USER, true);
         verify(economia).ingresar(USER, 120L, "trivia");
         verify(xp).ganarXp(USER, 50);
     }
@@ -58,6 +61,7 @@ class TriviaServiceTest {
 
         assertEquals(TriviaService.Estado.FALLO, r.estado());
         assertEquals('C', r.correcta());
+        verify(scores).registrar(USER, false);
         verify(economia, never()).ingresar(anyLong(), anyLong(), anyString());
         verify(xp, never()).ganarXp(anyLong(), anyInt());
     }
@@ -73,6 +77,8 @@ class TriviaServiceTest {
 
         assertEquals(TriviaService.Estado.YA_RESPONDIDA, r.estado());
         verify(economia, never()).ingresar(anyLong(), anyLong(), anyString());
+        // El doble clic no infla el marcador ni rompe la racha viva.
+        verify(scores, never()).registrar(anyLong(), anyBoolean());
     }
 
     @Test
@@ -81,5 +87,25 @@ class TriviaServiceTest {
         when(repo.porId(9, true)).thenReturn(java.util.Optional.empty());
 
         assertEquals(TriviaService.Estado.NO_EXISTE, svc().responder(USER, 9, 'A', true).estado());
+        verify(scores, never()).registrar(anyLong(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("ranking se lee del marcador, no de las respuestas")
+    void rankingDesdeMarcador() {
+        var fila = new TriviaRepositorio.FilaTrivia(USER, 4);
+        when(scores.ranking(10)).thenReturn(java.util.List.of(fila));
+
+        assertEquals(java.util.List.of(fila), svc().ranking(10));
+        verify(repo, never()).ranking(anyInt());
+    }
+
+    @Test
+    @DisplayName("marcador delega en el repositorio de scores")
+    void marcador() {
+        var m = new TriviaScoreRepositorio.Marcador(4, 1, 5, 3, 2);
+        when(scores.de(USER)).thenReturn(java.util.Optional.of(m));
+
+        assertEquals(java.util.Optional.of(m), svc().marcador(USER));
     }
 }

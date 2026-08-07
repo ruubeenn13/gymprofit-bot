@@ -8,6 +8,9 @@ import java.util.Optional;
  * es one-shot y atómica: {@link TriviaRepositorio#registrarRespuesta} (INSERT IGNORE) es el gate; solo si
  * registra por primera vez y es acierto se paga el premio ({@link Trivia}) en coins + XP. Un doble clic o
  * una carrera no cobran dos veces.
+ *
+ * <p>Toda respuesta que pase el gate (acierto o fallo) suma además al marcador acumulado
+ * ({@link TriviaScoreRepositorio}), que es la fuente del ranking y de las stats por usuario.
  */
 public final class TriviaService {
 
@@ -19,10 +22,12 @@ public final class TriviaService {
     private final EconomiaRepositorio economia;
     private final XpService xp;
     private final UsuarioDiscordRepositorio usuarios;
+    private final TriviaScoreRepositorio scores;
 
     public TriviaService(TriviaRepositorio repo, EconomiaRepositorio economia, XpService xp,
-                         UsuarioDiscordRepositorio usuarios) {
+                         UsuarioDiscordRepositorio usuarios, TriviaScoreRepositorio scores) {
         this.repo = repo; this.economia = economia; this.xp = xp; this.usuarios = usuarios;
+        this.scores = scores;
     }
 
     /** Siguiente pregunta no respondida (idioma es/en); vacío si no quedan. */
@@ -41,6 +46,9 @@ public final class TriviaService {
         if (!repo.registrarRespuesta(actorId, preguntaId, acierto)) {
             return new Resultado(Estado.YA_RESPONDIDA, p.correcta(), 0, 0);
         }
+        // Solo las respuestas que pasan el gate cuentan en el marcador: así la racha y los contadores
+        // no se inflan con doble clics, y el fallo también cuenta (rompe la racha viva).
+        scores.registrar(actorId, acierto);
         if (!acierto) return new Resultado(Estado.FALLO, p.correcta(), 0, 0);
         Trivia.Recompensa rec = Trivia.recompensa(p.dificultad());
         economia.ingresar(actorId, rec.coins(), "trivia");
@@ -48,7 +56,13 @@ public final class TriviaService {
         return new Resultado(Estado.ACIERTO, p.correcta(), rec.coins(), rec.xp());
     }
 
+    /** Preguntas distintas acertadas del banco (progreso X/total); vive en {@code trivia_respuestas}. */
     public int aciertosDe(long actorId) { return repo.aciertosDe(actorId); }
     public int total() { return repo.total(Optional.empty()); }
-    public java.util.List<TriviaRepositorio.FilaTrivia> ranking(int limite) { return repo.ranking(limite); }
+
+    /** Top por aciertos acumulados, leído del marcador (más barato que recontar las respuestas). */
+    public java.util.List<TriviaRepositorio.FilaTrivia> ranking(int limite) { return scores.ranking(limite); }
+
+    /** Marcador acumulado del usuario (aciertos/fallos/partidas/rachas); vacío si no ha jugado. */
+    public Optional<TriviaScoreRepositorio.Marcador> marcador(long actorId) { return scores.de(actorId); }
 }

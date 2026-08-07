@@ -77,6 +77,7 @@ import com.gymprofit.bot.db.DescansoRepositorio;
 import com.gymprofit.bot.db.EconomiaRepositorio;
 import com.gymprofit.bot.db.EmpresaAccionRepositorio;
 import com.gymprofit.bot.db.TriviaRepositorio;
+import com.gymprofit.bot.db.TriviaScoreRepositorio;
 import com.gymprofit.bot.db.EmpresaPropuestaRepositorio;
 import com.gymprofit.bot.db.EmpresaRepositorio;
 import com.gymprofit.bot.db.InventarioRepositorio;
@@ -502,8 +503,10 @@ public final class Main {
             comandos.add(new RankComando(economiaService, usuarios, rangoService));
 
             // Trivia (F4): banco de preguntas con respuesta one-shot; al acertar paga coins + XP.
+            // El marcador (trivia_scores) alimenta el ranking y las stats por usuario.
             TriviaService triviaService = new TriviaService(
-                    new TriviaRepositorio(db.dataSource()), economiaRepo, xpService, usuarios);
+                    new TriviaRepositorio(db.dataSource()), economiaRepo, xpService, usuarios,
+                    new TriviaScoreRepositorio(db.dataSource()));
             comandos.add(new TriviaComando(triviaService));
             listeners.add(new TriviaListener(triviaService));
 
