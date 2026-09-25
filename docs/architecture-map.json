@@ -28,7 +28,7 @@
             {"name": "SplashActivity", "role": "Launcher: decide Login o Main segun sesion."},
             {"name": "MainActivity + ViewPager2", "role": "Host unico de las 5 pestanas (Home, Rutinas, Ejercicios, Nutricion, Perfil) + FloatingNavBar fija."},
             {"name": "BaseActivity", "role": "Tema/idioma/escala global + escucha 401 -> logout."},
-            {"name": "~35 Activities de flujo", "role": "Auth/onboarding, crear/editar rutina, comidas/alimentos, sesiones, mediciones, logros, admin."},
+            {"name": "~35 Activities de flujo", "role": "Auth/onboarding, crear/editar rutina, comidas/alimentos, sesiones, mediciones, logros, records (RecordsActivity, GP-088), admin."},
             {"name": "FloatingNavBar", "role": "Vista custom con shader AGSL (efecto lente) sincronizada con el pager."}
           ]
         },
@@ -42,7 +42,7 @@
             {"name": "ApiCallback / UiApiCallback", "role": "Envuelve enqueue: entrega POJO en hilo principal, centraliza el 401."},
             {"name": "UtilREST", "role": "Tokens en memoria + listener de 401 (logout global)."}
           ],
-          "retrofitInterfaces": ["AuthApi", "UsuarioApi", "EjercicioApi", "RutinaApi", "SesionApi", "ProgresoEjercicioApi", "ComidaApi", "AlimentoApi", "AlimentoComidaApi", "ObjetivoApi", "MedicionApi", "LogroApi", "DeviceTokenApi", "AdminApi"]
+          "retrofitInterfaces": ["AuthApi", "UsuarioApi", "EjercicioApi", "RutinaApi", "SesionApi", "RecordApi", "ComidaApi", "AlimentoApi", "AlimentoComidaApi", "ObjetivoApi", "MedicionApi", "LogroApi", "DeviceTokenApi", "AdminApi"]
         },
         {
           "name": "Modelo / estado",
@@ -91,7 +91,8 @@
             {"name": "EjercicioController (+ EjercicioJooqController)", "role": "/ejercicios: catalogo, buscar paginado, CRUD (ADMIN)."},
             {"name": "RutinaController + RutinaEjercicioController", "role": "/rutinas y /rutinas-ejercicios: rutinas predefinidas y de usuario."},
             {"name": "SesionEntrenamientoController + EjercicioRealizadoController", "role": "/sesiones y /ejercicios-realizados."},
-            {"name": "ProgresoEjercicioController", "role": "/progreso-ejercicios: historial por usuario/ejercicio."},
+            {"name": "RecordController", "role": "/records: records vigentes y progresion por ejercicio, calculados al pedirlos a partir de series_realizadas (GP-088). Sin id de usuario: sale del token."},
+            {"name": "ProgresoEjercicioController", "role": "/progreso-ejercicios: solo historial y record-destacado, heredadas para builds ya repartidas; leen de las series. La tabla progreso_ejercicios queda sin uso hasta su migracion de retirada."},
             {"name": "ComidaController + AlimentoController + AlimentoComidaController", "role": "Nutricion: diario, alimentos, relacion N:M, resumen diario."},
             {"name": "MedicionCorporalController", "role": "/mediciones-corporales."},
             {"name": "ObjetivoPersonalController", "role": "/objetivos-personales."},
@@ -117,7 +118,7 @@
           "components": [
             {"name": "IXxxRepository (20)", "role": "Spring Data JPA (CRUD estandar)."},
             {"name": "IXxxJooqRepository (alimento, ejercicio, rutina, usuario)", "role": "jOOQ para consultas complejas/paginacion tipada."},
-            {"name": "entity (19)", "role": "Usuario, Ejercicio, Rutina, RutinaEjercicio, SesionEntrenamiento, EjercicioRealizado, ProgresoEjercicio, Comida, Alimento, AlimentoComida, MedicionCorporal, ObjetivoPersonal, Logro, UsuarioLogro, Notificacion, RefreshToken, DeviceToken, FotoPerfil, Role."}
+            {"name": "entity (18)", "role": "Usuario, Ejercicio, Rutina, RutinaEjercicio, SesionEntrenamiento, EjercicioRealizado, Comida, Alimento, AlimentoComida, MedicionCorporal, ObjetivoPersonal, Logro, UsuarioLogro, Notificacion, RefreshToken, DeviceToken, FotoPerfil, Role."}
           ]
         },
         {
