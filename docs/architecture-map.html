@@ -308,7 +308,7 @@
 
     <p class="sec-h">los tres sistemas</p>
     <div class="grid3">
-      <div class="mini app"><h4>app android</h4><div class="path">es.pmdm.gymprofit</div><p>Cliente del usuario. Capas UI → red → REST; sin Room ni ViewModel.</p><div class="tags"><span class="tag">Java 11</span><span class="tag">Retrofit</span><span class="tag">FCM</span></div></div>
+      <div class="mini app"><h4>app android</h4><div class="path">es.pmdm.gymprofit</div><p>Cliente del usuario. Capas UI → red → REST; sin Room. Registrar sesión, con ViewModel.</p><div class="tags"><span class="tag">Java 11</span><span class="tag">Retrofit</span><span class="tag">FCM</span></div></div>
       <div class="mini api"><h4>api rest</h4><div class="path">com.gymprofit.api · /api</div><p>Núcleo. controller → service → repository (JPA/jOOQ).</p><div class="tags"><span class="tag">Spring Boot 3.5</span><span class="tag">JWT</span><span class="tag">Flyway</span></div></div>
       <div class="mini bot"><h4>bot discord</h4><div class="path">com.gymprofit.bot</div><p>Comunidad gamificada. commands → services → JDBC propio.</p><div class="tags"><span class="tag">Java 21 · JDA 5</span><span class="tag">Retrofit</span></div></div>
     </div>
@@ -325,7 +325,7 @@
   <section class="view" id="v-app">
     <div class="lead app">
       <h3>app android · gymprofit</h3>
-      <p class="role">Capas simples: <b>UI → red (singleton Retrofit) → REST</b>. Sin repositorio, ViewModel ni Room; estado en <code>PreferencesManager</code> (prefs normales + cifradas) y <code>UtilREST</code> (tokens en memoria). Callbacks <code>enqueue</code>.</p>
+      <p class="role">Capas simples: <b>UI → red (singleton Retrofit) → REST</b>. Sin Room; estado en <code>PreferencesManager</code> (prefs normales + cifradas) y <code>UtilREST</code> (tokens en memoria). Callbacks <code>enqueue</code>. Excepción: Registrar sesión guarda su borrador en <code>RegistrarSesionViewModel</code> (<code>SavedStateHandle</code>) y llama a la red por <code>RegistroSesionRepositorio</code> (GP-016).</p>
       <div class="path">TFG-GymProFit/app/GymProFit · es.pmdm.gymprofit</div>
       <div class="tags"><span class="tag">Java 11 · minSdk 24</span><span class="tag">EncryptedSharedPreferences</span><span class="tag">Glide</span><span class="tag">MPAndroidChart</span><span class="tag">Crashlytics</span></div>
     </div>

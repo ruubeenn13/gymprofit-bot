@@ -5,7 +5,7 @@
     "description": "Modelo legible por máquina de los tres sistemas de GymProFit (app Android, API REST, bot de Discord) y cómo se integran. Pensado para que un agente sepa dónde tocar al añadir una feature. Sin secretos: solo estructura.",
     "systems": ["app", "api", "bot"],
     "conventions": {
-      "app": "Android/Java sin MVVM formal: UI (Activity/Fragment) -> network (ApiClient singleton Retrofit) -> model DTOs. Estado en PreferencesManager (normal + cifrado). Nada de Room/ViewModel.",
+      "app": "Android/Java sin MVVM formal: UI (Activity/Fragment) -> network (ApiClient singleton Retrofit) -> model DTOs. Estado en PreferencesManager (normal + cifrado). Sin Room. Excepción (GP-016): Registrar sesión usa RegistrarSesionViewModel (SavedStateHandle) + RegistroSesionRepositorio.",
       "api": "Spring Boot en capas: controller -> service (IXxx + Xxx) -> repository (JPA + jOOQ) -> entity; DTOs explicitos con MapStruct, JWT stateless, ddl-auto=validate (Flyway gobierna el esquema).",
       "bot": "JDA sin Spring: commands/ -> services/ (logica testeable + catalogos en codigo) -> db/ (repos JDBC + Flyway); api/ es cliente Retrofit hacia la API. Un archivo por comando; embeds solo por EmbedFactory."
     }
@@ -19,7 +19,7 @@
       "rootPackage": "es.pmdm.gymprofit",
       "language": "Java 11 (Android, minSdk 24, target/compileSdk 36)",
       "stack": ["Retrofit2", "OkHttp3", "Gson", "ViewPager2 + Fragments", "AppCompat/Material", "androidx.security-crypto (EncryptedSharedPreferences)", "Glide", "MPAndroidChart", "Firebase (FCM + Analytics + Crashlytics)", "RuntimeShader AGSL + RenderEffect"],
-      "architecturePattern": "Capas simple: UI -> Network singleton -> REST. Sin repositorio/ViewModel/Room. Callbacks Retrofit (enqueue).",
+      "architecturePattern": "Capas simple: UI -> Network singleton -> REST. Callbacks Retrofit (enqueue). Sin Room. Solo Registrar sesión tiene ViewModel + repositorio (el borrador sobrevive a girar y a la muerte del proceso, GP-016).",
       "layers": [
         {
           "name": "UI",
