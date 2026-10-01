@@ -1,13 +1,13 @@
 # Operación — arrancar, reiniciar y desplegar GymProBot
 
 Guía práctica para el día a día: cómo tener el bot funcionando, qué hacer **cada vez que hay
-cambios de código**, y cómo dejarlo **24/7**. Léela cuando no recuerdes el flujo.
+cambios de código**, y cómo funciona en **producción (24/7)**. Léela cuando no recuerdes el flujo.
 
 > **TL;DR**
-> - Ahora mismo el bot corre **en tu PC** (una terminal). **No es 24/7**: se apaga al cerrar la
->   terminal o apagar el equipo.
+> - En **local** el bot corre **en tu PC** (una terminal): se apaga al cerrar la terminal o apagar
+>   el equipo.
 > - **No hay recarga en caliente.** Cada cambio de código = **recompilar + rearrancar**.
-> - Para **24/7 real** hay que **desplegar en Render** (git push → build + deploy automático).
+> - **Producción 24/7:** en el homelab. Push a `main` → CI en verde → despliegue automático.
 
 ---
 
@@ -17,8 +17,8 @@ El bot es un proceso Java (`java -jar`). No te "conectas" a él como a un servid
 solo a Discord** por la gateway (WebSocket) con el `DISCORD_TOKEN`. Tú solo lo **arrancas** y ves sus
 **logs** en la terminal.
 
-- **Estado / salud:** expone `http://localhost:8080/health` (útil para comprobar que vive; en Render
-  lo usa el keep-alive).
+- **Estado / salud:** expone `http://localhost:8080/health` (útil para comprobar que vive; en
+  producción lo vigila Uptime Kuma).
 - **Está "activo" mientras el proceso esté vivo.** Si ves los logs corriendo, está online en Discord.
 
 ---
@@ -50,8 +50,8 @@ Luego exporta las variables del `.env` (o las pones a mano) y:
 java -jar target/gymprofit-bot.jar
 ```
 
-**Requisitos:** JDK 21 en `~/.jdks/ms-21.0.11` y un `.env` relleno (copia de `.env.example`; DB de
-Aiven, token del bot de test). El `.env` está gitignoreado: nunca se commitea.
+**Requisitos:** JDK 21 en `~/.jdks/ms-21.0.11` y un `.env` relleno (copia de `.env.example`; BD de
+pruebas, token del bot de test). El `.env` está gitignoreado: nunca se commitea.
 
 ---
 
@@ -74,20 +74,24 @@ No hay hot-reload. El flujo es siempre:
 
 ---
 
-## 4. Dejarlo 24/7 (producción → Render)
+## 4. Producción 24/7 (homelab)
 
-El proyecto trae `Dockerfile` (multi-stage) y `render.yaml` (blueprint). En Render el bot corre en
-segundo plano y **se redepliega en cada push**.
+El bot corre en el [homelab](https://github.com/ruubeenn13/homelab) (Ubuntu Server + Docker Compose),
+en el stack `gymprofit-bot`, a partir del `Dockerfile` (multi-stage) de este repo.
 
-1. **Variables de entorno en Render** (dashboard del servicio → *Environment*), NO en el `.env`:
-   `DISCORD_TOKEN` (bot de **producción**, distinto al de test), `DB_URL`, `DB_USER`, `DB_PASSWORD`,
-   `GYMPROFIT_API_URL`, `PORT`, `TZ`. (Bloque PROD comentado en `.env` como referencia.)
-2. **Desplegar:** haz *merge* a la rama que Render observa (normalmente `main`) o pulsa *Manual
-   Deploy*. Render construye la imagen Docker y arranca el contenedor.
-3. **Logs:** en el dashboard de Render (pestaña *Logs*). Deben salir Flyway `V1…Vn` + `Conectado a
-   Discord como …`.
-4. **Keep-alive:** en plan free, Render duerme los servicios inactivos; el health server + el cron de
-   `keep-alive.yml` pingan `/health` para mantenerlo despierto. Ver ADR sobre hosting en
+1. **Variables de entorno:** en el `.env` del stack en el servidor (fuera de git), NO en el `.env`
+   local: `DISCORD_TOKEN` (bot de **producción**, distinto al de test), `DB_URL`, `DB_USER`,
+   `DB_PASSWORD`, `GYMPROFIT_API_URL`, `BOT_SERVICE_USER`, `BOT_SERVICE_PASSWORD`, `BOT_CRYPTO_KEY`,
+   `PORT` y `TZ`.
+2. **Desplegar:** push a `main`. El CI ([`ci.yml`](../.github/workflows/ci.yml)) compila y pasa los
+   tests en GitHub; si queda en verde, [`deploy.yml`](../.github/workflows/deploy.yml) corre en el
+   runner self-hosted del servidor: construye la imagen, recrea el contenedor y avisa por ntfy. Los
+   commits que solo tocan documentación no lanzan el CI, así que no despliegan.
+3. **Logs:** `docker logs -f gymprofit-bot` en el servidor. Deben salir Flyway `V1…Vn` +
+   `Conectado a Discord como …`.
+4. **Salud:** Uptime Kuma vigila `/health`; no hace falta keep-alive.
+5. **BD:** MySQL 8.4 LTS en el propio servidor (stack `mysql`), sin puertos publicados. Volcado
+   diario con `mysqldump` y copia cifrada con restic (disco local + Backblaze B2). Ver ADR-004 en
    [`decisions.md`](decisions.md).
 
 > **Importante:** producción y test deben usar **bots/tokens distintos** e, idealmente, **bases de
@@ -104,7 +108,7 @@ segundo plano y **se redepliega en cada push**.
 | Arrancar sin recompilar | `.\scripts\run-local.ps1 -SkipBuild` |
 | Parar el bot | `Ctrl+C` en la terminal |
 | Ver si está vivo | logs corriendo, o `http://localhost:8080/health` |
-| Ponerlo 24/7 | push a `main` → deploy en Render |
+| Desplegar a producción | push a `main` → CI en verde → deploy automático en el homelab |
 | Cambiar esquema de BD | nueva migración Flyway `V4__…` (se aplica sola al arrancar) |
 
 ---
@@ -112,7 +116,7 @@ segundo plano y **se redepliega en cada push**.
 ## 6. Problemas típicos
 
 - **`'mysql' no se reconoce`** → usa `mysqlsh` (MySQL Shell) con `--sql --host=… --port=… --user=… --password --ssl-mode=REQUIRED`.
-- **`Access denied for user`** → el usuario de BD no tiene permiso sobre `gymprofit_bot` (revisa el GRANT en Aiven).
+- **`Access denied for user`** → el usuario de BD no tiene permiso sobre `gymprofit_bot` (revisa el GRANT en el servidor MySQL).
 - **`Cannot delete a channel required for community servers`** → normal con Comunidad activada; `/setup desde_cero` ya lo maneja (canal temporal). Si quedaran huérfanos, reasigna a mano los canales de comunidad y bórralos.
 - **El bot arranca pero no responde comandos** → mira que tenga rol **Administrador** en el server y que la conexión ponga `Finished Loading!`.
 - **`java` es la versión 8** → no exportaste `JAVA_HOME` al JDK 21 (el script lo hace por ti).

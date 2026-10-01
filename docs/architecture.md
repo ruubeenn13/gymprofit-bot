@@ -7,9 +7,9 @@ commit** (ver [`../CLAUDE.md`](../CLAUDE.md)).
 ## Visión general
 
 ```
-Discord Gateway  ⇄  GymProBot (JDA 5, Render)
+Discord Gateway  ⇄  GymProBot (JDA 5, homelab)
                         │
-                        ├── BD del bot (Aiven MySQL · gymprofit_bot)
+                        ├── BD del bot (MySQL 8.4 LTS · gymprofit_bot, en el homelab)
                         │     XP, coins, rachas, warns, tienda, retos, trivia, config…
                         │
                         └── API GymProFit (Render, context-path /api)
@@ -17,10 +17,10 @@ Discord Gateway  ⇄  GymProBot (JDA 5, Render)
 ```
 
 - El bot **nunca** toca la BD de la app: todo dato de la app pasa por la **API REST**.
-- El estado del bot vive **siempre** en su BD: el free tier de Render borra memoria y disco
-  en cada reinicio.
-- Health server propio en `/health` (JDK `com.sun.net.httpserver`, sin dependencias): lo usan
-  el health check de Render y `keep-alive.yml`.
+- El estado del bot vive **siempre** en su BD: el contenedor se recrea en cada despliegue y no
+  guarda nada en disco.
+- Health server propio en `/health` (JDK `com.sun.net.httpserver`, sin dependencias): lo vigila
+  Uptime Kuma en el homelab.
 
 ## Paquetes (`com.gymprofit.bot`)
 
@@ -218,10 +218,10 @@ Objetivo F3: rol `BOT` / endpoints `/bot/**` acotados.
 
 ## Hosting y observabilidad
 
-- **Hosting:** el bot NO puede correr free en el mismo workspace que la API (las 750 h/mes
-  free se comparten). Opciones y decisión en [`decisions.md`](decisions.md) (SPEC §14).
+- **Hosting:** homelab propio (Docker Compose), con despliegue continuo desde `main` tras CI en
+  verde (runner self-hosted, `deploy.yml`). Decisión en [`decisions.md`](decisions.md) (ADR-004).
 - **Zona horaria:** los jobs fijan `Europe/Madrid` explícitamente; el contenedor va en UTC.
-  `TZ=Europe/Madrid` también en `render.yaml`.
+  `TZ=Europe/Madrid` también en el `.env` del servidor.
 - **`#bot-logs`:** canal privado de staff donde el bot publica arranques, errores no
   controlados y fallos de jobs (appender propio, F1).
 - **Resiliencia ante la API:** `deferReply()` + reintento con backoff; si no responde,

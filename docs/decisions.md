@@ -36,7 +36,9 @@ El free tier de Render borra memoria y disco en cada reinicio.
 estado fuera del FS efímero. El bot **no** accede a la BD de la app: la tabla de vinculación
 `discord_links` vive en la BD de la API (es dato de la app).
 
-**Estado:** aceptada.
+**Estado:** sustituida (agosto de 2026). Con el paso al homelab (ADR-004), la database
+`gymprofit_bot` vive en un MySQL 8.4 LTS del propio servidor, sin puertos publicados. Se mantiene
+el resto: database propia, Flyway y ningún acceso a la BD de la app.
 
 ---
 
@@ -61,7 +63,9 @@ tickets). Hay que minimizar el riesgo legal sin romper consultas ni paginación.
 **Decisión.**
 - **Minimización:** solo se guardan IDs (snowflakes, pseudónimos) + números + poco texto libre.
   Nunca nombres reales, emails ni avatares.
-- **Cifrado en reposo:** ya lo da Aiven (disco AES) + TLS en tránsito (`sslMode=REQUIRED`).
+- **Protección de la BD:** con Aiven, cifrado en disco + TLS en tránsito (`sslMode=REQUIRED`).
+  Desde el paso al homelab (ADR-004), la BD no publica puertos (solo es accesible desde la red
+  Docker interna) y sus copias de seguridad van cifradas con restic.
 - **Cifrado de campo (AES-256-GCM, `util/Cifrador`):** solo el texto libre con posible dato
   personal (`warns.motivo`, `sanciones.motivo`, `sanciones.nick_anterior`, futuros transcripts).
   Los IDs y numéricos van **en claro** para poder indexar, unir y paginar. **No se cifra todo**:
@@ -92,12 +96,13 @@ producción incluida**. Por tanto el bot **no** puede desplegarse gratis junto a
   que ya mantiene despierta la API (o `keep-alive.yml`).
 - **(c)** VM Always Free de Oracle Cloud.
 
-**Decisión.** _Pendiente de elección definitiva por el responsable del despliegue._ Hasta
-entonces, `render.yaml` queda en `plan: free` documentado y `keep-alive.yml` presente pero
-marcado como innecesario en pago. **Actualizar este ADR con la opción elegida antes del
-primer deploy de producción.**
+**Decisión.** Ninguna de las tres: el bot corre en mi **homelab** (Ubuntu Server + Docker
+Compose), junto a su BD MySQL. Despliegue continuo desde `main`: el CI pasa en GitHub y, solo si
+queda en verde, un runner self-hosted construye la imagen en el servidor y recrea el contenedor
+(`deploy.yml`, desde `64c1bc1`). Sin límites de horas ni keep-alive (`keep-alive.yml` se retiró
+en `700e5fb`); por eso también sobra `render.yaml`.
 
-**Estado:** propuesta (pendiente de decisión de despliegue).
+**Estado:** aceptada (agosto de 2026).
 
 ---
 

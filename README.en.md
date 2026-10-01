@@ -16,9 +16,6 @@
   <img alt="License" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
-<!-- TODO: replace with a real demo GIF once Phase 1 is deployed. -->
-<p align="center"><em>🎬 (demo coming soon — Phase 1)</em></p>
-
 ---
 
 ## What it does
@@ -43,8 +40,8 @@ GymProBot turns the community server into a gamified gym and wires it to the app
 5. **Run:** export the `.env` variables and `java -jar target/gymprofit-bot.jar`.
    Check `http://localhost:8080/health` → `OK`.
 
-> Current status: **Phase 1 (Core) in progress**. Foundation ready (DB + Flyway, EmbedFactory,
-> Discord connection) and slash command infrastructure.
+> Status: **in production** on my homelab, with continuous deployment from `main`, and under
+> active development.
 
 ### Commands
 
@@ -109,15 +106,15 @@ Design details in [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`](d
 
 - **Java 21** + **JDA 5** (Discord), built with **Maven** (`mvnw` wrapper).
 - **Retrofit2 + OkHttp3 + Gson** to the GymProFit API (same client as the Android app).
-- **Bot DB:** Aiven MySQL (database `gymprofit_bot`), schema via **Flyway**, JDBC + HikariCP.
+- **Bot DB:** MySQL 8.4 LTS on my homelab (database `gymprofit_bot`), schema via **Flyway**, JDBC + HikariCP.
 - **i18n** ES/EN with `ResourceBundle`. **Logs** SLF4J + Logback (console only).
 - **No Spring:** health server via the JDK's `com.sun.net.httpserver`; fat-jar via `maven-shade-plugin`.
 
 ### Architecture
 
 ```
-Discord Gateway ⇄ GymProBot (JDA, Render)
-                     ├── Bot DB (Aiven MySQL · gymprofit_bot): XP, coins, streaks, warns, shop…
+Discord Gateway ⇄ GymProBot (JDA, homelab)
+                     ├── Bot DB (MySQL 8.4 · gymprofit_bot): XP, coins, streaks, warns, shop…
                      └── GymProFit API (Render, /api): exercises, routines, achievements, stats, linking
 ```
 
@@ -134,14 +131,15 @@ The bot **never** touches the app's DB: all app data goes through the REST API. 
 | Variable | Use |
 |---|---|
 | `DISCORD_TOKEN` | Discord bot token |
-| `DB_URL` / `DB_USER` / `DB_PASSWORD` | Bot DB (Aiven MySQL `gymprofit_bot`) |
+| `DB_URL` / `DB_USER` / `DB_PASSWORD` | Bot DB (MySQL `gymprofit_bot`) |
 | `GYMPROFIT_API_URL` | GymProFit API base (e.g. `https://gymprofit-api.onrender.com/api`) |
 | `BOT_SERVICE_USER` / `BOT_SERVICE_PASSWORD` | Bot service account in the app |
-| `PORT` | Health server port (Render injects it; defaults to 8080) |
+| `BOT_CRYPTO_KEY` | AES-256 key (32 bytes, base64) to encrypt free text that may hold personal data |
+| `PORT` | Health server port (defaults to 8080) |
 | `TZ` | `Europe/Madrid` (jobs don't trust the system TZ) |
 
-Template in [`.env.example`](.env.example). Exported by hand locally; configured in the Render
-dashboard for deployment (see [`render.yaml`](render.yaml)). **Secrets are never committed.**
+Template in [`.env.example`](.env.example). Exported by hand locally; in production they live in the
+server's `.env`, outside git. **Secrets are never committed.**
 
 ### Development commands
 
@@ -152,15 +150,27 @@ dashboard for deployment (see [`render.yaml`](render.yaml)). **Secrets are never
 
 ### Deployment
 
-Multi-stage Docker ([`Dockerfile`](Dockerfile)) on Render (blueprint [`render.yaml`](render.yaml)).
-Health check at `/health`. **Hosting:** the bot can't run free in the same workspace as the API
-(SPEC §14 / ADR-004); see [`docs/decisions.md`](docs/decisions.md).
+Multi-stage Docker ([`Dockerfile`](Dockerfile)) on my [homelab](https://github.com/ruubeenn13/homelab)
+(Ubuntu Server + Docker Compose). **Continuous deployment:** every push to `main` runs CI on GitHub
+Actions and, only if it's green, a self-hosted runner builds the image on the server and recreates the
+container ([`deploy.yml`](.github/workflows/deploy.yml)), with an ntfy notification. Uptime Kuma
+monitors `/health`. Hosting decision in [`docs/decisions.md`](docs/decisions.md) (ADR-004).
 
 ### Privacy (GDPR)
 
-The bot stores community state (XP, coins, streaks, warns, etc.) in its DB, keyed by your
-`discord_id`. `/privacidad borrar` deletes all your rows and revokes the app link if
-present. What is stored and why is detailed in this section as the phases progress.
+**What is stored.** The bot's DB (`gymprofit_bot`, separate from the app's) only keeps your
+**`discord_id`** (Discord's public identifier) and community data: XP, level, coins, streak,
+language, your game state and, if you were moderated, your warns/sanctions. No real names, emails
+or passwords.
+
+**How it's protected.** The DB publishes no ports: it's only reachable from the server's internal
+Docker network, and its backups are encrypted (restic). **Free text** that may hold personal data
+(sanction reasons, previous nicknames) is stored **encrypted with AES-256-GCM** (`util/Cifrador`,
+key `BOT_CRYPTO_KEY`). Data minimisation and **automatic retention** (a job purges revoked warns
+after 6 months and sanctions after 12).
+
+**Your rights:** `/privacidad info`, `/privacidad exportar` (JSON with everything the bot stores
+about you) and `/privacidad borrar` (deletes all your rows and revokes the app link if present).
 
 </details>
 

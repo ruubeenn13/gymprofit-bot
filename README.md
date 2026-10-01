@@ -16,9 +16,6 @@
   <img alt="Licencia" src="https://img.shields.io/badge/licencia-propietaria-lightgrey">
 </p>
 
-<!-- TODO: sustituir por un GIF real de demo cuando la Fase 1 esté desplegada. -->
-<p align="center"><em>🎬 (demo próximamente — Fase 1)</em></p>
-
 ---
 
 ## ¿Qué hace?
@@ -43,8 +40,8 @@ GymProBot convierte el servidor de la comunidad en un gimnasio gamificado y lo c
 5. **Arranca:** exporta las variables del `.env` y `java -jar target/gymprofit-bot.jar`.
    Comprueba `http://localhost:8080/health` → `OK`.
 
-> Estado actual: **Fase 1 (Núcleo) en curso**. Base lista (BD + Flyway, EmbedFactory, conexión
-> a Discord) e infraestructura de slash commands.
+> Estado: **en producción** en mi homelab, con despliegue continuo desde `main`, y en desarrollo
+> activo.
 
 ### Comandos
 
@@ -111,15 +108,15 @@ Detalle y diseño en [`docs/superpowers/specs/2026-07-13-economia-rpg-vision.md`
 
 - **Java 21** + **JDA 5** (Discord), build con **Maven** (wrapper `mvnw`).
 - **Retrofit2 + OkHttp3 + Gson** hacia la API GymProFit (mismo cliente que la app Android).
-- **BD del bot:** Aiven MySQL (database `gymprofit_bot`), esquema con **Flyway**, JDBC + HikariCP.
+- **BD del bot:** MySQL 8.4 LTS en mi homelab (database `gymprofit_bot`), esquema con **Flyway**, JDBC + HikariCP.
 - **i18n** ES/EN con `ResourceBundle`. **Logs** SLF4J + Logback (solo consola).
 - **Sin Spring:** health server con `com.sun.net.httpserver` del JDK; fat-jar con `maven-shade-plugin`.
 
 ### Arquitectura
 
 ```
-Discord Gateway ⇄ GymProBot (JDA, Render)
-                     ├── BD del bot (Aiven MySQL · gymprofit_bot): XP, coins, rachas, warns, tienda…
+Discord Gateway ⇄ GymProBot (JDA, homelab)
+                     ├── BD del bot (MySQL 8.4 · gymprofit_bot): XP, coins, rachas, warns, tienda…
                      └── API GymProFit (Render, /api): ejercicios, rutinas, logros, stats, vinculación
 ```
 
@@ -136,21 +133,21 @@ en [`docs/architecture.md`](docs/architecture.md) y decisiones en [`docs/decisio
 | Variable | Uso |
 |---|---|
 | `DISCORD_TOKEN` | Token del bot de Discord |
-| `DB_URL` / `DB_USER` / `DB_PASSWORD` | BD del bot (Aiven MySQL `gymprofit_bot`) |
+| `DB_URL` / `DB_USER` / `DB_PASSWORD` | BD del bot (MySQL `gymprofit_bot`) |
 | `GYMPROFIT_API_URL` | Base de la API GymProFit (p. ej. `https://gymprofit-api.onrender.com/api`) |
 | `BOT_SERVICE_USER` / `BOT_SERVICE_PASSWORD` | Cuenta de servicio del bot en la app |
 | `BOT_CRYPTO_KEY` | Clave AES-256 (32 bytes base64) para cifrar el texto libre con dato personal |
-| `PORT` | Puerto del health server (Render lo inyecta; por defecto 8080) |
+| `PORT` | Puerto del health server (por defecto 8080) |
 | `TZ` | `Europe/Madrid` (los jobs no confían en la TZ del sistema) |
 
-Plantilla en [`.env.example`](.env.example). En local se exportan a mano; en Render se configuran
-en el dashboard (ver [`render.yaml`](render.yaml)). **Nunca se commitean secretos.**
+Plantilla en [`.env.example`](.env.example). En local se exportan a mano; en producción viven en el
+`.env` del servidor, fuera de git. **Nunca se commitean secretos.**
 
 ### Comandos de desarrollo
 
 - **Arrancar/reiniciar en local:** doble clic en `scripts\arrancar-bot.bat`, o
   `.\scripts\run-local.ps1` desde la terminal (compila, carga `.env` y ejecuta).
-  Guía completa de operación (reiniciar tras cambios, 24/7 en Render): [`docs/operacion.md`](docs/operacion.md).
+  Guía completa de operación (reiniciar tras cambios, producción en el homelab): [`docs/operacion.md`](docs/operacion.md).
 - `./mvnw verify` — build + tests (gate de CI).
 - `./mvnw -DskipTests package` — genera el fat-jar ejecutable.
 - Reglas del repo: [`CLAUDE.md`](CLAUDE.md), [`rules/`](rules/). Fuente de verdad:
@@ -158,19 +155,21 @@ en el dashboard (ver [`render.yaml`](render.yaml)). **Nunca se commitean secreto
 
 ### Despliegue
 
-Docker multi-stage ([`Dockerfile`](Dockerfile)) sobre Render (blueprint [`render.yaml`](render.yaml)).
-Health check en `/health`. **Hosting:** el bot no puede correr free en el mismo workspace que la
-API (SPEC §14 / ADR-004); ver [`docs/decisions.md`](docs/decisions.md).
+Docker multi-stage ([`Dockerfile`](Dockerfile)) en mi [homelab](https://github.com/ruubeenn13/homelab)
+(Ubuntu Server + Docker Compose). **Despliegue continuo:** cada push a `main` pasa el CI en GitHub
+Actions y, solo si queda en verde, un runner self-hosted construye la imagen en el servidor y recrea
+el contenedor ([`deploy.yml`](.github/workflows/deploy.yml)), con aviso por ntfy. Uptime Kuma vigila
+`/health`. Decisión de hosting en [`docs/decisions.md`](docs/decisions.md) (ADR-004).
 
 ### Privacidad (GDPR)
 
-**Qué se guarda.** En la BD del bot (`gymprofit_bot` en Aiven MySQL, separada de la de la app) solo
+**Qué se guarda.** En la BD del bot (`gymprofit_bot`, separada de la de la app) solo
 tu **`discord_id`** (identificador público de Discord) y datos de comunidad: XP, nivel, monedas,
 racha, idioma, tu estado de juego (personaje, inventario, descanso…) y, si te han moderado, tus
 avisos/sanciones. **No** se guardan nombres reales, emails ni contraseñas.
 
-**Cómo se protege.** Cifrado en reposo (Aiven) + TLS en tránsito (`sslMode=REQUIRED`). El **texto
-libre** con posible dato personal (motivos de sanción, apodos previos) se guarda **cifrado con
+**Cómo se protege.** La BD no publica puertos: solo es accesible desde la red Docker interna del
+servidor, y sus copias de seguridad van cifradas (restic). El **texto libre** con posible dato personal (motivos de sanción, apodos previos) se guarda **cifrado con
 AES-256-GCM** (`util/Cifrador`, clave `BOT_CRYPTO_KEY`). Los IDs y numéricos van en claro para poder
 consultar y paginar. Minimización de datos y **retención automática** (job que purga avisos
 revocados > 6 meses y sanciones > 12 meses).
